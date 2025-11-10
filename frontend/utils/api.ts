@@ -11,7 +11,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      withCredentials: true, // Important for session-based authentication
+      withCredentials: false, // Disabled for CORS testing
     });
 
     // Request interceptor

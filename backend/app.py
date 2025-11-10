@@ -33,18 +33,13 @@ def create_app(config_name=None):
     logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
     logger.info("="*60)
 
-    # Initialize extensions with credentials support
-    # For testing, allow all origins if CORS_ALLOW_ALL is set
-    if app.config.get('CORS_ALLOW_ALL', False):
-        logger.info("CORS: Allowing ALL origins (testing mode)")
-        cors.init_app(app,
-                     origins='*',
-                     supports_credentials=True)
-    else:
-        logger.info(f"CORS: Allowing origin {app.config['FRONTEND_URL']}")
-        cors.init_app(app,
-                     origins=[app.config['FRONTEND_URL']],
-                     supports_credentials=True)
+    # Initialize extensions with CORS completely disabled for testing
+    logger.info("CORS: COMPLETELY DISABLED FOR TESTING - Allowing all origins and methods")
+    cors.init_app(app,
+                 resources={r"/*": {"origins": "*"}},
+                 allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+                 methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+                 supports_credentials=False)  # Must be False when origins is "*"
     session.init_app(app)
 
     # Initialize SocketIO with session support
@@ -52,12 +47,12 @@ def create_app(config_name=None):
     async_mode = 'threading' if sys.platform == 'win32' else 'eventlet'
     logger.info(f"Using SocketIO async_mode: {async_mode}")
 
-    # SocketIO CORS
-    socket_origins = '*' if app.config.get('CORS_ALLOW_ALL', False) else [app.config['FRONTEND_URL']]
+    # SocketIO CORS - completely disabled for testing
+    logger.info("SocketIO CORS: COMPLETELY DISABLED - Allowing all origins")
     socketio.init_app(app,
-                     cors_allowed_origins=socket_origins,
+                     cors_allowed_origins='*',
                      async_mode=async_mode,
-                     cors_credentials=True)
+                     cors_credentials=False)
 
     # Database connection
     try:
