@@ -1,5 +1,5 @@
 from flask_socketio import emit, join_room, leave_room, disconnect
-from flask import request
+from flask import request, current_app
 from services.auth_service import AuthService
 from models.topic import Topic
 from models.message import Message
@@ -24,7 +24,7 @@ def register_socketio_handlers(socketio):
         """Handle client connection."""
         try:
             # Verify session
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             if not auth_service.is_authenticated():
                 logger.warning(f"Unauthenticated connection attempt from {request.sid}")
                 disconnect()
@@ -118,7 +118,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 emit('error', {'message': 'Authentication required'})
@@ -128,7 +128,7 @@ def register_socketio_handlers(socketio):
             user_id = user['id']
 
             # Verify topic exists and user has access
-            topic_model = Topic(request.current_app.db)
+            topic_model = Topic(current_app.db)
             topic = topic_model.get_topic_by_id(topic_id)
 
             if not topic:
@@ -155,7 +155,7 @@ def register_socketio_handlers(socketio):
             # Handle anonymous identity
             anonymous_name = None
             if use_anonymous and topic.get('settings', {}).get('allow_anonymous', True):
-                anon_model = AnonymousIdentity(request.current_app.db)
+                anon_model = AnonymousIdentity(current_app.db)
                 if custom_anonymous_name:
                     # Validate and use custom anonymous name
                     anonymous_name = anon_model.create_anonymous_identity(
@@ -168,7 +168,7 @@ def register_socketio_handlers(socketio):
                         anonymous_name = anon_model.create_anonymous_identity(user_id, topic_id)
 
             # Get recent messages
-            message_model = Message(request.current_app.db)
+            message_model = Message(current_app.db)
             messages = message_model.get_messages(topic_id, limit=50, user_id=user_id)
 
             # Get topic info
@@ -213,7 +213,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 return
@@ -232,7 +232,7 @@ def register_socketio_handlers(socketio):
                     del user_rooms[user_id]
 
             # Get anonymous identity for notification
-            anon_model = AnonymousIdentity(request.current_app.db)
+            anon_model = AnonymousIdentity(current_app.db)
             anonymous_name = anon_model.get_anonymous_identity(user_id, topic_id)
 
             # Notify other users
@@ -268,7 +268,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated and in topic
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 emit('error', {'message': 'Authentication required'})
@@ -295,7 +295,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify topic exists and user has access
-            topic_model = Topic(request.current_app.db)
+            topic_model = Topic(current_app.db)
             topic = topic_model.get_topic_by_id(topic_id)
 
             if not topic:
@@ -310,11 +310,11 @@ def register_socketio_handlers(socketio):
             # Handle anonymous identity
             anonymous_name = None
             if use_anonymous and topic.get('settings', {}).get('allow_anonymous', True):
-                anon_model = AnonymousIdentity(request.current_app.db)
+                anon_model = AnonymousIdentity(current_app.db)
                 anonymous_name = anon_model.get_anonymous_identity(user_id, topic_id)
 
             # Create message
-            message_model = Message(request.current_app.db)
+            message_model = Message(current_app.db)
             message_id = message_model.create_message(
                 topic_id=topic_id,
                 user_id=user_id,
@@ -367,7 +367,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 return
@@ -380,7 +380,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Get anonymous identity
-            anon_model = AnonymousIdentity(request.current_app.db)
+            anon_model = AnonymousIdentity(current_app.db)
             anonymous_name = anon_model.get_anonymous_identity(user_id, topic_id)
 
             display_name = anonymous_name if anonymous_name else user['username']
@@ -406,7 +406,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 return
@@ -437,7 +437,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 emit('error', {'message': 'Authentication required'})
@@ -453,7 +453,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Create private message
-            pm_model = PrivateMessage(request.current_app.db)
+            pm_model = PrivateMessage(current_app.db)
             message_id = pm_model.send_message(
                 from_user_id=user_id,
                 to_user_id=to_user_id,
@@ -510,7 +510,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 return
@@ -519,7 +519,7 @@ def register_socketio_handlers(socketio):
             user_id = user['id']
 
             # Mark conversation as read
-            pm_model = PrivateMessage(request.current_app.db)
+            pm_model = PrivateMessage(current_app.db)
             pm_model.mark_conversation_as_read(user_id, from_user_id)
 
             emit('messages_marked_read', {'from_user_id': from_user_id})
@@ -539,7 +539,7 @@ def register_socketio_handlers(socketio):
                 return
 
             # Verify user is authenticated
-            auth_service = AuthService(request.current_app.db)
+            auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 emit('error', {'message': 'Authentication required'})
@@ -549,7 +549,7 @@ def register_socketio_handlers(socketio):
             user_id = user['id']
 
             # Update anonymous identity
-            anon_model = AnonymousIdentity(request.current_app.db)
+            anon_model = AnonymousIdentity(current_app.db)
             success = anon_model.update_anonymous_identity(user_id, topic_id, new_name)
 
             if success:

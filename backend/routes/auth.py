@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from services.auth_service import AuthService
 from services.recovery_service import RecoveryService
 from utils.validators import (

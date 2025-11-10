@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.user import User
 from models.topic import Topic

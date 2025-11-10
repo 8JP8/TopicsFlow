@@ -144,8 +144,8 @@ def create_db_indexes(app):
 
         # Topics collection indexes
         db.topics.create_index("created_at")
-        db.topics.create_index("member_count", -1)
-        db.topics.create_index("last_activity", -1)
+        db.topics.create_index([("member_count", -1)])
+        db.topics.create_index([("last_activity", -1)])
         db.topics.create_index("tags")
 
         # Messages collection indexes
