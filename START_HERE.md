@@ -1,256 +1,185 @@
-# 🚀 ChatApp - Como Iniciar
+# 🚀 ChatApp - Quick Start Guide
 
-## 📋 3 Formas de Testar/Rodar
-
-Escolha UMA das opções abaixo:
+Simple guide to run ChatApp locally or deploy to Azure.
 
 ---
 
-## 1️⃣ **TESTE LOCAL COM DOCKER** (Recomendado para teste)
+## ⚡ Quick Start - Local Development
 
-Todos os serviços em containers. Logs visíveis. Fácil de parar.
+### Prerequisites
+- Python 3.11+ installed
+- Node.js 18+ installed
+- MongoDB running (local or Docker)
 
-### Windows:
+### Run Locally
+
+**Windows:**
+```batch
+run-local.bat
 ```
-Duplo clique: local-docker.bat
-```
 
-### Linux/Mac:
+**Linux/Mac:**
 ```bash
-./local-docker.sh
+./run-local.sh
 ```
 
-**O que faz:**
-- ✅ MongoDB em container
-- ✅ Redis em container
-- ✅ Backend em container
-- ✅ Frontend em container
-- ✅ Logs visíveis em tempo real
-- ✅ Ctrl+C para parar tudo
+This will start:
+- **Backend:** http://localhost:5000
+- **Frontend:** http://localhost:3000
 
-**Acessar:**
-- Frontend: http://localhost:3000
-- Backend: http://localhost:5000
-- Health: http://localhost:5000/health
+Open http://localhost:3000 in your browser!
 
 ---
 
-## 2️⃣ **TESTE LOCAL NATIVO** (Windows direto)
+## 🔧 Manual Start (Alternative)
 
-Backend roda diretamente no Windows (mais rápido para desenvolvimento).
+If you prefer to run each service manually:
 
-### Windows:
-```
-Duplo clique: local-native.bat
-```
-
-### Linux/Mac:
-```bash
-./local-native.sh
+**Terminal 1 - Backend:**
+```batch
+cd backend
+python app.py
 ```
 
-**O que faz:**
-- ✅ MongoDB via Docker (ou local se instalado)
-- ✅ Backend roda diretamente no Python do sistema
-- ✅ **Dependências instaladas no sistema (sem venv)**
-- ✅ Mais rápido que containers
-- ✅ Ideal para desenvolvimento e debug
-- ✅ Ctrl+C para parar
-
-**Acessar:**
-- Backend: http://localhost:5000
-- Health: http://localhost:5000/health
-
-**Nota:** Frontend separado (se precisar):
-```bash
+**Terminal 2 - Frontend:**
+```batch
 cd frontend
-npm install
+npm install       # First time only
 npm run dev
 ```
 
 ---
 
-## 3️⃣ **DEPLOY PARA AZURE** (Produção)
+## ☁️ Deploy to Azure
 
-Deploy real para Azure Cloud.
-
-### Windows:
-```
-Duplo clique: deploy-azure.bat
+```batch
+deploy-azure.bat
 ```
 
-### Linux/Mac:
-```bash
-./azure-deploy.sh
-```
+This will:
+1. Build frontend as static files
+2. Create Docker image with both frontend + backend
+3. Deploy to Azure Container Apps
 
-**Antes de rodar:**
-1. Edite `.env.azure` com suas configurações
-2. Faça login no Azure CLI (`az login`)
-3. Execute o script
-
-**O que faz:**
-- ✅ Cria recursos Azure (CosmosDB, Container Registry, Container Apps)
-- ✅ Build da imagem Docker
-- ✅ Push para Azure
-- ✅ Deploy automático
+**Environment Variables for Azure:**
+- `AZURE_COSMOS_CONNECTIONSTRING` - Your CosmosDB connection string
+- `AZURE_COSMOS_DATABASE` - Database name (default: chatapp)
 
 ---
 
-## 🎯 Qual Escolher?
+## 📍 Application Endpoints
 
-| Situação | Use |
-|----------|-----|
-| Quero testar rapidamente | `local-docker` |
-| Estou desenvolvendo/debugando | `local-native` |
-| Quero colocar em produção | `deploy-azure` |
-| Primeira vez testando | `local-docker` |
+### Local Development
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:5000
+- **Socket.IO:** ws://localhost:5000/socket.io
 
----
+### API Routes
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+- `GET /api/topics` - List all topics
+- `POST /api/topics` - Create new topic
+- `GET /api/topics/:id/messages` - Get topic messages
+- `POST /api/messages` - Send message
+- More routes in backend/routes/
 
-## 📊 Comparação Detalhada
-
-### Local com Docker
-- ✅ Mais próximo do ambiente Azure
-- ✅ Tudo isolado em containers
-- ✅ Fácil de limpar (só parar containers)
-- ⚠️ Usa mais recursos (RAM/CPU)
-- ⚠️ Build inicial demora mais
-
-### Local Nativo
-- ✅ Mais rápido para desenvolvimento
-- ✅ Hot reload automático
-- ✅ Debug mais fácil
-- ✅ Usa menos recursos
-- ⚠️ Precisa Python instalado
-- ⚠️ Precisa gerenciar dependências
-
-### Deploy Azure
-- ✅ Ambiente de produção real
-- ✅ Escalável automaticamente
-- ✅ SSL/HTTPS automático
-- ⚠️ Custos aplicáveis (~$85/mês)
-- ⚠️ Requer conta Azure
+### Socket.IO Events
+- `connect` - Client connected
+- `join_topic` - Join a chat topic
+- `send_message` - Send message to topic
+- `typing_start` - User started typing
+- `typing_stop` - User stopped typing
 
 ---
 
-## 🐛 Problemas Comuns
+## 🗄️ Database Setup
 
-### Docker não encontrado
-**Solução:** Instale Docker Desktop
-- Windows: https://www.docker.com/products/docker-desktop/
-- Mac: https://www.docker.com/products/docker-desktop/
-- Linux: https://docs.docker.com/engine/install/
-
-### Python não encontrado
-**Solução:** Instale Python 3.11+
-- https://www.python.org/downloads/
-- ✅ Marque "Add Python to PATH"
-
-### Porta já em uso
-**Windows:**
-```powershell
-netstat -ano | findstr :5000
-taskkill /PID <número> /F
+### Option 1: MongoDB with Docker (Recommended)
+```batch
+docker run -d --name mongodb-test -p 27017:27017 mongo:7.0
 ```
 
-**Linux/Mac:**
-```bash
-lsof -ti:5000 | xargs kill -9
-```
+### Option 2: MongoDB Local Install
+Download and install from: https://www.mongodb.com/try/download/community
+
+### Option 3: Azure CosmosDB (Production)
+- Create CosmosDB with MongoDB API in Azure Portal
+- Set `AZURE_COSMOS_CONNECTIONSTRING` environment variable
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend won't start
+- Make sure MongoDB is running
+- Check if port 5000 is available: `netstat -ano | findstr :5000`
+- Check Python dependencies: `pip install -r backend/requirements.txt`
+
+### Frontend won't start
+- Make sure port 3000 is available
+- Install dependencies: `cd frontend && npm install`
+- Check Node version: `node --version` (should be 18+)
 
 ### MongoDB connection failed
-**Verificar:** MongoDB está rodando?
-```bash
-docker ps | grep mongodb
-```
+- Start MongoDB: `docker start mongodb-test`
+- Or check if MongoDB service is running locally
 
-**Iniciar:**
-```bash
-docker start mongodb-test
-```
+### Need more help?
+See **WINDOWS_TROUBLESHOOTING.md** for detailed Windows-specific solutions.
 
 ---
 
-## 📂 Estrutura de Scripts
+## 📁 Project Structure
 
 ```
 RINTEP2/
-├── local-docker.bat/sh     ⭐ Teste com Docker
-├── local-native.bat/sh     ⭐ Teste nativo Windows
-├── deploy-azure.bat/sh     ⭐ Deploy Azure
-├── docker-compose.local.yml # Config Docker local
-├── Dockerfile.azure         # Build para Azure
-└── .env.azure.example       # Config Azure
+├── backend/                 # Flask backend
+│   ├── app.py              # Main application
+│   ├── config.py           # Configuration (local/Azure)
+│   ├── routes/             # API routes
+│   ├── models/             # Data models
+│   ├── services/           # Business logic
+│   └── requirements.txt    # Python dependencies
+│
+├── frontend/               # Next.js frontend
+│   ├── pages/             # React pages
+│   ├── components/        # React components
+│   ├── contexts/          # React contexts
+│   ├── styles/            # CSS styles
+│   └── package.json       # Node dependencies
+│
+├── run-local.bat          # Start locally (Windows)
+├── run-local.sh           # Start locally (Linux/Mac)
+└── deploy-azure.bat       # Deploy to Azure
 ```
 
 ---
 
-## 🔧 Configurações
+## 🎯 Key Features
 
-### Ambiente Local (.env no backend/)
-```bash
-FLASK_ENV=development
-DATABASE_URL=mongodb://admin:password123@localhost:27017/chatapp?authSource=admin
-PORT=5000
-LOG_LEVEL=DEBUG
-```
-
-### Ambiente Azure (.env.azure na raiz)
-```bash
-AZURE_RESOURCE_GROUP=chatapp-rg
-AZURE_CONTAINER_REGISTRY=chatappacr
-AZURE_COSMOS_ACCOUNT=chatapp-cosmos
-SECRET_KEY=<sua-chave-secreta>
-```
+- **Real-time Chat** - WebSocket communication with Socket.IO
+- **Anonymous Mode** - Chat anonymously in topics
+- **TOTP Authentication** - Two-factor authentication
+- **Topic-based Rooms** - Create and join chat topics
+- **Private Messages** - Direct messaging between users
+- **Content Filtering** - Automatic profanity and link filtering
+- **Theme Support** - Dark/Light mode
+- **i18n** - English and Portuguese support
+- **Azure Ready** - Easy deployment to Azure
 
 ---
 
-## ✅ Checklist
+## 🔐 Security Features
 
-Antes de começar:
-
-### Para local-docker:
-- [ ] Docker Desktop instalado e rodando
-
-### Para local-native:
-- [ ] Python 3.11+ instalado
-- [ ] MongoDB rodando (Docker ou local)
-
-### Para deploy-azure:
-- [ ] Azure CLI instalado
-- [ ] Conta Azure ativa
-- [ ] Arquivo .env.azure configurado
+- TOTP 2FA with QR code setup
+- Backup codes for account recovery
+- Session management
+- Content filtering and moderation
+- Rate limiting on sensitive endpoints
+- CORS configuration
+- Secure cookie settings
 
 ---
 
-## 🎓 Próximos Passos
-
-1. **Escolha um modo** (recomendo `local-docker` primeiro)
-2. **Execute o script** correspondente
-3. **Aguarde iniciar** (primeira vez demora mais)
-4. **Teste no navegador** nas URLs indicadas
-5. **Pressione Ctrl+C** para parar
-
----
-
-## 📚 Documentação Completa
-
-- **AZURE_DEPLOYMENT.md** - Guia completo Azure
-- **WINDOWS_TROUBLESHOOTING.md** - ⭐ Soluções para problemas Windows
-- **START_BACKEND_WINDOWS.md** - Guia Windows detalhado
-- **LOCAL_TESTING_GUIDE.md** - Guia de testes
-- **TEST_AZURE_LOCAL.md** - Testes Azure local
-
----
-
-## 🆘 Precisa de Ajuda?
-
-1. **Problemas no Windows?** → Veja **WINDOWS_TROUBLESHOOTING.md**
-2. Verifique os logs do script
-3. Consulte a seção "Problemas Comuns" acima
-4. Veja a documentação completa nos arquivos .md
-
----
-
-**Comece agora! Escolha um modo e execute o script!** 🚀
+**Ready to start? Run `run-local.bat` and open http://localhost:3000!** 🚀
