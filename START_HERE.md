@@ -52,6 +52,7 @@ Duplo clique: local-native.bat
 **O que faz:**
 - ✅ MongoDB via Docker (ou local se instalado)
 - ✅ Backend roda diretamente no Python do sistema
+- ✅ **Dependências instaladas no sistema (sem venv)**
 - ✅ Mais rápido que containers
 - ✅ Ideal para desenvolvimento e debug
 - ✅ Ctrl+C para parar

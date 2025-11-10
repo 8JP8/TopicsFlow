@@ -16,6 +16,7 @@ echo ""
 echo -e "${BLUE}============================================================${NC}"
 echo -e "${BLUE}  ChatApp - TESTE LOCAL NATIVO (Sem Docker)${NC}"
 echo -e "${BLUE}  Backend rodando diretamente no sistema${NC}"
+echo -e "${BLUE}  Dependencias instaladas no sistema (sem venv)${NC}"
 echo -e "${BLUE}============================================================${NC}"
 echo ""
 
@@ -57,25 +58,23 @@ else
 fi
 echo ""
 
-# Configurar ambiente Python
-echo -e "${BLUE}[3/5] Configurando ambiente Python...${NC}"
+# Verificar e instalar dependências Python (direto no sistema)
+echo -e "${BLUE}[3/5] Verificando dependencias Python...${NC}"
 cd backend
 
-if [ ! -d "venv" ]; then
-    echo -e "${BLUE}[ACAO] Criando ambiente virtual Python...${NC}"
-    python3 -m venv venv
+echo -e "${BLUE}[ACAO] Verificando se dependencias estao instaladas...${NC}"
+if ! pip3 show flask &> /dev/null; then
+    echo -e "${BLUE}[ACAO] Instalando dependencias no sistema (pode demorar alguns minutos)...${NC}"
+    echo ""
+    pip3 install -r requirements.txt
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo -e "${RED}[ERRO] Falha ao instalar dependencias!${NC}"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}[OK] Dependencias ja instaladas${NC}"
 fi
-
-echo -e "${BLUE}[ACAO] Ativando ambiente virtual...${NC}"
-source venv/bin/activate
-
-# Verificar e instalar dependências
-echo -e "${BLUE}[ACAO] Verificando dependências...${NC}"
-if ! pip show flask &> /dev/null; then
-    echo -e "${BLUE}[ACAO] Instalando dependências (primeira vez - pode demorar)...${NC}"
-    pip install --quiet -r requirements.txt
-fi
-echo -e "${GREEN}[OK] Dependências instaladas${NC}"
 echo ""
 
 # Criar/verificar arquivo .env
@@ -85,6 +84,7 @@ if [ ! -f ".env" ]; then
     cat > .env << 'EOF'
 # Modo LOCAL - Não Azure
 FLASK_ENV=development
+FORCE_LOCAL_MODE=true
 
 # Database local
 DATABASE_URL=mongodb://admin:password123@localhost:27017/chatapp?authSource=admin

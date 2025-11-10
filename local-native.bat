@@ -7,6 +7,7 @@ echo.
 echo  ============================================================
 echo   ChatApp - TESTE LOCAL NATIVO (Sem Docker)
 echo   Backend rodando diretamente no Windows
+echo   Dependencias instaladas no sistema (sem venv)
 echo  ============================================================
 echo.
 
@@ -55,26 +56,25 @@ if not errorlevel 1 (
 )
 echo.
 
-REM Configurar ambiente Python
-echo [3/5] Configurando ambiente Python...
+REM Verificar e instalar dependências Python (direto no sistema)
+echo [3/5] Verificando dependencias Python...
 cd /d "%~dp0backend"
 
-if not exist "venv\" (
-    echo [ACAO] Criando ambiente virtual Python...
-    python -m venv venv
-)
-
-echo [ACAO] Ativando ambiente virtual...
-call venv\Scripts\activate.bat
-
-REM Verificar e instalar dependências
-echo [ACAO] Verificando dependencias...
+echo [ACAO] Verificando se dependencias estao instaladas...
 pip show flask >nul 2>&1
 if errorlevel 1 (
-    echo [ACAO] Instalando dependencias (primeira vez - pode demorar)...
-    pip install --quiet -r requirements.txt
+    echo [ACAO] Instalando dependencias no sistema (pode demorar alguns minutos)...
+    echo.
+    pip install -r requirements.txt
+    if errorlevel 1 (
+        echo.
+        echo [ERRO] Falha ao instalar dependencias!
+        pause
+        exit /b 1
+    )
+) else (
+    echo [OK] Dependencias ja instaladas
 )
-echo [OK] Dependencias instaladas
 echo.
 
 REM Criar/verificar arquivo .env
@@ -84,6 +84,7 @@ if not exist ".env" (
     (
         echo # Modo LOCAL - Nao Azure
         echo FLASK_ENV=development
+        echo FORCE_LOCAL_MODE=true
         echo.
         echo # Database local
         echo DATABASE_URL=mongodb://admin:password123@localhost:27017/chatapp?authSource=admin
