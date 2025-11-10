@@ -237,6 +237,7 @@ Antes de começar:
 ## 📚 Documentação Completa
 
 - **AZURE_DEPLOYMENT.md** - Guia completo Azure
+- **WINDOWS_TROUBLESHOOTING.md** - ⭐ Soluções para problemas Windows
 - **START_BACKEND_WINDOWS.md** - Guia Windows detalhado
 - **LOCAL_TESTING_GUIDE.md** - Guia de testes
 - **TEST_AZURE_LOCAL.md** - Testes Azure local
@@ -245,9 +246,10 @@ Antes de começar:
 
 ## 🆘 Precisa de Ajuda?
 
-1. Verifique os logs do script
-2. Consulte a seção "Problemas Comuns" acima
-3. Veja a documentação completa nos arquivos .md
+1. **Problemas no Windows?** → Veja **WINDOWS_TROUBLESHOOTING.md**
+2. Verifique os logs do script
+3. Consulte a seção "Problemas Comuns" acima
+4. Veja a documentação completa nos arquivos .md
 
 ---
 
