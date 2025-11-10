@@ -50,7 +50,7 @@ echo.
 echo Servers initiating...
 echo.
 echo Backend API:  http://localhost:5000
-echo Frontend UI:  http://localhost:8080
+echo Frontend UI:  http://localhost:3000
 echo.
 echo Both servers are running minimized.
 echo Check the taskbar for terminal windows.

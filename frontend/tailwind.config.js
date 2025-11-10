@@ -150,6 +150,12 @@ module.exports = {
         '.theme-blue-secondary': {
           backgroundColor: 'var(--theme-blue-secondary)',
         },
+        '.theme-text-blue': {
+          color: 'var(--theme-blue-primary)',
+        },
+        '.theme-text-blue-secondary': {
+          color: 'var(--theme-blue-secondary)',
+        },
       };
       addUtilities(newUtilities);
     },

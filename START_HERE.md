@@ -25,9 +25,9 @@ run-local.bat
 
 This will start:
 - **Backend:** http://localhost:5000
-- **Frontend:** http://localhost:8080
+- **Frontend:** http://localhost:3000
 
-Open http://localhost:8080 in your browser!
+Open http://localhost:3000 in your browser!
 
 ---
 
@@ -70,7 +70,7 @@ This will:
 ## 📍 Application Endpoints
 
 ### Local Development
-- **Frontend:** http://localhost:8080
+- **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:5000
 - **Socket.IO:** ws://localhost:5000/socket.io
 
@@ -117,7 +117,7 @@ Download and install from: https://www.mongodb.com/try/download/community
 - Check Python dependencies: `pip install -r backend/requirements.txt`
 
 ### Frontend won't start
-- Make sure port 8080 is available
+- Make sure port 3000 is available
 - Install dependencies: `cd frontend && npm install`
 - Check Node version: `node --version` (should be 18+)
 
@@ -182,4 +182,4 @@ RINTEP2/
 
 ---
 
-**Ready to start? Run `run-local.bat` and open http://localhost:8080!** 🚀
+**Ready to start? Run `run-local.bat` and open http://localhost:3000!** 🚀

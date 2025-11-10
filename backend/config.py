@@ -42,8 +42,9 @@ class Config:
         COSMOS_SSL = False
         COSMOS_RETRY_WRITES = True
 
-    # CORS Config
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8080')
+    # CORS Config - Allow all origins for testing (disable in production)
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    CORS_ALLOW_ALL = os.getenv('CORS_ALLOW_ALL', 'true').lower() == 'true'
 
     # TOTP/Auth Config
     TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'ChatHub')

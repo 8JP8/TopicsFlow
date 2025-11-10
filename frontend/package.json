@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Reddit-style chat application frontend",
   "scripts": {
-    "dev": "next dev -p 8080",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "build:azure": "next build",
-    "start": "next start -p 8080",
+    "start": "next start -p 3000",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },

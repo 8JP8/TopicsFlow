@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
+import ThemeToggle from '@/components/UI/ThemeToggle';
+import LanguageToggle from '@/components/UI/LanguageToggle';
 
 export default function Login() {
   const { login, loginWithBackupCode, register } = useAuth();
+  const { theme } = useTheme();
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register' | 'backup'>('login');
   const [formData, setFormData] = useState({
@@ -148,7 +152,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center theme-bg-primary px-4">
+    <div className={`min-h-screen flex items-center justify-center theme-bg-primary px-4 ${theme}`} data-theme={theme}>
+      {/* Theme and Language Toggles */}
+      <div className="fixed top-4 right-4 z-50 flex gap-2">
+        <LanguageToggle />
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
