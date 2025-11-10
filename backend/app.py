@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory, send_file
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_session import Session
@@ -35,11 +35,33 @@ def create_app(config_name=None):
 
     # Database connection
     try:
-        client = MongoClient(app.config['MONGO_URI'])
+        # Configure MongoDB/CosmosDB connection based on environment
+        mongo_options = {}
+
+        if app.config.get('IS_AZURE'):
+            # Azure CosmosDB specific options
+            mongo_options = {
+                'ssl': app.config.get('COSMOS_SSL', True),
+                'retryWrites': app.config.get('COSMOS_RETRY_WRITES', False),
+                'serverSelectionTimeoutMS': 30000,
+                'connectTimeoutMS': 30000,
+                'socketTimeoutMS': 30000,
+            }
+            logger.info("Connecting to Azure CosmosDB...")
+        else:
+            # Local MongoDB options
+            logger.info("Connecting to local MongoDB...")
+
+        client = MongoClient(app.config['MONGO_URI'], **mongo_options)
         app.db = client[app.config['MONGO_DB_NAME']]
-        logger.info("Connected to MongoDB successfully")
+
+        # Test connection
+        client.admin.command('ping')
+
+        db_type = "Azure CosmosDB" if app.config.get('IS_AZURE') else "MongoDB"
+        logger.info(f"Connected to {db_type} successfully")
     except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
+        logger.error(f"Failed to connect to database: {e}")
         raise
 
     # Register blueprints
@@ -64,9 +86,36 @@ def create_app(config_name=None):
     def health_check():
         return {'status': 'healthy', 'service': 'chatapp-backend'}
 
-    @app.route('/')
-    def index():
-        return {'message': 'ChatApp Backend API', 'version': '1.0.0'}
+    # Serve static frontend files (for Azure deployment)
+    static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+    if os.path.exists(static_folder):
+        logger.info("Static frontend folder found - serving static files")
+
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_frontend(path):
+            """Serve static frontend files."""
+            # If it's an API route, skip static file serving
+            if path.startswith('api/') or path.startswith('socket.io/'):
+                return {'error': 'Not found'}, 404
+
+            # Serve static files
+            if path != "" and os.path.exists(os.path.join(static_folder, path)):
+                return send_from_directory(static_folder, path)
+
+            # Serve index.html for all other routes (SPA)
+            index_path = os.path.join(static_folder, 'index.html')
+            if os.path.exists(index_path):
+                return send_file(index_path)
+
+            return {'error': 'Frontend not found'}, 404
+    else:
+        logger.info("No static frontend folder - API only mode")
+
+        @app.route('/')
+        def index():
+            return {'message': 'ChatApp Backend API', 'version': '1.0.0'}
 
     return app
 

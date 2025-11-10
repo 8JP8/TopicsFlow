@@ -9,9 +9,24 @@ class Config:
     # Basic Flask Config
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+    # Detect Azure environment
+    IS_AZURE = os.getenv('WEBSITE_INSTANCE_ID') is not None or os.getenv('AZURE_COSMOS_CONNECTIONSTRING') is not None
+
     # Database Config
-    MONGO_URI = os.getenv('DATABASE_URL', 'mongodb://localhost:27017/chatapp')
-    MONGO_DB_NAME = os.getenv('DB_NAME', 'chatapp')
+    # If Azure environment detected, use CosmosDB connection string
+    if IS_AZURE:
+        # Azure CosmosDB (MongoDB API)
+        MONGO_URI = os.getenv('AZURE_COSMOS_CONNECTIONSTRING')
+        MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'chatapp')
+        # CosmosDB specific settings
+        COSMOS_SSL = True
+        COSMOS_RETRY_WRITES = False  # CosmosDB doesn't support retryWrites
+    else:
+        # Local MongoDB
+        MONGO_URI = os.getenv('DATABASE_URL', 'mongodb://localhost:27017/chatapp')
+        MONGO_DB_NAME = os.getenv('DB_NAME', 'chatapp')
+        COSMOS_SSL = False
+        COSMOS_RETRY_WRITES = True
 
     # CORS Config
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
@@ -27,7 +42,11 @@ class Config:
     TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 
     # Redis Config (for session storage in production)
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    # Azure Redis Cache or local Redis
+    if IS_AZURE and os.getenv('AZURE_REDIS_CONNECTIONSTRING'):
+        REDIS_URL = os.getenv('AZURE_REDIS_CONNECTIONSTRING')
+    else:
+        REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
     # Security Config
     SESSION_COOKIE_SECURE = os.getenv('ENVIRONMENT') == 'production'
@@ -66,9 +85,19 @@ class TestingConfig(Config):
     MONGO_URI = 'mongodb://localhost:27017/chatapp_test'
     WTF_CSRF_ENABLED = False
 
+class AzureConfig(ProductionConfig):
+    """Azure deployment configuration."""
+    DEBUG = False
+    TESTING = False
+    # Force HTTPS cookies in Azure
+    SESSION_COOKIE_SECURE = True
+    # Use Azure-specific settings
+    IS_AZURE = True
+
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
     'testing': TestingConfig,
+    'azure': AzureConfig,
     'default': DevelopmentConfig
 }

@@ -220,3 +220,10 @@ static/media/
 # Local development
 local/
 dev/
+
+# Azure deployment
+.env.azure
+.azure/
+*.azurecr.io
+azure-credentials.json
+backend/static/

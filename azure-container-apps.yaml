@@ -1,0 +1,91 @@
+# Azure Container Apps Configuration
+# This file defines the container app configuration for Azure deployment
+
+properties:
+  managedEnvironmentId: /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedEnvironments/{environment-name}
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: auto
+      allowInsecure: false
+      traffic:
+        - weight: 100
+          latestRevision: true
+    secrets:
+      - name: cosmos-connection-string
+        value: # Set via Azure Portal or CLI
+      - name: secret-key
+        value: # Set via Azure Portal or CLI
+      - name: redis-connection-string
+        value: # Set via Azure Portal or CLI
+    registries:
+      - server: {your-acr-name}.azurecr.io
+        username: # Set via Azure Portal or CLI
+        passwordSecretRef: acr-password
+
+  template:
+    containers:
+      - name: chatapp
+        image: {your-acr-name}.azurecr.io/chatapp-azure:latest
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+        env:
+          # Flask Configuration
+          - name: FLASK_ENV
+            value: "azure"
+          - name: PORT
+            value: "8000"
+          - name: SECRET_KEY
+            secretRef: secret-key
+
+          # Azure CosmosDB Configuration
+          - name: AZURE_COSMOS_CONNECTIONSTRING
+            secretRef: cosmos-connection-string
+          - name: AZURE_COSMOS_DATABASE
+            value: "chatapp"
+
+          # Azure Redis Cache (optional)
+          - name: AZURE_REDIS_CONNECTIONSTRING
+            secretRef: redis-connection-string
+
+          # CORS Configuration
+          - name: FRONTEND_URL
+            value: "https://{your-app-name}.azurecontainerapps.io"
+
+          # TOTP Configuration
+          - name: TOTP_ISSUER
+            value: "ChatHub"
+
+          # Azure Detection
+          - name: WEBSITE_INSTANCE_ID
+            value: "azure-container-apps"
+
+        probes:
+          # Liveness probe
+          - type: Liveness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            failureThreshold: 3
+
+          # Readiness probe
+          - type: Readiness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+    scale:
+      minReplicas: 1
+      maxReplicas: 10
+      rules:
+        - name: http-rule
+          http:
+            metadata:
+              concurrentRequests: "100"
