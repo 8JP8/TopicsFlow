@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         toast.success('Login successful! Consider regenerating your backup codes.');
         if (response.data.warning) {
-          toast.warning(response.data.warning);
+          toast(response.data.warning, { icon: '⚠️' });
         }
 
         router.push('/');
