@@ -10,7 +10,21 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
     # Detect Azure environment
-    IS_AZURE = os.getenv('WEBSITE_INSTANCE_ID') is not None or os.getenv('AZURE_COSMOS_CONNECTIONSTRING') is not None
+    # Priority 1: Explicit override (for testing)
+    # Priority 2: Azure-specific env vars
+    _force_azure = os.getenv('FORCE_AZURE_MODE', '').lower() in ('true', '1', 'yes')
+    _force_local = os.getenv('FORCE_LOCAL_MODE', '').lower() in ('true', '1', 'yes')
+
+    if _force_local:
+        IS_AZURE = False
+    elif _force_azure:
+        IS_AZURE = True
+    else:
+        # Auto-detect: Azure App Service or Azure Cosmos connection
+        IS_AZURE = (
+            os.getenv('WEBSITE_INSTANCE_ID') is not None or  # Azure App Service
+            os.getenv('AZURE_DEPLOYMENT', '').lower() == 'true'  # Explicit Azure flag
+        )
 
     # Database Config
     # If Azure environment detected, use CosmosDB connection string

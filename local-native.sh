@@ -1,0 +1,141 @@
+#!/bin/bash
+
+# ChatApp - Teste Local NATIVO (sem Docker)
+# Backend rodando diretamente no sistema
+
+set -e
+
+# Cores
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo ""
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${BLUE}  ChatApp - TESTE LOCAL NATIVO (Sem Docker)${NC}"
+echo -e "${BLUE}  Backend rodando diretamente no sistema${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo ""
+
+# Verificar Python
+echo -e "${BLUE}[1/5] Verificando Python...${NC}"
+if ! command -v python3 &> /dev/null; then
+    echo -e "${RED}[ERRO] Python não encontrado!${NC}"
+    echo "Instale Python 3.11+: https://www.python.org/downloads/"
+    exit 1
+fi
+python3 --version
+echo ""
+
+# Verificar MongoDB
+echo -e "${BLUE}[2/5] Verificando MongoDB...${NC}"
+MONGO_RUNNING=0
+
+# Tentar conexão MongoDB local
+if python3 -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" &> /dev/null; then
+    echo -e "${GREEN}[OK] MongoDB local encontrado em localhost:27017${NC}"
+    MONGO_RUNNING=1
+else
+    # Verificar se Docker está disponível
+    if command -v docker &> /dev/null && docker info &> /dev/null; then
+        echo -e "${YELLOW}[AVISO] MongoDB local não encontrado${NC}"
+        echo -e "${BLUE}[ACAO] Iniciando MongoDB via Docker...${NC}"
+        docker start mongodb-test &> /dev/null || docker run -d --name mongodb-test -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
+        sleep 5
+        echo -e "${GREEN}[OK] MongoDB iniciado via Docker${NC}"
+        MONGO_RUNNING=1
+    else
+        echo -e "${RED}[ERRO] MongoDB não encontrado e Docker não disponível!${NC}"
+        echo ""
+        echo "Opções:"
+        echo "1. Instale MongoDB: https://www.mongodb.com/try/download/community"
+        echo "2. OU instale Docker para usar MongoDB em container"
+        exit 1
+    fi
+fi
+echo ""
+
+# Configurar ambiente Python
+echo -e "${BLUE}[3/5] Configurando ambiente Python...${NC}"
+cd backend
+
+if [ ! -d "venv" ]; then
+    echo -e "${BLUE}[ACAO] Criando ambiente virtual Python...${NC}"
+    python3 -m venv venv
+fi
+
+echo -e "${BLUE}[ACAO] Ativando ambiente virtual...${NC}"
+source venv/bin/activate
+
+# Verificar e instalar dependências
+echo -e "${BLUE}[ACAO] Verificando dependências...${NC}"
+if ! pip show flask &> /dev/null; then
+    echo -e "${BLUE}[ACAO] Instalando dependências (primeira vez - pode demorar)...${NC}"
+    pip install --quiet -r requirements.txt
+fi
+echo -e "${GREEN}[OK] Dependências instaladas${NC}"
+echo ""
+
+# Criar/verificar arquivo .env
+echo -e "${BLUE}[4/5] Configurando variáveis de ambiente...${NC}"
+if [ ! -f ".env" ]; then
+    echo -e "${BLUE}[ACAO] Criando arquivo .env...${NC}"
+    cat > .env << 'EOF'
+# Modo LOCAL - Não Azure
+FLASK_ENV=development
+
+# Database local
+DATABASE_URL=mongodb://admin:password123@localhost:27017/chatapp?authSource=admin
+DB_NAME=chatapp
+
+# Redis local (opcional)
+REDIS_URL=redis://:password123@localhost:6379/0
+
+# Secret key
+SECRET_KEY=dev-secret-key-local-native-testing
+
+# Frontend
+FRONTEND_URL=http://localhost:3000
+
+# Server
+PORT=5000
+
+# Debug
+LOG_LEVEL=DEBUG
+PYTHONUNBUFFERED=1
+EOF
+    echo -e "${GREEN}[OK] Arquivo .env criado${NC}"
+else
+    echo -e "${GREEN}[OK] Arquivo .env existente${NC}"
+fi
+echo ""
+
+# Mostrar configuração
+echo -e "${BLUE}[5/5] Configuração atual:${NC}"
+echo "============================================================"
+cat .env
+echo "============================================================"
+echo ""
+
+# Iniciar backend
+echo ""
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${BLUE}  INICIANDO BACKEND${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo ""
+echo -e "${GREEN}Backend rodando em: http://localhost:5000${NC}"
+echo -e "${GREEN}Health check:       http://localhost:5000/health${NC}"
+echo ""
+echo -e "${YELLOW}Pressione Ctrl+C para parar o servidor${NC}"
+echo ""
+echo "============================================================"
+echo ""
+
+# Iniciar com Python diretamente (logs visíveis)
+python3 app.py
+
+# Quando usuário para
+echo ""
+echo -e "${YELLOW}[PARADO] Servidor backend parado.${NC}"

@@ -24,6 +24,14 @@ def create_app(config_name=None):
     config_name = config_name or os.getenv('FLASK_ENV', 'default')
     app.config.from_object(config[config_name])
 
+    # Log environment mode clearly
+    env_mode = "🌩️  AZURE CLOUD" if app.config.get('IS_AZURE') else "🏠 LOCAL"
+    logger.info("="*60)
+    logger.info(f"  ChatApp Backend - Mode: {env_mode}")
+    logger.info(f"  Environment: {config_name}")
+    logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
+    logger.info("="*60)
+
     # Initialize extensions
     cors.init_app(app, origins=[app.config['FRONTEND_URL']])
     session.init_app(app)

@@ -55,6 +55,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Set environment variable for Azure
 ENV FLASK_ENV=azure
 ENV PORT=8000
+ENV AZURE_DEPLOYMENT=true
 
 # Start application with gunicorn for production
 # Note: With eventlet worker, we must use only 1 worker for WebSocket support
