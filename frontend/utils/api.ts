@@ -256,7 +256,7 @@ export const cachedGet = async <T = any>(
 export const clearCache = (pattern?: string) => {
   if (pattern) {
     const regex = new RegExp(pattern);
-    for (const key of cache.keys()) {
+    for (const key of Array.from(cache.keys())) {
       if (regex.test(key)) {
         cache.delete(key);
       }
