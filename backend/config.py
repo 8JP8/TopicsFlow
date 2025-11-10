@@ -62,6 +62,12 @@ class Config:
     else:
         REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
+    # Session Config
+    SESSION_TYPE = os.getenv('SESSION_TYPE', 'filesystem')  # filesystem, redis, or null
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+    SESSION_FILE_DIR = os.path.join(os.path.dirname(__file__), 'flask_session')
+
     # Security Config
     SESSION_COOKIE_SECURE = os.getenv('ENVIRONMENT') == 'production'
     SESSION_COOKIE_HTTPONLY = True

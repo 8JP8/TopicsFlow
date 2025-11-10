@@ -12,7 +12,7 @@ echo  ============================================================
 echo.
 
 REM Verificar Python
-echo [1/5] Verificando Python...
+echo [1/4] Verificando Python...
 python --version >nul 2>&1
 if errorlevel 1 (
     echo [ERRO] Python nao encontrado!
@@ -24,40 +24,8 @@ if errorlevel 1 (
 python --version
 echo.
 
-REM Verificar MongoDB
-echo [2/5] Verificando MongoDB...
-set MONGO_RUNNING=0
-
-REM Tentar conexão MongoDB
-python -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" >nul 2>&1
-if not errorlevel 1 (
-    echo [OK] MongoDB local encontrado em localhost:27017
-    set MONGO_RUNNING=1
-) else (
-    REM Verificar se Docker está disponível
-    docker --version >nul 2>&1
-    if not errorlevel 1 (
-        echo [AVISO] MongoDB local nao encontrado
-        echo [ACAO] Iniciando MongoDB via Docker...
-        docker start mongodb-test >nul 2>&1 || docker run -d --name mongodb-test -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
-        timeout /t 5 /nobreak >nul
-        echo [OK] MongoDB iniciado via Docker
-        set MONGO_RUNNING=1
-    ) else (
-        echo [ERRO] MongoDB nao encontrado e Docker nao disponivel!
-        echo.
-        echo Opcoes:
-        echo 1. Instale MongoDB: https://www.mongodb.com/try/download/community
-        echo 2. OU instale Docker Desktop para usar MongoDB em container
-        echo.
-        pause
-        exit /b 1
-    )
-)
-echo.
-
-REM Verificar e instalar dependências Python (direto no sistema)
-echo [3/5] Verificando dependencias Python...
+REM Verificar e instalar dependências Python PRIMEIRO (direto no sistema)
+echo [2/4] Verificando e instalando dependencias Python...
 cd /d "%~dp0backend"
 
 echo [ACAO] Verificando se dependencias estao instaladas...
@@ -72,13 +40,57 @@ if errorlevel 1 (
         pause
         exit /b 1
     )
+    echo.
+    echo [OK] Dependencias instaladas com sucesso!
 ) else (
     echo [OK] Dependencias ja instaladas
 )
 echo.
 
+REM Agora sim verificar MongoDB (depois de ter pymongo instalado)
+echo [3/4] Verificando MongoDB...
+set MONGO_RUNNING=0
+
+echo [ACAO] Testando conexao MongoDB...
+python -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" >nul 2>&1
+if not errorlevel 1 (
+    echo [OK] MongoDB local encontrado em localhost:27017
+    set MONGO_RUNNING=1
+) else (
+    REM Verificar se Docker está disponível
+    docker --version >nul 2>&1
+    if not errorlevel 1 (
+        echo [AVISO] MongoDB local nao encontrado
+        echo [ACAO] Iniciando MongoDB via Docker...
+        docker start mongodb-test >nul 2>&1 || docker run -d --name mongodb-test -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
+        echo [ACAO] Aguardando MongoDB iniciar...
+        timeout /t 5 /nobreak >nul
+
+        REM Testar novamente
+        python -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" >nul 2>&1
+        if not errorlevel 1 (
+            echo [OK] MongoDB iniciado via Docker
+            set MONGO_RUNNING=1
+        ) else (
+            echo [AVISO] MongoDB pode nao estar pronto ainda
+            echo [ACAO] Continuando... App tentara conectar ao iniciar
+            set MONGO_RUNNING=1
+        )
+    ) else (
+        echo [ERRO] MongoDB nao encontrado e Docker nao disponivel!
+        echo.
+        echo Opcoes:
+        echo 1. Instale MongoDB: https://www.mongodb.com/try/download/community
+        echo 2. OU instale Docker Desktop para usar MongoDB em container
+        echo.
+        pause
+        exit /b 1
+    )
+)
+echo.
+
 REM Criar/verificar arquivo .env
-echo [4/5] Configurando variaveis de ambiente...
+echo [4/4] Configurando variaveis de ambiente...
 if not exist ".env" (
     echo [ACAO] Criando arquivo .env...
     (
@@ -113,7 +125,7 @@ if not exist ".env" (
 echo.
 
 REM Mostrar configuração
-echo [5/5] Configuracao atual:
+echo Configuracao atual:
 echo ============================================================
 type .env
 echo ============================================================

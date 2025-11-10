@@ -21,7 +21,7 @@ echo -e "${BLUE}============================================================${NC
 echo ""
 
 # Verificar Python
-echo -e "${BLUE}[1/5] Verificando Python...${NC}"
+echo -e "${BLUE}[1/4] Verificando Python...${NC}"
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}[ERRO] Python não encontrado!${NC}"
     echo "Instale Python 3.11+: https://www.python.org/downloads/"
@@ -30,36 +30,8 @@ fi
 python3 --version
 echo ""
 
-# Verificar MongoDB
-echo -e "${BLUE}[2/5] Verificando MongoDB...${NC}"
-MONGO_RUNNING=0
-
-# Tentar conexão MongoDB local
-if python3 -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" &> /dev/null; then
-    echo -e "${GREEN}[OK] MongoDB local encontrado em localhost:27017${NC}"
-    MONGO_RUNNING=1
-else
-    # Verificar se Docker está disponível
-    if command -v docker &> /dev/null && docker info &> /dev/null; then
-        echo -e "${YELLOW}[AVISO] MongoDB local não encontrado${NC}"
-        echo -e "${BLUE}[ACAO] Iniciando MongoDB via Docker...${NC}"
-        docker start mongodb-test &> /dev/null || docker run -d --name mongodb-test -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
-        sleep 5
-        echo -e "${GREEN}[OK] MongoDB iniciado via Docker${NC}"
-        MONGO_RUNNING=1
-    else
-        echo -e "${RED}[ERRO] MongoDB não encontrado e Docker não disponível!${NC}"
-        echo ""
-        echo "Opções:"
-        echo "1. Instale MongoDB: https://www.mongodb.com/try/download/community"
-        echo "2. OU instale Docker para usar MongoDB em container"
-        exit 1
-    fi
-fi
-echo ""
-
-# Verificar e instalar dependências Python (direto no sistema)
-echo -e "${BLUE}[3/5] Verificando dependencias Python...${NC}"
+# Verificar e instalar dependências Python PRIMEIRO (direto no sistema)
+echo -e "${BLUE}[2/4] Verificando e instalando dependencias Python...${NC}"
 cd backend
 
 echo -e "${BLUE}[ACAO] Verificando se dependencias estao instaladas...${NC}"
@@ -72,13 +44,52 @@ if ! pip3 show flask &> /dev/null; then
         echo -e "${RED}[ERRO] Falha ao instalar dependencias!${NC}"
         exit 1
     fi
+    echo ""
+    echo -e "${GREEN}[OK] Dependencias instaladas com sucesso!${NC}"
 else
     echo -e "${GREEN}[OK] Dependencias ja instaladas${NC}"
 fi
 echo ""
 
+# Agora sim verificar MongoDB (depois de ter pymongo instalado)
+echo -e "${BLUE}[3/4] Verificando MongoDB...${NC}"
+MONGO_RUNNING=0
+
+echo -e "${BLUE}[ACAO] Testando conexao MongoDB...${NC}"
+if python3 -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" &> /dev/null; then
+    echo -e "${GREEN}[OK] MongoDB local encontrado em localhost:27017${NC}"
+    MONGO_RUNNING=1
+else
+    # Verificar se Docker está disponível
+    if command -v docker &> /dev/null && docker info &> /dev/null; then
+        echo -e "${YELLOW}[AVISO] MongoDB local não encontrado${NC}"
+        echo -e "${BLUE}[ACAO] Iniciando MongoDB via Docker...${NC}"
+        docker start mongodb-test &> /dev/null || docker run -d --name mongodb-test -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
+        echo -e "${BLUE}[ACAO] Aguardando MongoDB iniciar...${NC}"
+        sleep 5
+
+        # Testar novamente
+        if python3 -c "from pymongo import MongoClient; MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=2000).admin.command('ping')" &> /dev/null; then
+            echo -e "${GREEN}[OK] MongoDB iniciado via Docker${NC}"
+            MONGO_RUNNING=1
+        else
+            echo -e "${YELLOW}[AVISO] MongoDB pode não estar pronto ainda${NC}"
+            echo -e "${BLUE}[ACAO] Continuando... App tentará conectar ao iniciar${NC}"
+            MONGO_RUNNING=1
+        fi
+    else
+        echo -e "${RED}[ERRO] MongoDB não encontrado e Docker não disponível!${NC}"
+        echo ""
+        echo "Opções:"
+        echo "1. Instale MongoDB: https://www.mongodb.com/try/download/community"
+        echo "2. OU instale Docker para usar MongoDB em container"
+        exit 1
+    fi
+fi
+echo ""
+
 # Criar/verificar arquivo .env
-echo -e "${BLUE}[4/5] Configurando variáveis de ambiente...${NC}"
+echo -e "${BLUE}[4/4] Configurando variáveis de ambiente...${NC}"
 if [ ! -f ".env" ]; then
     echo -e "${BLUE}[ACAO] Criando arquivo .env...${NC}"
     cat > .env << 'EOF'
@@ -113,7 +124,7 @@ fi
 echo ""
 
 # Mostrar configuração
-echo -e "${BLUE}[5/5] Configuração atual:${NC}"
+echo -e "${BLUE}Configuração atual:${NC}"
 echo "============================================================"
 cat .env
 echo "============================================================"

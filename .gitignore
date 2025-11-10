@@ -209,6 +209,7 @@ dump.rdb
 
 # Application specific
 backend/keys/
+backend/flask_session/
 logs/
 uploads/
 static/media/
