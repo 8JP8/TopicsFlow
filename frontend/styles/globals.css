@@ -116,11 +116,22 @@ textarea::placeholder {
 }
 
 .btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+  background-color: var(--theme-blue-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--theme-blue-secondary);
 }
 
 .btn-secondary {
-  @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+  background-color: var(--theme-bg-secondary);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--theme-bg-tertiary);
 }
 
 .btn-danger {
@@ -128,12 +139,19 @@ textarea::placeholder {
 }
 
 .btn-ghost {
-  @apply bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500;
+  background-color: transparent;
+  color: var(--theme-text-primary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--theme-bg-secondary);
 }
 
 /* Card component */
 .card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
+  background-color: var(--theme-bg-primary);
+  border: 1px solid var(--theme-border);
+  @apply rounded-xl shadow-sm p-6;
 }
 
 /* Loading spinner */
@@ -168,7 +186,8 @@ textarea::placeholder {
 }
 
 .modal-content {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-screen overflow-y-auto;
+  background-color: var(--theme-bg-primary);
+  @apply rounded-xl shadow-xl max-w-lg w-full max-h-screen overflow-y-auto;
 }
 
 /* Message bubble styles */

@@ -33,8 +33,10 @@ def create_app(config_name=None):
     logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
     logger.info("="*60)
 
-    # Initialize extensions
-    cors.init_app(app, origins=[app.config['FRONTEND_URL']])
+    # Initialize extensions with credentials support
+    cors.init_app(app,
+                 origins=[app.config['FRONTEND_URL']],
+                 supports_credentials=True)
     session.init_app(app)
 
     # Initialize SocketIO with session support
@@ -44,7 +46,8 @@ def create_app(config_name=None):
 
     socketio.init_app(app,
                      cors_allowed_origins=[app.config['FRONTEND_URL']],
-                     async_mode=async_mode)
+                     async_mode=async_mode,
+                     cors_credentials=True)
 
     # Database connection
     try:
