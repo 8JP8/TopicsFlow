@@ -36,6 +36,18 @@ pip show flask >nul 2>&1
 if errorlevel 1 (
     echo [ACAO] Instalando dependencias no sistema (pode demorar alguns minutos)...
     echo.
+
+    REM Instalar bcrypt primeiro com binary wheel (fix Windows)
+    echo [ACAO] Instalando bcrypt (Windows fix)...
+    pip uninstall -y bcrypt >nul 2>&1
+    pip install --only-binary :all: bcrypt==4.1.0
+    if errorlevel 1 (
+        echo [AVISO] Falha ao instalar bcrypt com wheel, tentando sem restricoes...
+        pip install bcrypt==4.1.0
+    )
+    echo.
+
+    REM Instalar resto das dependencias
     pip install -r requirements.txt
     if errorlevel 1 (
         echo.
@@ -46,6 +58,17 @@ if errorlevel 1 (
     echo.
     echo [OK] Dependencias instaladas com sucesso!
 ) else (
+    echo [ACAO] Verificando bcrypt...
+    pip show bcrypt >nul 2>&1
+    if errorlevel 1 (
+        echo [ACAO] Reinstalando bcrypt (Windows fix)...
+        pip uninstall -y bcrypt >nul 2>&1
+        pip install --only-binary :all: bcrypt==4.1.0 >nul 2>&1
+        if errorlevel 1 (
+            pip install bcrypt==4.1.0 >nul 2>&1
+        )
+    )
+
     echo [ACAO] Verificando e atualizando dependencias se necessario...
     pip install --upgrade -r requirements.txt >nul 2>&1
     if errorlevel 1 (
