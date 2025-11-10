@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: chathub-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: chatapp
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - chathub-network
+
+  # Redis (for session storage and caching)
+  redis:
+    image: redis:7.2-alpine
+    container_name: chathub-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chathub-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: chathub-backend
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: development
+      SECRET_KEY: your-super-secret-key-change-in-production
+      DATABASE_URL: mongodb://admin:password123@mongodb:27017/chatapp?authSource=admin
+      DB_NAME: chatapp
+      FRONTEND_URL: http://localhost:3000
+      TOTP_ISSUER: ChatHub
+      REDIS_URL: redis://redis:6379/0
+      # External API keys (add your own)
+      SMS_SERVICE_API_KEY: ${SMS_SERVICE_API_KEY:-}
+      EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY:-}
+      TENOR_API_KEY: ${TENOR_API_KEY:-}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - totp_keys:/app/keys
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - chathub-network
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: chathub-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_APP_NAME: ChatHub
+      NEXT_PUBLIC_TENOR_API_KEY: ${TENOR_API_KEY:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - chathub-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  totp_keys:
+
+networks:
+  chathub-network:
+    driver: bridge
