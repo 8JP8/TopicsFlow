@@ -7,8 +7,8 @@ WORKDIR /frontend
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies needed for build)
+RUN npm ci
 
 # Copy frontend source
 COPY frontend/ ./
@@ -57,4 +57,6 @@ ENV FLASK_ENV=azure
 ENV PORT=8000
 
 # Start application with gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "eventlet", "--timeout", "120", "--log-level", "info", "app:create_app()"]
+# Note: With eventlet worker, we must use only 1 worker for WebSocket support
+# Using the WSGI entry point that wraps Flask-SocketIO correctly
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "eventlet", "--workers", "1", "--timeout", "120", "--log-level", "info", "wsgi:app"]
