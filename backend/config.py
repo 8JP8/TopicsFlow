@@ -43,7 +43,7 @@ class Config:
         COSMOS_RETRY_WRITES = True
 
     # CORS Config
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8080')
 
     # TOTP/Auth Config
     TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'ChatHub')

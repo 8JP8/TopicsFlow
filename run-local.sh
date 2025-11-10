@@ -32,7 +32,7 @@ sleep 3
 
 # Start Frontend
 echo "[2/2] Starting Frontend..."
-echo "   Frontend will run on: http://localhost:3000"
+echo "   Frontend will run on: http://localhost:8080"
 echo ""
 cd frontend
 gnome-terminal -- bash -c "npm run dev; exec bash" 2>/dev/null || \
@@ -46,7 +46,7 @@ echo "   ChatApp Started Successfully!"
 echo "========================================"
 echo ""
 echo "Backend API:  http://localhost:5000"
-echo "Frontend UI:  http://localhost:3000"
+echo "Frontend UI:  http://localhost:8080"
 echo ""
 echo "Press Ctrl+C to stop (or close terminal windows)"
 echo "========================================"
