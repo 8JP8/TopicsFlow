@@ -22,6 +22,22 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined);
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (context === undefined) {
+    // During SSR, return a safe default instead of throwing
+    if (typeof window === 'undefined') {
+      return {
+        socket: null,
+        connected: false,
+        onlineUsers: 0,
+        joinTopic: () => {},
+        leaveTopic: () => {},
+        sendMessage: () => {},
+        sendPrivateMessage: () => {},
+        typingStart: () => {},
+        typingStop: () => {},
+        markMessagesRead: () => {},
+        updateAnonymousName: () => {},
+      } as SocketContextType;
+    }
     throw new Error('useSocket must be used within a SocketProvider');
   }
   return context;

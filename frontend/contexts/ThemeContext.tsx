@@ -14,6 +14,14 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
+    // During SSR, return a safe default instead of throwing
+    if (typeof window === 'undefined') {
+      return {
+        theme: 'dark' as Theme,
+        toggleTheme: () => {},
+        setTheme: () => {},
+      } as ThemeContextType;
+    }
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
