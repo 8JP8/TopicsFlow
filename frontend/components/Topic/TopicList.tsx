@@ -14,6 +14,10 @@ interface Topic {
     username: string;
   };
   user_permission_level: number;
+  settings: {
+    allow_anonymous: boolean;
+    require_approval: boolean;
+  };
 }
 
 interface TopicListProps {
