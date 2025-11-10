@@ -5,6 +5,7 @@ from flask_session import Session
 from pymongo import MongoClient
 from config import config
 import os
+import sys
 import logging
 
 # Configure logging
@@ -37,9 +38,13 @@ def create_app(config_name=None):
     session.init_app(app)
 
     # Initialize SocketIO with session support
+    # Use threading mode on Windows (eventlet not reliable on Windows)
+    async_mode = 'threading' if sys.platform == 'win32' else 'eventlet'
+    logger.info(f"Using SocketIO async_mode: {async_mode}")
+
     socketio.init_app(app,
                      cors_allowed_origins=[app.config['FRONTEND_URL']],
-                     async_mode='eventlet')
+                     async_mode=async_mode)
 
     # Database connection
     try:
