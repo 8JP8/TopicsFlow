@@ -1,45 +1,60 @@
 @echo off
-REM ========================================
-REM   ChatApp - Local Development
-REM ========================================
-
+title ChatApp Auto-Launcher
+echo ==============================================
+echo   Starting ChatApp Development Environment
+echo   Servers initiating... please wait
+echo ==============================================
 echo.
-echo ========================================
-echo   Starting ChatApp Locally
-echo ========================================
+echo Backend and Frontend will start minimized.
+echo You can access the app from any device on the network.
+echo.
+echo To find your server IP, run: ipconfig
+echo.
+echo IMPORTANT: Using LOCAL configuration only
+echo (Azure configurations are disabled)
 echo.
 
-REM Set environment variable for local mode
+REM Clear all Azure-related environment variables for this session
+REM This ensures no Azure resources will be accessed
+set AZURE_COSMOS_CONNECTIONSTRING=
+set AZURE_COSMOS_DATABASE=
+set AZURE_DEPLOYMENT=
+set FORCE_AZURE_MODE=
+
+REM Set local mode configuration explicitly
+set FORCE_LOCAL_MODE=true
+set DATABASE_URL=mongodb://localhost:27017/chatapp
+
+REM Set Flask to development/local mode
+set FLASK_ENV=development
+set FLASK_DEBUG=True
+set PORT=5000
+
+REM Set environment variables for local mode in .env
 cd /d "%~dp0backend"
 if not exist .env (
     echo FORCE_LOCAL_MODE=true > .env
     echo DATABASE_URL=mongodb://localhost:27017/chatapp >> .env
 )
 
-REM Start Backend
-echo [1/2] Starting Backend...
-echo   Backend will run on: http://localhost:5000
-echo.
-start "ChatApp Backend" cmd /k "cd /d %~dp0backend && python app.py"
+REM Start Backend (minimized) with local environment
+start "ChatApp Backend" /min cmd /k "cd /d %~dp0backend && python app.py"
 
-REM Wait a bit for backend to start
-timeout /t 3 /nobreak >nul
+REM Wait for backend to initialize
+timeout /t 2 /nobreak >nul
 
-REM Start Frontend
-echo [2/2] Starting Frontend...
-echo   Frontend will run on: http://localhost:3000
-echo.
-start "ChatApp Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+REM Start Frontend (minimized) with Next.js dev server
+start "ChatApp Frontend" /min cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.
-echo ========================================
-echo   ChatApp Started Successfully!
-echo ========================================
+echo Servers initiating...
 echo.
 echo Backend API:  http://localhost:5000
 echo Frontend UI:  http://localhost:3000
 echo.
-echo Press Ctrl+C in each window to stop
-echo ========================================
+echo Both servers are running minimized.
+echo Check the taskbar for terminal windows.
 echo.
-pause
+echo Closing this window in 3 seconds...
+timeout /t 3 /nobreak >nul
+exit
