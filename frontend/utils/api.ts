@@ -32,9 +32,12 @@ class ApiClient {
       },
       (error) => {
         if (error.response?.status === 401) {
-          // Unauthorized - redirect to login
+          // Unauthorized - redirect to login only if not already on auth pages
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            const path = window.location.pathname;
+            if (path !== '/login' && path !== '/register') {
+              window.location.href = '/login';
+            }
           }
         } else if (error.response?.status >= 500) {
           // Server error

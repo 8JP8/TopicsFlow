@@ -75,8 +75,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Check authentication status on mount
+  // Check authentication status on mount (skip on auth pages)
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      // Don't check auth on login/register pages to prevent infinite loops
+      if (path === '/login' || path === '/register') {
+        setLoading(false);
+        return;
+      }
+    }
     checkAuthStatus();
   }, []);
 
