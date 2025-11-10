@@ -28,6 +28,9 @@ REM Verificar e instalar dependências Python PRIMEIRO (direto no sistema)
 echo [2/4] Verificando e instalando dependencias Python...
 cd /d "%~dp0backend"
 
+echo [ACAO] Atualizando pip, setuptools e wheel...
+python -m pip install --upgrade pip setuptools wheel >nul 2>&1
+
 echo [ACAO] Verificando se dependencias estao instaladas...
 pip show flask >nul 2>&1
 if errorlevel 1 (
@@ -43,7 +46,12 @@ if errorlevel 1 (
     echo.
     echo [OK] Dependencias instaladas com sucesso!
 ) else (
-    echo [OK] Dependencias ja instaladas
+    echo [ACAO] Verificando e atualizando dependencias se necessario...
+    pip install --upgrade -r requirements.txt >nul 2>&1
+    if errorlevel 1 (
+        echo [AVISO] Algumas dependencias podem precisar de atualizacao manual
+    )
+    echo [OK] Dependencias verificadas
 )
 echo.
 

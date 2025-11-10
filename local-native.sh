@@ -34,6 +34,9 @@ echo ""
 echo -e "${BLUE}[2/4] Verificando e instalando dependencias Python...${NC}"
 cd backend
 
+echo -e "${BLUE}[ACAO] Atualizando pip, setuptools e wheel...${NC}"
+python3 -m pip install --upgrade pip setuptools wheel &> /dev/null
+
 echo -e "${BLUE}[ACAO] Verificando se dependencias estao instaladas...${NC}"
 if ! pip3 show flask &> /dev/null; then
     echo -e "${BLUE}[ACAO] Instalando dependencias no sistema (pode demorar alguns minutos)...${NC}"
@@ -47,7 +50,12 @@ if ! pip3 show flask &> /dev/null; then
     echo ""
     echo -e "${GREEN}[OK] Dependencias instaladas com sucesso!${NC}"
 else
-    echo -e "${GREEN}[OK] Dependencias ja instaladas${NC}"
+    echo -e "${BLUE}[ACAO] Verificando e atualizando dependencias se necessario...${NC}"
+    pip3 install --upgrade -r requirements.txt &> /dev/null
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW}[AVISO] Algumas dependencias podem precisar de atualizacao manual${NC}"
+    fi
+    echo -e "${GREEN}[OK] Dependencias verificadas${NC}"
 fi
 echo ""
 
