@@ -256,7 +256,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setMode('backup')}
-                  className="text-sm theme-blue-primary hover:underline"
+                  className="text-sm theme-text-blue hover:underline"
                 >
                   Use backup code instead
                 </button>
@@ -268,7 +268,7 @@ export default function Login() {
                 Don't have an account?{' '}
                 <button
                   onClick={() => setMode('register')}
-                  className="theme-blue-primary hover:underline"
+                  className="theme-text-blue hover:underline font-semibold"
                 >
                   Sign up
                 </button>
@@ -360,7 +360,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="text-sm theme-blue-primary hover:underline"
+                  className="text-sm theme-text-blue hover:underline"
                 >
                   Use authenticator code
                 </button>
@@ -372,7 +372,7 @@ export default function Login() {
                 Don't have an account?{' '}
                 <button
                   onClick={() => setMode('register')}
-                  className="theme-blue-primary hover:underline"
+                  className="theme-text-blue hover:underline font-semibold"
                 >
                   Sign up
                 </button>
@@ -505,7 +505,7 @@ export default function Login() {
                 Already have an account?{' '}
                 <button
                   onClick={() => setMode('login')}
-                  className="theme-blue-primary hover:underline"
+                  className="theme-text-blue hover:underline font-semibold"
                 >
                   Sign in
                 </button>
@@ -517,7 +517,7 @@ export default function Login() {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-sm theme-text-muted">
-            <Link href="/recovery" className="theme-blue-primary hover:underline">
+            <Link href="/recovery" className="theme-text-blue hover:underline">
               Forgot your password? Recover your account
             </Link>
           </p>

@@ -1,14 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const LanguageToggle: React.FC = () => {
-  const { user, updatePreferences } = useAuth();
+  const { user } = useAuth();
 
-  const currentLanguage = user?.preferences.language || 'en';
+  // Use local state for language, don't sync with backend immediately
+  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'pt'>('en');
 
-  const toggleLanguage = async () => {
+  // Initialize from user preferences or localStorage
+  useEffect(() => {
+    const savedLang = localStorage.getItem('preferredLanguage') as 'en' | 'pt' | null;
+    if (savedLang) {
+      setCurrentLanguage(savedLang);
+    } else if (user?.preferences.language) {
+      setCurrentLanguage(user.preferences.language);
+    }
+  }, [user]);
+
+  const toggleLanguage = () => {
     const newLanguage = currentLanguage === 'en' ? 'pt' : 'en';
-    await updatePreferences({ language: newLanguage });
+    setCurrentLanguage(newLanguage);
+    // Save to localStorage for persistence (no backend call to avoid loop)
+    localStorage.setItem('preferredLanguage', newLanguage);
   };
 
   return (
