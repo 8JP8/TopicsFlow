@@ -32,6 +32,8 @@ interface Message {
   display_name: string;
   is_anonymous: boolean;
   can_delete: boolean;
+  topic_id?: string;
+  gif_url?: string;
 }
 
 export default function Home() {
