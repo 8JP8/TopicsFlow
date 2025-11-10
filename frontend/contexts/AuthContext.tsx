@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'react-hot-toast';
-import { api } from '@/utils/api';
+import { api, API_ENDPOINTS } from '@/utils/api';
 
 interface User {
   id: string;
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get(API_ENDPOINTS.AUTH.ME);
       if (response.data.success) {
         setUser(response.data.user);
         // Apply user's theme preference
@@ -101,7 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string, totpCode: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/login', {
+      const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, {
         username: username.trim(),
         password,
         totp_code: totpCode,
@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithBackupCode = async (username: string, password: string, backupCode: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/login-backup', {
+      const response = await api.post(API_ENDPOINTS.AUTH.LOGIN_BACKUP, {
         username: username.trim(),
         password,
         backup_code: backupCode,
@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, userData);
 
       if (response.data.success) {
         toast.success('Registration successful! Please set up your authenticator app.');
@@ -191,7 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post(API_ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
       // Even if logout fails on server, clear local state
       console.error('Logout error:', error);
@@ -204,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updatePreferences = async (preferences: Partial<User['preferences']>): Promise<boolean> => {
     try {
-      const response = await api.put('/auth/preferences', { preferences });
+      const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, { preferences });
 
       if (response.data.success) {
         // Update local user state
@@ -236,7 +236,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
     try {
-      const response = await api.post('/auth/change-password', {
+      const response = await api.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
         current_password: currentPassword,
         new_password: newPassword,
       });
@@ -257,7 +257,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const regenerateBackupCodes = async (): Promise<string[]> => {
     try {
-      const response = await api.post('/auth/backup-codes');
+      const response = await api.post(API_ENDPOINTS.AUTH.BACKUP_CODES);
 
       if (response.data.success) {
         toast.success('Backup codes regenerated successfully');
@@ -275,7 +275,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshUser = async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get(API_ENDPOINTS.AUTH.ME);
       if (response.data.success) {
         setUser(response.data.user);
       }
