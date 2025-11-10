@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: chathub-mongodb-prod
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
+      MONGO_INITDB_DATABASE: chatapp
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - chathub-network
+    secrets:
+      - mongo_root_username
+      - mongo_root_password
+
+  # Redis
+  redis:
+    image: redis:7.2-alpine
+    container_name: chathub-redis-prod
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - chathub-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: chathub-backend-prod
+    restart: always
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY_FILE: /run/secrets/flask_secret_key
+      DATABASE_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/chatapp?authSource=admin
+      DB_NAME: chatapp
+      FRONTEND_URL: ${FRONTEND_URL}
+      TOTP_ISSUER: ChatHub
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SMS_SERVICE_API_KEY_FILE: /run/secrets/sms_service_api_key
+      EMAIL_SERVICE_API_KEY_FILE: /run/secrets/email_service_api_key
+      TENOR_API_KEY_FILE: /run/secrets/tenor_api_key
+    volumes:
+      - totp_keys:/app/keys
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - chathub-network
+    secrets:
+      - flask_secret_key
+      - sms_service_api_key
+      - email_service_api_key
+      - tenor_api_key
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: chathub-frontend-prod
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${FRONTEND_URL}
+      NEXT_PUBLIC_APP_NAME: ChatHub
+      NEXT_PUBLIC_TENOR_API_KEY_FILE: /run/secrets/tenor_api_key
+    depends_on:
+      - backend
+    networks:
+      - chathub-network
+    secrets:
+      - tenor_api_key
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: chathub-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - chathub-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  totp_keys:
+
+networks:
+  chathub-network:
+    driver: bridge
+
+secrets:
+  mongo_root_username:
+    file: ./secrets/mongo_root_username.txt
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
+  flask_secret_key:
+    file: ./secrets/flask_secret_key.txt
+  sms_service_api_key:
+    file: ./secrets/sms_service_api_key.txt
+  email_service_api_key:
+    file: ./secrets/email_service_api_key.txt
+  tenor_api_key:
+    file: ./secrets/tenor_api_key.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
