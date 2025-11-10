@@ -7,8 +7,8 @@ import '@/styles/globals.css';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider>
         <SocketProvider>
           <Component {...pageProps} />
           <Toaster
@@ -38,8 +38,8 @@ function MyApp({ Component, pageProps }: AppProps) {
             }}
           />
         </SocketProvider>
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
