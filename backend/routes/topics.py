@@ -74,7 +74,7 @@ def get_topics():
 
 @topics_bp.route('/', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def create_topic():
     """Create a new topic."""
@@ -166,7 +166,7 @@ def get_topic(topic_id):
 
 @topics_bp.route('/<topic_id>', methods=['PUT'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def update_topic(topic_id):
     """Update topic details (only owner can update)."""
@@ -233,7 +233,7 @@ def update_topic(topic_id):
 
 
 @topics_bp.route('/<topic_id>', methods=['DELETE'])
-@require_auth
+@require_auth()
 @log_requests
 def delete_topic(topic_id):
     """Delete a topic (only owner can delete)."""
@@ -260,7 +260,7 @@ def delete_topic(topic_id):
 
 
 @topics_bp.route('/<topic_id>/join', methods=['POST'])
-@require_auth
+@require_auth()
 @log_requests
 def join_topic(topic_id):
     """Join a topic."""
@@ -287,7 +287,7 @@ def join_topic(topic_id):
 
 
 @topics_bp.route('/<topic_id>/leave', methods=['POST'])
-@require_auth
+@require_auth()
 @log_requests
 def leave_topic(topic_id):
     """Leave a topic."""
@@ -335,7 +335,7 @@ def get_topic_moderators(topic_id):
 
 @topics_bp.route('/<topic_id>/moderators', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def add_moderator(topic_id):
     """Add a moderator to a topic (only owner)."""
@@ -375,7 +375,7 @@ def add_moderator(topic_id):
 
 
 @topics_bp.route('/<topic_id>/moderators/<moderator_id>', methods=['DELETE'])
-@require_auth
+@require_auth()
 @log_requests
 def remove_moderator(topic_id, moderator_id):
     """Remove a moderator from a topic (only owner)."""
@@ -403,7 +403,7 @@ def remove_moderator(topic_id, moderator_id):
 
 @topics_bp.route('/<topic_id>/ban', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def ban_user_from_topic(topic_id):
     """Ban a user from a topic (owner or moderator)."""
@@ -439,7 +439,7 @@ def ban_user_from_topic(topic_id):
 
 @topics_bp.route('/<topic_id>/unban', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def unban_user_from_topic(topic_id):
     """Unban a user from a topic (owner or moderator)."""
@@ -473,7 +473,7 @@ def unban_user_from_topic(topic_id):
 
 @topics_bp.route('/<topic_id>/transfer-ownership', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def transfer_ownership(topic_id):
     """Transfer topic ownership to another user."""
@@ -506,7 +506,7 @@ def transfer_ownership(topic_id):
 
 
 @topics_bp.route('/my', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_topics():
     """Get topics that the current user is a member of."""
@@ -530,7 +530,7 @@ def get_user_topics():
 
 
 @topics_bp.route('/<topic_id>/anonymous-identity', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_anonymous_identity(topic_id):
     """Get user's anonymous identity for a topic."""
@@ -558,7 +558,7 @@ def get_anonymous_identity(topic_id):
 
 @topics_bp.route('/<topic_id>/anonymous-identity', methods=['PUT'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def update_anonymous_identity(topic_id):
     """Update user's anonymous identity for a topic."""

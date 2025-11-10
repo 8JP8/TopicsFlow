@@ -12,7 +12,7 @@ users_bp = Blueprint('users', __name__)
 
 
 @users_bp.route('/profile', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_profile():
     """Get current user's profile."""
@@ -95,7 +95,7 @@ def get_user_by_username(username):
 
 
 @users_bp.route('/topics', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_topics():
     """Get topics that the current user is a member of."""
@@ -119,7 +119,7 @@ def get_user_topics():
 
 
 @users_bp.route('/anonymous-identities', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_anonymous_identities():
     """Get all anonymous identities for the current user."""
@@ -143,7 +143,7 @@ def get_anonymous_identities():
 
 
 @users_bp.route('/anonymous-identities/<topic_id>', methods=['DELETE'])
-@require_auth
+@require_auth()
 @log_requests
 def delete_anonymous_identity(topic_id):
     """Delete anonymous identity for a specific topic."""
@@ -170,7 +170,7 @@ def delete_anonymous_identity(topic_id):
 
 
 @users_bp.route('/private-messages/conversations', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_private_conversations():
     """Get private message conversations for current user."""
@@ -199,7 +199,7 @@ def get_private_conversations():
 
 
 @users_bp.route('/private-messages/<other_user_id>', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_private_conversation(other_user_id):
     """Get private message conversation with a specific user."""
@@ -231,7 +231,7 @@ def get_private_conversation(other_user_id):
 
 
 @users_bp.route('/private-messages/unread-count', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_unread_message_count():
     """Get unread private message count for current user."""
@@ -257,7 +257,7 @@ def get_unread_message_count():
 
 
 @users_bp.route('/private-messages/<other_user_id>/read', methods=['POST'])
-@require_auth
+@require_auth()
 @log_requests
 def mark_conversation_read(other_user_id):
     """Mark all messages from a user as read."""
@@ -284,7 +284,7 @@ def mark_conversation_read(other_user_id):
 
 
 @users_bp.route('/search', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def search_users():
     """Search users by username."""
@@ -334,7 +334,7 @@ def search_users():
 
 
 @users_bp.route('/stats', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_stats():
     """Get statistics for the current user."""

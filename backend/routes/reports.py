@@ -11,7 +11,7 @@ reports_bp = Blueprint('reports', __name__)
 
 
 @reports_bp.route('/', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_reports():
     """Get reports with filtering and pagination."""
@@ -80,7 +80,7 @@ def get_reports():
 
 
 @reports_bp.route('/<report_id>', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_report(report_id):
     """Get a specific report by ID."""
@@ -112,7 +112,7 @@ def get_report(report_id):
 
 @reports_bp.route('/<report_id>/review', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def review_report(report_id):
     """Review and resolve a report."""
@@ -164,7 +164,7 @@ def review_report(report_id):
 
 @reports_bp.route('/<report_id>/dismiss', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def dismiss_report(report_id):
     """Dismiss a report as false positive."""
@@ -206,7 +206,7 @@ def dismiss_report(report_id):
 
 @reports_bp.route('/<report_id>/escalate', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def escalate_report(report_id):
     """Escalate a report for higher level review."""
@@ -247,7 +247,7 @@ def escalate_report(report_id):
 
 
 @reports_bp.route('/statistics', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_report_statistics():
     """Get report statistics."""
@@ -282,7 +282,7 @@ def get_report_statistics():
 
 
 @reports_bp.route('/recent', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_recent_reports():
     """Get recent reports for dashboard."""
@@ -320,7 +320,7 @@ def get_recent_reports():
 
 
 @reports_bp.route('/my', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_reports():
     """Get reports submitted by or about the current user."""
@@ -361,7 +361,7 @@ def get_user_reports():
 
 
 @reports_bp.route('/<report_id>', methods=['DELETE'])
-@require_auth
+@require_auth()
 @log_requests
 def delete_report(report_id):
     """Delete a report (system maintenance)."""

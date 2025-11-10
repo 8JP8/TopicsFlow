@@ -57,7 +57,7 @@ def get_topic_messages(topic_id):
 
 @messages_bp.route('/topic/<topic_id>', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def create_message(topic_id):
     """Create a new message in a topic."""
@@ -149,7 +149,7 @@ def get_message(message_id):
 
 
 @messages_bp.route('/<message_id>', methods=['DELETE'])
-@require_auth
+@require_auth()
 @log_requests
 def delete_message(message_id):
     """Delete a message (moderator, owner, or message author)."""
@@ -177,7 +177,7 @@ def delete_message(message_id):
 
 @messages_bp.route('/<message_id>/report', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def report_message(message_id):
     """Report a message for moderation."""
@@ -213,7 +213,7 @@ def report_message(message_id):
 
 
 @messages_bp.route('/<message_id>/reports', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_message_reports(message_id):
     """Get reports for a specific message (moderator/owner only)."""
@@ -291,7 +291,7 @@ def search_topic_messages(topic_id):
 
 
 @messages_bp.route('/user/<user_id>', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_messages(user_id):
     """Get recent messages from a specific user."""
@@ -342,7 +342,7 @@ def get_topic_message_stats(topic_id):
 
 
 @messages_bp.route('/topic/<topic_id>/user/<user_id>/count', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_user_message_count_in_topic(topic_id, user_id):
     """Get message count for a specific user in a topic."""
@@ -368,7 +368,7 @@ def get_user_message_count_in_topic(topic_id, user_id):
 
 
 @messages_bp.route('/private', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_private_messages():
     """Get private message conversations for current user."""
@@ -408,7 +408,7 @@ def get_private_messages():
 
 @messages_bp.route('/private', methods=['POST'])
 @require_json
-@require_auth
+@require_auth()
 @log_requests
 def send_private_message():
     """Send a private message."""
@@ -461,7 +461,7 @@ def send_private_message():
 
 
 @messages_bp.route('/private/conversations', methods=['GET'])
-@require_auth
+@require_auth()
 @log_requests
 def get_private_conversations():
     """Get all private message conversations for current user."""
@@ -493,7 +493,7 @@ def get_private_conversations():
 
 
 @messages_bp.route('/private/<message_id>/read', methods=['POST'])
-@require_auth
+@require_auth()
 @log_requests
 def mark_private_message_read(message_id):
     """Mark a private message as read."""
