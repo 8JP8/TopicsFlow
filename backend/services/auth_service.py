@@ -2,7 +2,10 @@ from flask import session
 from datetime import datetime, timedelta
 import pyotp
 import secrets
+import random
+import string
 from models.user import User
+from services.email_service import EmailService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
 
@@ -13,6 +16,7 @@ class AuthService:
     def __init__(self, db):
         self.db = db
         self.user_model = User(db)
+        self.email_service = EmailService()
 
     def register_user(self, username: str, email: str, password: str,
                      phone: str = None, security_questions: list = None) -> dict:
@@ -319,4 +323,294 @@ class AuthService:
             'user_id': session.get('user_id'),
             'username': session.get('username'),
             'login_time': session.get('login_time')
+        }
+
+    # Passwordless Authentication Methods
+    def register_user_passwordless(self, username: str, email: str) -> dict:
+        """Register a new user without password (passwordless auth)."""
+        validation_errors = []
+
+        if not username or len(username.strip()) < 3:
+            validation_errors.append("Username must be at least 3 characters")
+        elif not validate_username(username):
+            validation_errors.append("Username contains invalid characters")
+        elif contains_profanity(username):
+            validation_errors.append("Username contains inappropriate content")
+
+        if not email or not validate_email(email):
+            validation_errors.append("Valid email is required")
+
+        if validation_errors:
+            return {'success': False, 'errors': validation_errors}
+
+        try:
+            # Create user without password
+            user_id = self.user_model.create_user(
+                username=username.strip(),
+                email=email.lower().strip(),
+                password=None  # No password for passwordless auth
+            )
+
+            # Generate and send email verification code
+            verification_code = ''.join(random.choices(string.digits, k=6))
+            self.user_model.set_email_verification_code(user_id, verification_code)
+
+            # Send verification email
+            email_result = self.email_service.send_verification_email(
+                email.lower().strip(),
+                username.strip(),
+                verification_code
+            )
+
+            if not email_result.get('success'):
+                return {'success': False, 'errors': ['Failed to send verification email']}
+
+            return {
+                'success': True,
+                'user_id': user_id,
+                'message': 'Verification code sent to your email'
+            }
+
+        except ValueError as e:
+            return {'success': False, 'errors': [str(e)]}
+        except Exception as e:
+            return {'success': False, 'errors': ['Registration failed. Please try again.']}
+
+    def verify_email(self, user_id: str, code: str) -> dict:
+        """Verify email with code."""
+        if not code or len(code) != 6:
+            return {'success': False, 'errors': ['Invalid verification code']}
+
+        if not self.user_model.verify_email_code(user_id, code):
+            return {'success': False, 'errors': ['Invalid or expired verification code']}
+
+        # Get TOTP QR code data for 2FA setup
+        qr_data = self.user_model.get_totp_qr_data(user_id)
+        totp_secret = self.user_model.get_totp_secret(user_id)
+
+        return {
+            'success': True,
+            'message': 'Email verified successfully',
+            'totp_qr_data': qr_data,
+            'totp_secret': totp_secret,  # For manual entry
+            'user_id': user_id
+        }
+
+    def resend_verification_code(self, user_id: str) -> dict:
+        """Resend email verification code."""
+        try:
+            user = self.user_model.get_user_by_id(user_id)
+            if not user:
+                return {'success': False, 'errors': ['User not found']}
+
+            if user.get('email_verified'):
+                return {'success': False, 'errors': ['Email already verified']}
+
+            # Generate new verification code
+            verification_code = ''.join(random.choices(string.digits, k=6))
+            self.user_model.set_email_verification_code(user_id, verification_code)
+
+            # Send verification email
+            email_result = self.email_service.send_verification_email(
+                user['email'],
+                user['username'],
+                verification_code
+            )
+
+            if not email_result.get('success'):
+                return {'success': False, 'errors': ['Failed to send verification email']}
+
+            return {
+                'success': True,
+                'message': 'Verification code resent successfully'
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to resend verification code']}
+
+    def complete_totp_setup(self, user_id: str, totp_code: str) -> dict:
+        """Complete TOTP setup and enable 2FA."""
+        if not totp_code or len(totp_code) != 6:
+            return {'success': False, 'errors': ['Invalid verification code']}
+
+        # Check if email is verified
+        if not self.user_model.is_email_verified(user_id):
+            return {'success': False, 'errors': ['Email must be verified first']}
+
+        # Verify TOTP code
+        if not self.user_model.verify_totp(user_id, totp_code):
+            return {'success': False, 'errors': ['Invalid authentication code']}
+
+        # Enable TOTP
+        if not self.user_model.enable_totp(user_id):
+            return {'success': False, 'errors': ['Failed to enable 2FA']}
+
+        # Generate backup codes
+        backup_codes = self.user_model.generate_backup_codes(user_id)
+
+        # Store hash of original TOTP secret for recovery
+        totp_secret = self.user_model.get_totp_secret(user_id)
+        self.user_model.store_original_totp_secret(user_id, totp_secret)
+
+        return {
+            'success': True,
+            'message': '2FA enabled successfully',
+            'backup_codes': backup_codes
+        }
+
+    def login_passwordless(self, identifier: str, totp_code: str, ip_address: str = None) -> dict:
+        """Login with username/email and TOTP code only (no password)."""
+        validation_errors = []
+
+        if not identifier:
+            validation_errors.append("Username or email is required")
+
+        if not totp_code or len(totp_code) != 6:
+            validation_errors.append("Authentication code is required")
+
+        if validation_errors:
+            return {'success': False, 'errors': validation_errors}
+
+        try:
+            # Verify with TOTP only
+            user = self.user_model.verify_totp_only(identifier.strip(), totp_code)
+            if not user:
+                return {'success': False, 'errors': ['Invalid credentials or authentication code']}
+
+            # Check if user is banned
+            if self.user_model.is_user_banned(str(user['_id'])):
+                return {'success': False, 'errors': ['Account is banned']}
+
+            # Check if email is verified
+            if not user.get('email_verified', False):
+                return {'success': False, 'errors': ['Email not verified. Please complete registration.']}
+
+            # Record IP address
+            if ip_address:
+                self.user_model.add_ip_address(str(user['_id']), ip_address)
+
+            # Create session
+            session['user_id'] = str(user['_id'])
+            session['username'] = user['username']
+            session['authenticated'] = True
+            session['login_time'] = datetime.utcnow().isoformat()
+
+            return {
+                'success': True,
+                'user': {
+                    'id': str(user['_id']),
+                    'username': user['username'],
+                    'email': user['email'],
+                    'preferences': user.get('preferences', {}),
+                    'totp_enabled': user.get('totp_enabled', False)
+                }
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Login failed. Please try again.']}
+
+    # Account Recovery Methods
+    def initiate_recovery_passwordless(self, email: str) -> dict:
+        """Initiate account recovery by sending recovery code to email."""
+        if not email or not validate_email(email):
+            return {'success': False, 'errors': ['Valid email is required']}
+
+        try:
+            user = self.user_model.get_user_by_email(email.lower().strip())
+            if not user:
+                # Don't reveal if email exists for security
+                return {'success': True, 'message': 'If this email exists, a recovery code has been sent'}
+
+            # Generate recovery code
+            recovery_code = ''.join(random.choices(string.digits, k=6))
+            self.user_model.set_recovery_code(email.lower().strip(), recovery_code)
+
+            # Send recovery email
+            email_result = self.email_service.send_recovery_email(
+                email.lower().strip(),
+                user['username'],
+                recovery_code
+            )
+
+            return {
+                'success': True,
+                'message': 'If this email exists, a recovery code has been sent'
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to initiate recovery']}
+
+    def verify_recovery_code(self, email: str, code: str) -> dict:
+        """Verify recovery code."""
+        if not code or len(code) != 6:
+            return {'success': False, 'errors': ['Invalid recovery code']}
+
+        user_id = self.user_model.verify_recovery_code(email.lower().strip(), code)
+        if not user_id:
+            return {'success': False, 'errors': ['Invalid or expired recovery code']}
+
+        return {
+            'success': True,
+            'message': 'Recovery code verified',
+            'user_id': user_id
+        }
+
+    def reset_totp_with_original_secret(self, user_id: str, original_secret: str) -> dict:
+        """Reset TOTP using original secret from initial setup."""
+        if not original_secret:
+            return {'success': False, 'errors': ['Original secret is required']}
+
+        # Verify original secret
+        if not self.user_model.verify_original_totp_secret(user_id, original_secret):
+            return {'success': False, 'errors': ['Invalid original secret']}
+
+        try:
+            # Reset TOTP with new secret
+            new_secret = self.user_model.reset_totp_with_new_secret(user_id)
+
+            # Get user info
+            user = self.user_model.get_user_by_id(user_id)
+            if not user:
+                return {'success': False, 'errors': ['User not found']}
+
+            # Get QR code data
+            qr_data = self.user_model.get_totp_qr_data(user_id)
+
+            # Send notification email
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'])
+
+            return {
+                'success': True,
+                'message': '2FA reset successfully',
+                'totp_qr_data': qr_data,
+                'totp_secret': new_secret,
+                'user_id': user_id
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to reset 2FA']}
+
+    def complete_recovery_totp_setup(self, user_id: str, totp_code: str, new_secret: str) -> dict:
+        """Complete TOTP setup after recovery."""
+        if not totp_code or len(totp_code) != 6:
+            return {'success': False, 'errors': ['Invalid verification code']}
+
+        # Verify TOTP code
+        if not self.user_model.verify_totp(user_id, totp_code):
+            return {'success': False, 'errors': ['Invalid authentication code']}
+
+        # Enable TOTP
+        if not self.user_model.enable_totp(user_id):
+            return {'success': False, 'errors': ['Failed to enable 2FA']}
+
+        # Generate new backup codes
+        backup_codes = self.user_model.generate_backup_codes(user_id)
+
+        # Store new original secret for future recovery
+        self.user_model.store_original_totp_secret(user_id, new_secret)
+
+        return {
+            'success': True,
+            'message': '2FA recovery completed successfully',
+            'backup_codes': backup_codes
         }

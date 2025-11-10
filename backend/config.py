@@ -53,7 +53,9 @@ class Config:
     # External Services
     SMS_SERVICE_API_KEY = os.getenv('SMS_SERVICE_API_KEY')
     SMS_SERVICE_NUMBER = os.getenv('SMS_SERVICE_NUMBER')
-    EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY')
+    RESEND_API_KEY = os.getenv('RESEND_API_KEY')  # Resend email service API key
+    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@chathub.com')  # Sender email address
+    APP_NAME = os.getenv('APP_NAME', 'ChatHub')  # Application name for emails
     TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 
     # Redis Config (for session storage in production)

@@ -427,3 +427,255 @@ def get_session_info():
     except Exception as e:
         logger.error(f"Session info error: {str(e)}")
         return jsonify({'success': False, 'errors': ['Failed to get session info.']}), 500
+
+
+# Passwordless Authentication Endpoints
+@auth_bp.route('/register-passwordless', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def register_passwordless():
+    """Register a new user without password (only username and email)."""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+
+        if not username or not email:
+            return jsonify({'success': False, 'errors': ['Username and email are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.register_user_passwordless(username, email)
+
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passwordless registration error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Registration failed. Please try again.']}), 500
+
+
+@auth_bp.route('/verify-email', methods=['POST'])
+@require_json
+@rate_limit('10/minute')
+def verify_email():
+    """Verify email with verification code."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        code = data.get('code', '')
+
+        if not user_id or not code:
+            return jsonify({'success': False, 'errors': ['User ID and code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.verify_email(user_id, code)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Email verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Verification failed. Please try again.']}), 500
+
+
+@auth_bp.route('/resend-verification', methods=['POST'])
+@require_json
+@rate_limit('3/minute')
+def resend_verification():
+    """Resend email verification code."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.resend_verification_code(user_id)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Resend verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to resend code. Please try again.']}), 500
+
+
+@auth_bp.route('/complete-totp-setup', methods=['POST'])
+@require_json
+@rate_limit('10/minute')
+def complete_totp_setup():
+    """Complete TOTP setup and enable 2FA after scanning QR code."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        totp_code = data.get('totp_code', '')
+
+        if not user_id or not totp_code:
+            return jsonify({'success': False, 'errors': ['User ID and TOTP code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.complete_totp_setup(user_id, totp_code)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"TOTP setup completion error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Setup failed. Please try again.']}), 500
+
+
+@auth_bp.route('/login-passwordless', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def login_passwordless():
+    """Login with username/email and TOTP code only (no password)."""
+    try:
+        data = request.get_json()
+        identifier = data.get('identifier', '').strip()  # username or email
+        totp_code = data.get('totp_code', '')
+
+        if not identifier or not totp_code:
+            return jsonify({'success': False, 'errors': ['Username/email and authentication code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Get client IP for security
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
+
+        result = auth_service.login_passwordless(identifier, totp_code, ip_address)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 401
+
+    except Exception as e:
+        logger.error(f"Passwordless login error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Login failed. Please try again.']}), 500
+
+
+# Account Recovery Endpoints
+@auth_bp.route('/recovery/initiate-passwordless', methods=['POST'])
+@require_json
+@rate_limit('3/minute')
+def initiate_recovery_passwordless():
+    """Initiate account recovery by sending code to email."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+
+        if not email:
+            return jsonify({'success': False, 'errors': ['Email is required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.initiate_recovery_passwordless(email)
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Recovery initiation error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Recovery initiation failed.']}), 500
+
+
+@auth_bp.route('/recovery/verify-email-code', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def verify_recovery_email():
+    """Verify recovery email code."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        code = data.get('code', '')
+
+        if not email or not code:
+            return jsonify({'success': False, 'errors': ['Email and code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.verify_recovery_code(email, code)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Recovery email verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Verification failed.']}), 500
+
+
+@auth_bp.route('/recovery/reset-totp', methods=['POST'])
+@require_json
+@rate_limit('3/minute')
+def reset_totp_with_secret():
+    """Reset TOTP using original secret from setup."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        original_secret = data.get('original_secret', '').strip()
+
+        if not user_id or not original_secret:
+            return jsonify({'success': False, 'errors': ['User ID and original secret are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.reset_totp_with_original_secret(user_id, original_secret)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"TOTP reset error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Reset failed.']}), 500
+
+
+@auth_bp.route('/recovery/complete-totp-setup', methods=['POST'])
+@require_json
+@rate_limit('10/minute')
+def complete_recovery_totp():
+    """Complete TOTP setup after recovery."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        totp_code = data.get('totp_code', '')
+        new_secret = data.get('new_secret', '')
+
+        if not user_id or not totp_code or not new_secret:
+            return jsonify({'success': False, 'errors': ['User ID, TOTP code, and new secret are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.complete_recovery_totp_setup(user_id, totp_code, new_secret)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Recovery TOTP completion error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Completion failed.']}), 500

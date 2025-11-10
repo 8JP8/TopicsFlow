@@ -42,9 +42,9 @@ class User:
         except Exception:
             return None
 
-    def create_user(self, username: str, email: str, password: str,
+    def create_user(self, username: str, email: str, password: Optional[str] = None,
                    phone: Optional[str] = None, security_questions: Optional[List[Dict]] = None) -> str:
-        """Create a new user with TOTP setup."""
+        """Create a new user with TOTP setup. Password is optional for passwordless auth."""
         # Check if username or email already exists
         if self.collection.find_one({'username': username}):
             raise ValueError('Username already exists')
@@ -55,8 +55,8 @@ class User:
         totp_secret = pyotp.random_base32()
         encrypted_secret = self._encrypt_totp_secret(totp_secret)
 
-        # Hash password
-        password_hash = generate_password_hash(password)
+        # Hash password if provided (for backward compatibility)
+        password_hash = generate_password_hash(password) if password else None
 
         # Hash security question answers if provided
         if security_questions:
@@ -68,9 +68,12 @@ class User:
             'username': username,
             'email': email,
             'phone': phone,
-            'password_hash': password_hash,
+            'password_hash': password_hash,  # Optional for passwordless auth
             'totp_secret': encrypted_secret,
             'totp_enabled': False,  # Enabled after verification
+            'email_verified': False,  # Email verification status
+            'email_verification_code': None,  # Verification code
+            'email_verification_expires': None,  # Verification code expiry
             'security_questions': security_questions or [],
             'is_banned': False,
             'ban_reason': None,
@@ -83,7 +86,10 @@ class User:
                 'language': 'en',
                 'anonymous_mode': False
             },
-            'backup_codes': []  # Will be generated during TOTP setup
+            'backup_codes': [],  # Will be generated during TOTP setup
+            'recovery_code': None,  # Recovery email code
+            'recovery_expires': None,  # Recovery code expiry
+            'original_totp_secret_hash': None  # Hashed original secret for recovery
         }
 
         result = self.collection.insert_one(user_data)
@@ -297,3 +303,146 @@ class User:
             {'$set': {'password_hash': password_hash}}
         )
         return result.modified_count > 0
+
+    # Email Verification Methods
+    def set_email_verification_code(self, user_id: str, code: str, expires_in_minutes: int = 15) -> bool:
+        """Set email verification code with expiry."""
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {
+                'email_verification_code': code,
+                'email_verification_expires': expires_at
+            }}
+        )
+        return result.modified_count > 0
+
+    def verify_email_code(self, user_id: str, code: str) -> bool:
+        """Verify email verification code."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return False
+
+        # Check if code matches and hasn't expired
+        if (user.get('email_verification_code') == code and
+            user.get('email_verification_expires') and
+            user['email_verification_expires'] > datetime.utcnow()):
+
+            # Mark email as verified and clear verification code
+            self.collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': {
+                    'email_verified': True,
+                    'email_verification_code': None,
+                    'email_verification_expires': None
+                }}
+            )
+            return True
+
+        return False
+
+    def is_email_verified(self, user_id: str) -> bool:
+        """Check if user's email is verified."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        return user.get('email_verified', False) if user else False
+
+    # Passwordless Authentication Methods
+    def verify_user_by_username_or_email(self, identifier: str) -> Optional[Dict[str, Any]]:
+        """Find user by username or email for passwordless auth."""
+        user = self.collection.find_one({
+            '$or': [
+                {'username': identifier},
+                {'email': identifier.lower()}
+            ]
+        })
+        return user
+
+    def verify_totp_only(self, identifier: str, token: str) -> Optional[Dict[str, Any]]:
+        """Verify user with username/email and TOTP token only (passwordless)."""
+        user = self.verify_user_by_username_or_email(identifier)
+        if not user or not user.get('totp_enabled'):
+            return None
+
+        # Verify TOTP
+        totp_secret = self._decrypt_totp_secret(user['totp_secret'])
+        if not totp_secret:
+            return None
+
+        totp = pyotp.TOTP(totp_secret)
+        if totp.verify(token, valid_window=1):
+            # Update last login
+            self.collection.update_one(
+                {'_id': user['_id']},
+                {'$set': {'last_login': datetime.utcnow()}}
+            )
+            return user
+
+        return None
+
+    # Account Recovery Methods
+    def set_recovery_code(self, email: str, code: str, expires_in_minutes: int = 15) -> bool:
+        """Set recovery code for account recovery."""
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+
+        result = self.collection.update_one(
+            {'email': email.lower()},
+            {'$set': {
+                'recovery_code': code,
+                'recovery_expires': expires_at
+            }}
+        )
+        return result.modified_count > 0
+
+    def verify_recovery_code(self, email: str, code: str) -> Optional[str]:
+        """Verify recovery code and return user_id if valid."""
+        user = self.collection.find_one({'email': email.lower()})
+        if not user:
+            return None
+
+        # Check if code matches and hasn't expired
+        if (user.get('recovery_code') == code and
+            user.get('recovery_expires') and
+            user['recovery_expires'] > datetime.utcnow()):
+            return str(user['_id'])
+
+        return None
+
+    def store_original_totp_secret(self, user_id: str, original_secret: str) -> bool:
+        """Store hash of original TOTP secret for recovery purposes."""
+        secret_hash = generate_password_hash(original_secret)
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'original_totp_secret_hash': secret_hash}}
+        )
+        return result.modified_count > 0
+
+    def verify_original_totp_secret(self, user_id: str, secret: str) -> bool:
+        """Verify original TOTP secret for account recovery."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user or not user.get('original_totp_secret_hash'):
+            return False
+
+        return check_password_hash(user['original_totp_secret_hash'], secret)
+
+    def reset_totp_with_new_secret(self, user_id: str) -> str:
+        """Reset TOTP completely with new secret and clear recovery codes."""
+        new_secret = pyotp.random_base32()
+        encrypted_secret = self._encrypt_totp_secret(new_secret)
+
+        self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'totp_secret': encrypted_secret,
+                    'totp_enabled': False,  # Needs to be enabled again
+                    'backup_codes': [],
+                    'recovery_code': None,
+                    'recovery_expires': None
+                }
+            }
+        )
+
+        return new_secret
