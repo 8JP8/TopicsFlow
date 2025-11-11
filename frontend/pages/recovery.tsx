@@ -183,14 +183,22 @@ const RecoveryPage: React.FC = () => {
       <Head>
         <title>{t('recovery.title')} - {t('common.appName')}</title>
         <meta name="description" content={t('recovery.subtitle')} />
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
       </Head>
 
       <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4">
         {/* Fixed Header with Controls */}
         <div className="fixed top-0 left-0 right-0 z-50 p-4">
-          <div className="flex justify-end items-center space-x-3">
-            <LanguageToggle />
-            <ThemeToggle />
+          <div className="flex justify-between items-center">
+            <img
+              src="https://i.postimg.cc/52jHqBD9/chat.png"
+              alt="ChatHub Logo"
+              className="h-10 w-10"
+            />
+            <div className="flex items-center space-x-3">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 
