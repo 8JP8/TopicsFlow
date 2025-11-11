@@ -466,13 +466,26 @@ def verify_email():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        email = data.get('email')
         code = data.get('code', '')
 
-        if not user_id or not code:
-            return jsonify({'success': False, 'errors': ['User ID and code are required']}), 400
+        if not code:
+            return jsonify({'success': False, 'error': 'Verification code is required'}), 400
+
+        if not user_id and not email:
+            return jsonify({'success': False, 'error': 'User ID or email is required'}), 400
 
         from flask import current_app
         auth_service = AuthService(current_app.db)
+
+        # If email is provided, get user_id from email
+        if email and not user_id:
+            from models.user import User
+            user_model = User(current_app.db)
+            user = user_model.get_user_by_email(email)
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+            user_id = str(user['_id'])
 
         result = auth_service.verify_email(user_id, code)
 
@@ -483,7 +496,7 @@ def verify_email():
 
     except Exception as e:
         logger.error(f"Email verification error: {str(e)}")
-        return jsonify({'success': False, 'errors': ['Verification failed. Please try again.']}), 500
+        return jsonify({'success': False, 'error': 'Verification failed. Please try again.'}), 500
 
 
 @auth_bp.route('/resend-verification', methods=['POST'])
@@ -494,12 +507,22 @@ def resend_verification():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        email = data.get('email')
 
-        if not user_id:
-            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+        if not user_id and not email:
+            return jsonify({'success': False, 'error': 'User ID or email is required'}), 400
 
         from flask import current_app
         auth_service = AuthService(current_app.db)
+
+        # If email is provided, get user_id from email
+        if email and not user_id:
+            from models.user import User
+            user_model = User(current_app.db)
+            user = user_model.get_user_by_email(email)
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+            user_id = str(user['_id'])
 
         result = auth_service.resend_verification_code(user_id)
 
@@ -510,7 +533,7 @@ def resend_verification():
 
     except Exception as e:
         logger.error(f"Resend verification error: {str(e)}")
-        return jsonify({'success': False, 'errors': ['Failed to resend code. Please try again.']}), 500
+        return jsonify({'success': False, 'error': 'Failed to resend code. Please try again.'}), 500
 
 
 @auth_bp.route('/complete-totp-setup', methods=['POST'])
@@ -521,13 +544,26 @@ def complete_totp_setup():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        email = data.get('email')
         totp_code = data.get('totp_code', '')
 
-        if not user_id or not totp_code:
-            return jsonify({'success': False, 'errors': ['User ID and TOTP code are required']}), 400
+        if not totp_code:
+            return jsonify({'success': False, 'error': 'TOTP code is required'}), 400
+
+        if not user_id and not email:
+            return jsonify({'success': False, 'error': 'User ID or email is required'}), 400
 
         from flask import current_app
         auth_service = AuthService(current_app.db)
+
+        # If email is provided, get user_id from email
+        if email and not user_id:
+            from models.user import User
+            user_model = User(current_app.db)
+            user = user_model.get_user_by_email(email)
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+            user_id = str(user['_id'])
 
         result = auth_service.complete_totp_setup(user_id, totp_code)
 
@@ -691,18 +727,32 @@ def set_recovery_code():
         from flask import current_app
         auth_service = AuthService(current_app.db)
 
-        # Check if user is authenticated
-        current_user_result = auth_service.get_current_user()
-        if not current_user_result['success']:
-            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
-
         data = request.get_json()
         recovery_code = data.get('recovery_code', '')
+        user_id = data.get('user_id')
+        email = data.get('email')
 
         if not recovery_code:
-            return jsonify({'success': False, 'errors': ['Recovery code is required']}), 400
+            return jsonify({'success': False, 'error': 'Recovery code is required'}), 400
 
-        user_id = current_user_result['user']['id']
+        # Try to get authenticated user first
+        current_user_result = auth_service.get_current_user()
+        if current_user_result['success']:
+            user_id = current_user_result['user']['id']
+        else:
+            # If not authenticated, check if email or user_id is provided (for registration flow)
+            if not user_id and not email:
+                return jsonify({'success': False, 'error': 'Authentication required or user identifier needed'}), 401
+
+            # If email is provided, get user_id from email
+            if email and not user_id:
+                from models.user import User
+                user_model = User(current_app.db)
+                user = user_model.get_user_by_email(email)
+                if not user:
+                    return jsonify({'success': False, 'error': 'User not found'}), 404
+                user_id = str(user['_id'])
+
         result = auth_service.set_user_recovery_code(user_id, recovery_code)
 
         if result['success']:
@@ -712,7 +762,7 @@ def set_recovery_code():
 
     except Exception as e:
         logger.error(f"Set recovery code error: {str(e)}")
-        return jsonify({'success': False, 'errors': ['Failed to set recovery code']}), 500
+        return jsonify({'success': False, 'error': 'Failed to set recovery code'}), 500
 
 
 @auth_bp.route('/recovery/verify-user-code', methods=['POST'])
@@ -921,9 +971,10 @@ def get_totp_qrcode():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        email = data.get('email')
 
-        if not user_id:
-            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+        if not user_id and not email:
+            return jsonify({'success': False, 'error': 'User ID or email is required'}), 400
 
         from flask import current_app
         from models.user import User
@@ -933,12 +984,19 @@ def get_totp_qrcode():
 
         user_model = User(current_app.db)
 
+        # If email is provided, get user_id from email
+        if email and not user_id:
+            user = user_model.get_user_by_email(email)
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+            user_id = str(user['_id'])
+
         # Get TOTP QR data
         qr_data = user_model.get_totp_qr_data(user_id)
         totp_secret = user_model.get_totp_secret(user_id)
 
         if not qr_data:
-            return jsonify({'success': False, 'errors': ['Failed to generate QR code']}), 400
+            return jsonify({'success': False, 'error': 'Failed to generate QR code'}), 400
 
         # Generate QR code image
         qr = qrcode.QRCode(
