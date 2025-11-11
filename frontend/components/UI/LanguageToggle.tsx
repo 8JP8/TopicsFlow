@@ -1,27 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const LanguageToggle: React.FC = () => {
-  const { user } = useAuth();
-
-  // Use local state for language, don't sync with backend immediately
-  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'pt'>('en');
-
-  // Initialize from user preferences or localStorage
-  useEffect(() => {
-    const savedLang = localStorage.getItem('preferredLanguage') as 'en' | 'pt' | null;
-    if (savedLang) {
-      setCurrentLanguage(savedLang);
-    } else if (user?.preferences.language) {
-      setCurrentLanguage(user.preferences.language);
-    }
-  }, [user]);
+  const { language, setLanguage } = useLanguage();
 
   const toggleLanguage = () => {
-    const newLanguage = currentLanguage === 'en' ? 'pt' : 'en';
-    setCurrentLanguage(newLanguage);
-    // Save to localStorage for persistence (no backend call to avoid loop)
-    localStorage.setItem('preferredLanguage', newLanguage);
+    const newLanguage = language === 'en' ? 'pt' : 'en';
+    setLanguage(newLanguage);
   };
 
   return (
@@ -29,7 +14,7 @@ const LanguageToggle: React.FC = () => {
       onClick={toggleLanguage}
       className="flex items-center space-x-2 px-3 py-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
       aria-label="Toggle language"
-      title={currentLanguage === 'en' ? 'Mudar para Português' : 'Switch to English'}
+      title={language === 'en' ? 'Mudar para Português' : 'Switch to English'}
     >
       <svg className="w-4 h-4 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -40,7 +25,7 @@ const LanguageToggle: React.FC = () => {
         />
       </svg>
       <span className="text-sm font-semibold theme-text-primary">
-        {currentLanguage === 'en' ? 'EN' : 'PT'}
+        {language === 'en' ? 'EN' : 'PT'}
       </span>
     </button>
   );
