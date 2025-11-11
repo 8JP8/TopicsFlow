@@ -434,19 +434,19 @@ class AuthService:
     def complete_totp_setup(self, user_id: str, totp_code: str) -> dict:
         """Complete TOTP setup and enable 2FA."""
         if not totp_code or len(totp_code) != 6:
-            return {'success': False, 'errors': ['Invalid verification code']}
+            return {'success': False, 'error': 'Invalid verification code'}
 
         # Check if email is verified
         if not self.user_model.is_email_verified(user_id):
-            return {'success': False, 'errors': ['Email must be verified first']}
+            return {'success': False, 'error': 'Email must be verified first'}
 
-        # Verify TOTP code
-        if not self.user_model.verify_totp(user_id, totp_code):
-            return {'success': False, 'errors': ['Invalid authentication code']}
+        # Verify TOTP code during setup (use verify_totp_setup which doesn't require totp_enabled=True)
+        if not self.user_model.verify_totp_setup(user_id, totp_code):
+            return {'success': False, 'error': 'Invalid authentication code'}
 
         # Enable TOTP
         if not self.user_model.enable_totp(user_id):
-            return {'success': False, 'errors': ['Failed to enable 2FA']}
+            return {'success': False, 'error': 'Failed to enable 2FA'}
 
         # Generate backup codes
         backup_codes = self.user_model.generate_backup_codes(user_id)
