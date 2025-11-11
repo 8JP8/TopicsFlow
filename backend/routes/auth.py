@@ -679,3 +679,291 @@ def complete_recovery_totp():
     except Exception as e:
         logger.error(f"Recovery TOTP completion error: {str(e)}")
         return jsonify({'success': False, 'errors': ['Completion failed.']}), 500
+
+
+# User Recovery Code Endpoints
+@auth_bp.route('/recovery-code/set', methods=['POST'])
+@require_json
+@rate_limit('3/minute')
+def set_recovery_code():
+    """Set user-defined recovery code (like a master password)."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        data = request.get_json()
+        recovery_code = data.get('recovery_code', '')
+
+        if not recovery_code:
+            return jsonify({'success': False, 'errors': ['Recovery code is required']}), 400
+
+        user_id = current_user_result['user']['id']
+        result = auth_service.set_user_recovery_code(user_id, recovery_code)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Set recovery code error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to set recovery code']}), 500
+
+
+@auth_bp.route('/recovery/verify-user-code', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def verify_user_recovery_code():
+    """Verify user-defined recovery code and reset 2FA."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        recovery_code = data.get('recovery_code', '')
+
+        if not email or not recovery_code:
+            return jsonify({'success': False, 'errors': ['Email and recovery code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.verify_user_recovery_code_for_reset(email, recovery_code)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"User recovery code verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Verification failed']}), 500
+
+
+# Passkey/WebAuthn Endpoints
+@auth_bp.route('/passkey/register-options', methods=['POST'])
+@require_json
+def passkey_register_options():
+    """Generate passkey registration options."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        user_id = current_user_result['user']['id']
+        result = auth_service.generate_passkey_registration_options(user_id)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passkey registration options error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to generate passkey options']}), 500
+
+
+@auth_bp.route('/passkey/register-verify', methods=['POST'])
+@require_json
+def passkey_register_verify():
+    """Verify passkey registration."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        data = request.get_json()
+        credential = data.get('credential')
+
+        if not credential:
+            return jsonify({'success': False, 'errors': ['Credential data is required']}), 400
+
+        user_id = current_user_result['user']['id']
+        result = auth_service.verify_passkey_registration(user_id, credential)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passkey registration verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Registration verification failed']}), 500
+
+
+@auth_bp.route('/passkey/auth-options', methods=['POST'])
+@require_json
+@rate_limit('10/minute')
+def passkey_auth_options():
+    """Generate passkey authentication options."""
+    try:
+        data = request.get_json()
+        identifier = data.get('identifier', '').strip()  # Optional username/email
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.generate_passkey_authentication_options(identifier if identifier else None)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passkey auth options error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to generate auth options']}), 500
+
+
+@auth_bp.route('/passkey/auth-verify', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def passkey_auth_verify():
+    """Verify passkey authentication (login)."""
+    try:
+        data = request.get_json()
+        credential = data.get('credential')
+        identifier = data.get('identifier', '').strip()  # Username/email
+
+        if not credential or not identifier:
+            return jsonify({'success': False, 'errors': ['Credential and identifier are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Get client IP for security
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
+
+        result = auth_service.verify_passkey_authentication(credential, identifier)
+
+        if result['success']:
+            # Log IP address
+            from models.user import User
+            user_model = User(current_app.db)
+            if ip_address:
+                user_model.add_ip_address(result['user']['id'], ip_address)
+
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 401
+
+    except Exception as e:
+        logger.error(f"Passkey auth verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Authentication failed']}), 500
+
+
+@auth_bp.route('/passkey/list', methods=['GET'])
+def passkey_list():
+    """List user's registered passkeys."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        user_id = current_user_result['user']['id']
+        result = auth_service.get_user_passkeys(user_id)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passkey list error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to retrieve passkeys']}), 500
+
+
+@auth_bp.route('/passkey/<credential_id>', methods=['DELETE'])
+def passkey_delete(credential_id):
+    """Delete a passkey."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        user_id = current_user_result['user']['id']
+        result = auth_service.remove_passkey(user_id, credential_id)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Passkey delete error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to delete passkey']}), 500
+
+
+# QR Code Generation Endpoint
+@auth_bp.route('/totp/qrcode', methods=['POST'])
+@require_json
+def get_totp_qrcode():
+    """Generate QR code image for TOTP setup."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+
+        from flask import current_app
+        from models.user import User
+        import qrcode
+        from io import BytesIO
+        import base64
+
+        user_model = User(current_app.db)
+
+        # Get TOTP QR data
+        qr_data = user_model.get_totp_qr_data(user_id)
+        totp_secret = user_model.get_totp_secret(user_id)
+
+        if not qr_data:
+            return jsonify({'success': False, 'errors': ['Failed to generate QR code']}), 400
+
+        # Generate QR code image
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert to base64
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+        return jsonify({
+            'success': True,
+            'qr_code_image': f'data:image/png;base64,{img_base64}',
+            'totp_secret': totp_secret,
+            'qr_data': qr_data
+        }), 200
+
+    except Exception as e:
+        logger.error(f"QR code generation error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to generate QR code']}), 500

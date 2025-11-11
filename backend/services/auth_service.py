@@ -4,8 +4,10 @@ import pyotp
 import secrets
 import random
 import string
+import base64
 from models.user import User
 from services.email_service import EmailService
+from services.passkey_service import PasskeyService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
 
@@ -17,6 +19,7 @@ class AuthService:
         self.db = db
         self.user_model = User(db)
         self.email_service = EmailService()
+        self.passkey_service = PasskeyService()
 
     def register_user(self, username: str, email: str, password: str,
                      phone: str = None, security_questions: list = None) -> dict:
@@ -614,3 +617,236 @@ class AuthService:
             'message': '2FA recovery completed successfully',
             'backup_codes': backup_codes
         }
+
+    # User Recovery Code Methods
+    def set_user_recovery_code(self, user_id: str, recovery_code: str) -> dict:
+        """Set user-defined recovery code."""
+        if not recovery_code or len(recovery_code) < 8:
+            return {'success': False, 'errors': ['Recovery code must be at least 8 characters']}
+
+        try:
+            if self.user_model.set_user_recovery_code(user_id, recovery_code):
+                return {'success': True, 'message': 'Recovery code set successfully'}
+            else:
+                return {'success': False, 'errors': ['Failed to set recovery code']}
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to set recovery code']}
+
+    def verify_user_recovery_code_for_reset(self, email: str, recovery_code: str) -> dict:
+        """Verify user recovery code for account recovery (email already verified)."""
+        try:
+            user = self.user_model.get_user_by_email(email.lower().strip())
+            if not user:
+                return {'success': False, 'errors': ['Invalid recovery credentials']}
+
+            user_id = str(user['_id'])
+
+            if not self.user_model.verify_user_recovery_code(user_id, recovery_code):
+                return {'success': False, 'errors': ['Invalid recovery code']}
+
+            # Reset TOTP and return new secret
+            new_secret = self.user_model.reset_totp_with_new_secret(user_id)
+            qr_data = self.user_model.get_totp_qr_data(user_id)
+
+            # Send notification email
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'])
+
+            return {
+                'success': True,
+                'message': '2FA reset successfully',
+                'totp_qr_data': qr_data,
+                'totp_secret': new_secret,
+                'user_id': user_id
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Recovery failed']}
+
+    # Passkey Methods
+    def generate_passkey_registration_options(self, user_id: str) -> dict:
+        """Generate passkey registration options."""
+        try:
+            user = self.user_model.get_user_by_id(user_id)
+            if not user:
+                return {'success': False, 'errors': ['User not found']}
+
+            result = self.passkey_service.generate_registration_options(
+                user_id=user_id,
+                username=user['username'],
+                display_name=user.get('username')
+            )
+
+            if result.get('success'):
+                # Store challenge in session for verification
+                session['passkey_challenge'] = result['challenge']
+
+            return result
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to generate passkey options']}
+
+    def verify_passkey_registration(self, user_id: str, credential: dict) -> dict:
+        """Verify and store passkey registration."""
+        try:
+            # Get challenge from session
+            expected_challenge = session.get('passkey_challenge')
+            if not expected_challenge:
+                return {'success': False, 'errors': ['No challenge found. Please try again.']}
+
+            # Decode challenge
+            challenge_bytes = base64.urlsafe_b64decode(expected_challenge)
+
+            # Verify the registration
+            credential_data = self.passkey_service.verify_registration(credential, challenge_bytes)
+
+            if not credential_data:
+                return {'success': False, 'errors': ['Passkey registration verification failed']}
+
+            # Store credential
+            if self.user_model.add_passkey_credential(user_id, credential_data):
+                # Clear challenge from session
+                session.pop('passkey_challenge', None)
+
+                return {
+                    'success': True,
+                    'message': 'Passkey registered successfully',
+                    'credential_id': credential_data['credential_id']
+                }
+            else:
+                return {'success': False, 'errors': ['Failed to store passkey']}
+
+        except Exception as e:
+            return {'success': False, 'errors': [f'Passkey registration failed: {str(e)}']}
+
+    def generate_passkey_authentication_options(self, identifier: str = None) -> dict:
+        """Generate passkey authentication options."""
+        try:
+            credentials = []
+
+            # If identifier provided, get user's credentials
+            if identifier:
+                user = self.user_model.verify_user_by_username_or_email(identifier)
+                if user:
+                    credentials = self.user_model.get_passkey_credentials(str(user['_id']))
+
+            result = self.passkey_service.generate_authentication_options(credentials)
+
+            if result.get('success'):
+                # Store challenge in session for verification
+                session['passkey_auth_challenge'] = result['challenge']
+
+            return result
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to generate authentication options']}
+
+    def verify_passkey_authentication(self, credential: dict, identifier: str = None) -> dict:
+        """Verify passkey authentication and log user in."""
+        try:
+            # Get challenge from session
+            expected_challenge = session.get('passkey_auth_challenge')
+            if not expected_challenge:
+                return {'success': False, 'errors': ['No challenge found. Please try again.']}
+
+            # Decode challenge
+            challenge_bytes = base64.urlsafe_b64decode(expected_challenge)
+
+            # Get credential ID from response
+            credential_id = credential.get('id')
+            if not credential_id:
+                return {'success': False, 'errors': ['Invalid credential']}
+
+            # Find user by credential ID
+            user = None
+            if identifier:
+                user = self.user_model.verify_user_by_username_or_email(identifier)
+
+            if not user:
+                # Search all users for this credential (not ideal, but necessary for usernameless flow)
+                return {'success': False, 'errors': ['User not found. Please provide username/email.']}
+
+            user_id = str(user['_id'])
+
+            # Get stored credential
+            stored_credential = self.user_model.get_passkey_credential_by_id(user_id, credential_id)
+            if not stored_credential:
+                return {'success': False, 'errors': ['Passkey not found']}
+
+            # Verify authentication
+            new_sign_count = self.passkey_service.verify_authentication(
+                credential,
+                challenge_bytes,
+                stored_credential
+            )
+
+            if new_sign_count is None:
+                return {'success': False, 'errors': ['Passkey verification failed']}
+
+            # Update sign count
+            self.user_model.update_passkey_credential_counter(user_id, credential_id, new_sign_count)
+
+            # Check if user is banned
+            if self.user_model.is_user_banned(user_id):
+                return {'success': False, 'errors': ['Account is banned']}
+
+            # Check if email is verified
+            if not user.get('email_verified', False):
+                return {'success': False, 'errors': ['Email not verified']}
+
+            # Create session
+            session['user_id'] = user_id
+            session['username'] = user['username']
+            session['authenticated'] = True
+            session['login_time'] = datetime.utcnow().isoformat()
+            session['auth_method'] = 'passkey'
+
+            # Clear challenge from session
+            session.pop('passkey_auth_challenge', None)
+
+            return {
+                'success': True,
+                'user': {
+                    'id': user_id,
+                    'username': user['username'],
+                    'email': user['email'],
+                    'preferences': user.get('preferences', {}),
+                    'totp_enabled': user.get('totp_enabled', False)
+                }
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': [f'Passkey authentication failed: {str(e)}']}
+
+    def get_user_passkeys(self, user_id: str) -> dict:
+        """Get list of user's registered passkeys."""
+        try:
+            credentials = self.user_model.get_passkey_credentials(user_id)
+
+            # Return sanitized credentials (without sensitive data)
+            passkeys = []
+            for cred in credentials:
+                passkeys.append({
+                    'credential_id': cred['credential_id'],
+                    'created_at': cred.get('created_at'),
+                    'last_used': cred.get('last_used'),
+                    'device_name': cred.get('device_name', 'Unnamed device')
+                })
+
+            return {
+                'success': True,
+                'passkeys': passkeys
+            }
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to retrieve passkeys']}
+
+    def remove_passkey(self, user_id: str, credential_id: str) -> dict:
+        """Remove a passkey credential."""
+        try:
+            if self.user_model.remove_passkey_credential(user_id, credential_id):
+                return {'success': True, 'message': 'Passkey removed successfully'}
+            else:
+                return {'success': False, 'errors': ['Failed to remove passkey']}
+
+        except Exception as e:
+            return {'success': False, 'errors': ['Failed to remove passkey']}
