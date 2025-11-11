@@ -87,9 +87,11 @@ class User:
                 'anonymous_mode': False
             },
             'backup_codes': [],  # Will be generated during TOTP setup
-            'recovery_code': None,  # Recovery email code
+            'recovery_code': None,  # Recovery email code (for email verification)
             'recovery_expires': None,  # Recovery code expiry
-            'original_totp_secret_hash': None  # Hashed original secret for recovery
+            'original_totp_secret_hash': None,  # Hashed original secret for recovery
+            'user_recovery_code_hash': None,  # User-defined recovery code (like a master password)
+            'passkey_credentials': []  # WebAuthn/Passkey credentials for biometric auth
         }
 
         result = self.collection.insert_one(user_data)
@@ -446,3 +448,76 @@ class User:
         )
 
         return new_secret
+
+    # User-Defined Recovery Code Methods
+    def set_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:
+        """Set user-defined recovery code (like a master password for account recovery)."""
+        recovery_code_hash = generate_password_hash(recovery_code)
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'user_recovery_code_hash': recovery_code_hash}}
+        )
+        return result.modified_count > 0
+
+    def verify_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:
+        """Verify user-defined recovery code."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user or not user.get('user_recovery_code_hash'):
+            return False
+        return check_password_hash(user['user_recovery_code_hash'], recovery_code)
+
+    def has_user_recovery_code(self, user_id: str) -> bool:
+        """Check if user has set a recovery code."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        return bool(user and user.get('user_recovery_code_hash'))
+
+    # Passkey/WebAuthn Methods
+    def add_passkey_credential(self, user_id: str, credential_data: Dict[str, Any]) -> bool:
+        """Add a passkey credential for WebAuthn authentication."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$push': {'passkey_credentials': credential_data}}
+        )
+        return result.modified_count > 0
+
+    def get_passkey_credentials(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all passkey credentials for a user."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return []
+        return user.get('passkey_credentials', [])
+
+    def get_passkey_credential_by_id(self, user_id: str, credential_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific passkey credential by ID."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return None
+
+        for credential in user.get('passkey_credentials', []):
+            if credential.get('credential_id') == credential_id:
+                return credential
+        return None
+
+    def update_passkey_credential_counter(self, user_id: str, credential_id: str, new_counter: int) -> bool:
+        """Update the sign count for a passkey credential (prevents replay attacks)."""
+        result = self.collection.update_one(
+            {
+                '_id': ObjectId(user_id),
+                'passkey_credentials.credential_id': credential_id
+            },
+            {'$set': {'passkey_credentials.$.sign_count': new_counter}}
+        )
+        return result.modified_count > 0
+
+    def remove_passkey_credential(self, user_id: str, credential_id: str) -> bool:
+        """Remove a passkey credential."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$pull': {'passkey_credentials': {'credential_id': credential_id}}}
+        )
+        return result.modified_count > 0
+
+    def has_passkeys(self, user_id: str) -> bool:
+        """Check if user has any passkey credentials registered."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        return bool(user and user.get('passkey_credentials'))
