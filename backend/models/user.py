@@ -127,16 +127,32 @@ class User:
 
     def verify_totp_setup(self, user_id: str, token: str) -> bool:
         """Verify TOTP token during initial setup (before totp_enabled is True)."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"verify_totp_setup called for user_id: {user_id}, token: {token}")
+
         user = self.collection.find_one({'_id': ObjectId(user_id)})
         if not user:
+            logger.error(f"User not found: {user_id}")
             return False
 
         totp_secret = self._decrypt_totp_secret(user.get('totp_secret'))
         if not totp_secret:
+            logger.error(f"Failed to decrypt TOTP secret for user: {user_id}")
             return False
 
+        logger.info(f"TOTP secret decrypted successfully, length: {len(totp_secret)}")
         totp = pyotp.TOTP(totp_secret)
-        return totp.verify(token, valid_window=1)
+
+        # Test with current code
+        current_code = totp.now()
+        logger.info(f"Current valid TOTP code: {current_code}")
+
+        result = totp.verify(token, valid_window=1)
+        logger.info(f"TOTP verify result: {result}, token received: {token}")
+
+        return result
 
     def enable_totp(self, user_id: str) -> bool:
         """Enable TOTP for user after successful verification."""

@@ -433,23 +433,51 @@ class AuthService:
 
     def complete_totp_setup(self, user_id: str, totp_code: str) -> dict:
         """Complete TOTP setup and enable 2FA."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"complete_totp_setup called for user_id: {user_id}, code length: {len(totp_code) if totp_code else 0}")
+
         if not totp_code or len(totp_code) != 6:
+            logger.error(f"Invalid code length: {len(totp_code) if totp_code else 0}")
             return {'success': False, 'error': 'Invalid verification code'}
 
         # Check if email is verified
-        if not self.user_model.is_email_verified(user_id):
+        email_verified = self.user_model.is_email_verified(user_id)
+        logger.info(f"Email verified status: {email_verified}")
+        if not email_verified:
             return {'success': False, 'error': 'Email must be verified first'}
 
+        # Get user info for debugging
+        from bson import ObjectId
+        user = self.user_model.collection.find_one({'_id': ObjectId(user_id)})
+        if user:
+            logger.info(f"User found. totp_enabled: {user.get('totp_enabled')}, has totp_secret: {bool(user.get('totp_secret'))}")
+        else:
+            logger.error(f"User not found with id: {user_id}")
+            return {'success': False, 'error': 'User not found'}
+
         # Verify TOTP code during setup (use verify_totp_setup which doesn't require totp_enabled=True)
-        if not self.user_model.verify_totp_setup(user_id, totp_code):
+        totp_valid = self.user_model.verify_totp_setup(user_id, totp_code)
+        logger.info(f"TOTP verification result: {totp_valid}")
+        if not totp_valid:
+            # Get the actual TOTP secret and test it
+            totp_secret = self.user_model.get_totp_secret(user_id)
+            if totp_secret:
+                import pyotp
+                totp = pyotp.TOTP(totp_secret)
+                current_code = totp.now()
+                logger.error(f"TOTP verification failed. Expected current code: {current_code}, Received: {totp_code}")
             return {'success': False, 'error': 'Invalid authentication code'}
 
         # Enable TOTP
         if not self.user_model.enable_totp(user_id):
+            logger.error("Failed to enable TOTP")
             return {'success': False, 'error': 'Failed to enable 2FA'}
 
         # Generate backup codes
         backup_codes = self.user_model.generate_backup_codes(user_id)
+        logger.info("Backup codes generated successfully")
 
         # Store hash of original TOTP secret for recovery
         totp_secret = self.user_model.get_totp_secret(user_id)
