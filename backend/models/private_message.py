@@ -269,10 +269,23 @@ class PrivateMessage:
                 # Also set username and user_id for frontend compatibility
                 conv['username'] = other_user['username']
                 conv['user_id'] = str(other_user['_id'])
+            else:
+                # If user not found, still set basic fields to prevent frontend errors
+                # This should not happen, but handle gracefully
+                conv['username'] = 'Unknown User'
+                conv['user_id'] = str(conv['other_user_id'])
 
             # Determine if last message is from current user
             if 'last_message' in conv and conv['last_message']:
                 conv['last_message']['is_from_me'] = str(conv['last_message']['from_user_id']) == user_id
+                
+            # Ensure last_message has content field (for GIFs, content might be empty)
+            if 'last_message' in conv and conv['last_message']:
+                if 'content' not in conv['last_message']:
+                    conv['last_message']['content'] = ''
+                # For GIF messages, show a preview
+                if conv['last_message'].get('message_type') == 'gif' and not conv['last_message'].get('content'):
+                    conv['last_message']['content'] = '[GIF]'
 
         return conversations
 

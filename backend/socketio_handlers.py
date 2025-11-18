@@ -668,12 +668,24 @@ def register_socketio_handlers(socketio):
             message_type = data.get('message_type', 'text')
             gif_url = data.get('gif_url')
 
-            logger.info(f"[PRIVATE_MSG] Send request: to_user_id={to_user_id}, content_length={len(content) if content else 0}")
+            logger.info(f"[PRIVATE_MSG] Send request: to_user_id={to_user_id}, content_length={len(content) if content else 0}, message_type={message_type}")
 
-            if not to_user_id or not content:
-                logger.error(f"[PRIVATE_MSG] Missing recipient or content")
-                emit('error', {'message': 'Recipient and content are required'})
+            if not to_user_id:
+                logger.error(f"[PRIVATE_MSG] Missing recipient")
+                emit('error', {'message': 'Recipient is required'})
                 return
+
+            # For GIF messages, content can be empty if gif_url is provided
+            if message_type == 'gif' and gif_url:
+                # Allow empty content for GIF messages
+                if not content:
+                    content = ''  # Ensure it's an empty string
+            else:
+                # For non-GIF messages, content is required
+                if not content:
+                    logger.error(f"[PRIVATE_MSG] Missing content")
+                    emit('error', {'message': 'Message content is required'})
+                    return
 
             # Verify user is authenticated
             auth_service = AuthService(current_app.db)
@@ -688,12 +700,13 @@ def register_socketio_handlers(socketio):
             
             logger.info(f"[PRIVATE_MSG] User authenticated: {user['username']} ({user_id})")
 
-            # Validate message content
-            validation_result = validate_message_content(content)
-            if not validation_result['valid']:
-                logger.error(f"[PRIVATE_MSG] Content validation failed: {validation_result['errors']}")
-                emit('error', {'message': ' '.join(validation_result['errors'])})
-                return
+            # Validate message content (skip validation for GIF messages with empty content)
+            if message_type != 'gif' or content:
+                validation_result = validate_message_content(content)
+                if not validation_result['valid']:
+                    logger.error(f"[PRIVATE_MSG] Content validation failed: {validation_result['errors']}")
+                    emit('error', {'message': ' '.join(validation_result['errors'])})
+                    return
 
             # Check if this is a self-message
             is_self_message = (str(to_user_id) == str(user_id))

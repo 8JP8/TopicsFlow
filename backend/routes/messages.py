@@ -467,13 +467,24 @@ def send_private_message():
         message_type = data.get('message_type', 'text')
         gif_url = data.get('gif_url')
 
-        if not to_user_id or not content:
-            return jsonify({'success': False, 'errors': ['Recipient and content are required']}), 400
+        if not to_user_id:
+            return jsonify({'success': False, 'errors': ['Recipient is required']}), 400
 
-        # Validate message content
-        validation_result = validate_message_content(content)
-        if not validation_result['valid']:
-            return jsonify({'success': False, 'errors': validation_result['errors']}), 400
+        # For GIF messages, content can be empty if gif_url is provided
+        if message_type == 'gif' and gif_url:
+            # Allow empty content for GIF messages
+            if not content:
+                content = ''  # Ensure it's an empty string
+        else:
+            # For non-GIF messages, content is required
+            if not content:
+                return jsonify({'success': False, 'errors': ['Message content is required']}), 400
+
+        # Validate message content (skip validation for GIF messages with empty content)
+        if message_type != 'gif' or content:
+            validation_result = validate_message_content(content)
+            if not validation_result['valid']:
+                return jsonify({'success': False, 'errors': validation_result['errors']}), 400
 
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()

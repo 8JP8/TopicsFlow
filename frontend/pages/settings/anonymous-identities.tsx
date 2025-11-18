@@ -108,7 +108,7 @@ const AnonymousIdentities: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Settings
+            {t('anonymousIdentities.backToSettings')}
           </button>
           <h1 className="text-3xl font-bold theme-text-primary mb-2">{t('anonymousIdentities.title')}</h1>
           <p className="theme-text-secondary">

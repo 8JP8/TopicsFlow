@@ -505,5 +505,12 @@
     "pleaseSelectImageFile": "Please select an image file",
     "imageMustBeLessThan2MB": "Image must be less than 2MB",
     "failedToUpdateProfile": "Failed to update profile"
+  },
+  "userMenu": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "anonymousIdentities": "Anonymous Identities",
+    "logout": "Logout",
+    "twoFactorEnabled": "2FA Enabled"
   }
 }

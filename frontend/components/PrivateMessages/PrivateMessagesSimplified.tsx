@@ -86,10 +86,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   useEffect(() => {
     if (user) {
+      // Reset loading state when user changes
+      setLoading(true);
       loadConversations();
       loadFriends();
     }
   }, [user]);
+
 
   useEffect(() => {
     if (selectedConversation) {
@@ -234,8 +237,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       });
 
       if (response.data.success) {
+        const conversationsData = response.data.data || [];
+        console.log('[PrivateMessages] Loaded conversations:', conversationsData);
         // Backend now sorts by last_message.created_at, so no need to sort client-side
-        setConversations(response.data.data || []);
+        setConversations(conversationsData);
+      } else {
+        console.error('[PrivateMessages] Failed to load conversations:', response.data);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -291,6 +298,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
 
     setSendingMessage(true);
+    setShowGifPicker(false); // Close GIF picker immediately
 
     try {
       const response = await api.post(API_ENDPOINTS.MESSAGES.SEND_PRIVATE, {
@@ -312,10 +320,15 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         };
         setMessages(prev => [...prev, newMessage]);
         setSelectedGifUrl(null);
-        loadConversations();
+        setMessageInput(''); // Clear input
+        // Refresh conversation list after a short delay to ensure backend has processed
+        setTimeout(() => {
+          loadConversations();
+        }, 100);
       }
     } catch (error: any) {
       console.error('Failed to send GIF:', error);
+      toast.error(t('toast.failedToSendMessage'));
     } finally {
       setSendingMessage(false);
     }
@@ -364,11 +377,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         setMessages(prev => [...prev, newMessage]);
         setMessageInput('');
 
-        // Update conversation list and sort by most recent
-        loadConversations();
+        // Update conversation list after a short delay to ensure backend has processed
+        setTimeout(() => {
+          loadConversations();
+        }, 100);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      toast.error(t('toast.failedToSendMessage'));
     } finally {
       setSendingMessage(false);
     }
@@ -837,7 +853,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
           {/* Conversations List */}
           <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 h-full">
                 <svg className="w-16 h-16 theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

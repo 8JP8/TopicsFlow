@@ -57,8 +57,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const currentTopics = useRef<Set<string>>(new Set());
 
   // Initialize socket connection
+  // Only depend on user.id to prevent reconnection when user preferences change
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
         transports: ['websocket', 'polling'],
         autoConnect: true,
@@ -104,7 +105,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         setConnected(false);
       }
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Socket event handlers
   useEffect(() => {
