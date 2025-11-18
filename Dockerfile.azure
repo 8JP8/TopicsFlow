@@ -1,0 +1,63 @@
+# Multi-stage build for Azure deployment
+# Stage 1: Build frontend
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+# Copy frontend package files
+COPY frontend/package*.json ./
+
+# Install ALL dependencies (including devDependencies needed for build)
+RUN npm ci
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Use Azure-specific Next.js config for static export
+RUN cp next.config.azure.js next.config.js
+
+# Build frontend for static export
+RUN npm run build:azure
+
+# Stage 2: Build Python backend with frontend
+FROM python:3.11-slim AS backend
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy backend requirements
+COPY backend/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend source
+COPY backend/ .
+
+# Copy built frontend from previous stage
+COPY --from=frontend-builder /frontend/out ./static
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+
+# Set environment variable for Azure
+ENV FLASK_ENV=azure
+ENV PORT=8000
+ENV AZURE_DEPLOYMENT=true
+
+# Start application with gunicorn for production
+# Note: With eventlet worker, we must use only 1 worker for WebSocket support
+# Using the WSGI entry point that wraps Flask-SocketIO correctly
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "eventlet", "--workers", "1", "--timeout", "120", "--log-level", "info", "wsgi:app"]

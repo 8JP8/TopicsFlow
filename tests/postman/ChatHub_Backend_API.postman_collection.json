@@ -1,0 +1,823 @@
+{
+  "info": {
+    "name": "ChatHub Backend API - Complete Test Suite",
+    "_postman_id": "chathub-backend-api-tests",
+    "description": "Comprehensive test suite for ChatHub backend REST API endpoints. Tests authentication, topics, messages, private messages, users, and more.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "1.1 Register User 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.user_id) {",
+                  "        pm.environment.set('user_id', jsonData.user_id);",
+                  "        // Get username and email from request body",
+                  "        const requestBody = JSON.parse(pm.request.body.raw);",
+                  "        pm.environment.set('username', requestBody.username);",
+                  "        pm.environment.set('email', requestBody.email);",
+                  "        console.log('User 1 registered:', requestBody.username, 'ID:', jsonData.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"security_questions\": [\n    {\n      \"question\": \"What is your favorite color?\",\n      \"answer\": \"Blue\"\n    },\n    {\n      \"question\": \"What is your pet's name?\",\n      \"answer\": \"Max\"\n    }\n  ],\n  \"phone_number\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register first test user. After registration, complete TOTP setup."
+          }
+        },
+        {
+          "name": "1.2 Register User 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.user_id) {",
+                  "        pm.environment.set('user_id_2', jsonData.user_id);",
+                  "        // Get username and email from request body",
+                  "        const requestBody = JSON.parse(pm.request.body.raw);",
+                  "        pm.environment.set('username_2', requestBody.username);",
+                  "        pm.environment.set('email_2', requestBody.email);",
+                  "        console.log('User 2 registered:', requestBody.username, 'ID:', jsonData.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username_2}}\",\n  \"email\": \"{{email_2}}\",\n  \"password\": \"{{password}}\",\n  \"security_questions\": [\n    {\n      \"question\": \"What is your favorite color?\",\n      \"answer\": \"Red\"\n    },\n    {\n      \"question\": \"What is your pet's name?\",\n      \"answer\": \"Buddy\"\n    }\n  ],\n  \"phone_number\": \"+1234567891\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "1.3 Login Passwordless (User 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success field', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success) {",
+                  "        // Extract session cookie",
+                  "        const cookies = pm.cookies.all();",
+                  "        const sessionCookie = cookies.find(c => c.name === 'session');",
+                  "        if (sessionCookie) {",
+                  "            pm.environment.set('session_cookie', sessionCookie.value);",
+                  "        }",
+                  "        console.log('Login successful');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{username}}\",\n  \"totp_code\": \"{{totp_code}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login-passwordless",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login-passwordless"]
+            },
+            "description": "Login with TOTP code. Get TOTP code from authenticator app before running."
+          }
+        },
+        {
+          "name": "1.4 Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.user).to.have.property('id');",
+                  "        pm.expect(jsonData.user).to.have.property('username');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Get current authenticated user info. Requires valid session."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Topics",
+      "item": [
+        {
+          "name": "2.1 Get All Topics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has topics array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "        if (jsonData.data.length > 0) {",
+                  "            pm.environment.set('topic_id', jsonData.data[0].id);",
+                  "        }",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/?limit=50&sort_by=last_activity",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "last_activity"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.2 Create Topic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Topic created successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData).to.have.property('data');",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.environment.set('topic_id', jsonData.data.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Topic - API Testing\",\n  \"description\": \"Topic created for API testing purposes\",\n  \"tags\": [\"test\", \"api\"],\n  \"allow_anonymous\": true,\n  \"require_approval\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/topics/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", ""]
+            }
+          }
+        },
+        {
+          "name": "2.3 Get Topic by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Topic data is valid', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.expect(jsonData.data).to.have.property('title');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}"]
+            }
+          }
+        },
+        {
+          "name": "2.4 Join Topic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Join successful', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}", "join"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Messages",
+      "item": [
+        {
+          "name": "3.1 Get Topic Messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Messages array returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "        if (jsonData.data.length > 0) {",
+                  "            pm.environment.set('message_id', jsonData.data[0].id);",
+                  "        }",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/messages/topic/{{topic_id}}?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "topic", "{{topic_id}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.2 Send Message to Topic (REST)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Validate topic_id is set",
+                  "const topicId = pm.environment.get('topic_id');",
+                  "if (!topicId || topicId === 'null' || topicId === 'undefined' || topicId === '') {",
+                  "    console.error('ERROR: topic_id is not set. Please run \"2.2 Create Topic\" first or ensure \"2.1 Get All Topics\" found a topic.');",
+                  "    throw new Error('topic_id environment variable is not set. Please create a topic first.');",
+                  "}",
+                  "console.log('Using topic_id:', topicId);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Message created successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.environment.set('message_id', jsonData.data.id);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Message has required fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.data) {",
+                  "        pm.expect(jsonData.data).to.have.property('content');",
+                  "        pm.expect(jsonData.data).to.have.property('created_at');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Test message from Postman API test - @{{username}} mention test\",\n  \"message_type\": \"text\",\n  \"use_anonymous\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/topic/{{topic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "topic", "{{topic_id}}"],
+              "variable": [
+                {
+                  "key": "topic_id",
+                  "value": "{{topic_id}}",
+                  "description": "The topic ID to send the message to. Set this in environment variables or run '2.2 Create Topic' first."
+                }
+              ]
+            },
+            "description": "Send a message to a topic via REST API.\n\n**Required:**\n- `topic_id` (path parameter) - The ID of the topic to send the message to\n  - Can be set manually in environment variables\n  - Or automatically set by running '2.2 Create Topic' or '2.1 Get All Topics'\n\n**Body Parameters:**\n- `content` (string, required) - The message content\n- `message_type` (string, optional) - Type of message: 'text', 'gif', 'emoji' (default: 'text')\n- `use_anonymous` (boolean, optional) - Whether to send as anonymous (default: false)\n- `gif_url` (string, optional) - URL of GIF if message_type is 'gif'\n\nNote: Real-time messaging should use WebSocket."
+          }
+        },
+        {
+          "name": "3.3 Get Message by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Message data is valid', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.expect(jsonData.data).to.have.property('content');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{message_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Private Messages",
+      "item": [
+        {
+          "name": "4.1 Get Private Conversations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Conversations array returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/private-messages/conversations?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "private-messages", "conversations"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 Send Private Message (REST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Message sent successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success && jsonData.data) {",
+                  "        pm.environment.set('private_message_id', jsonData.data.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_user_id\": \"{{user_id_2}}\",\n  \"content\": \"Test private message from Postman\",\n  \"message_type\": \"text\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/private",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "private"]
+            },
+            "description": "Send a private message via REST API. Note: Real-time messaging should use WebSocket."
+          }
+        },
+        {
+          "name": "4.3 Send Self Message (WhatsApp-like)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Self-message sent successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_user_id\": \"{{user_id}}\",\n  \"content\": \"Self-message test - should appear in received messages\",\n  \"message_type\": \"text\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/private",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "private"]
+            },
+            "description": "Test self-messaging (sending message to yourself). Should appear in received messages like WhatsApp."
+          }
+        },
+        {
+          "name": "4.4 Get Conversation with User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Messages array returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/private-messages/{{user_id_2}}?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "private-messages", "{{user_id_2}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.5 Get Self Conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Self-messages returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "        // Self-messages should be included",
+                  "        console.log('Self-messages count:', jsonData.data.length);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/private-messages/{{user_id}}?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "private-messages", "{{user_id}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Get conversation with yourself (self-messages). Should return messages where from_user_id == to_user_id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Users",
+      "item": [
+        {
+          "name": "5.1 Get User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Profile data is valid', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.expect(jsonData.data).to.have.property('username');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "5.2 Search Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Users array returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    if (jsonData.success) {",
+                  "        pm.expect(jsonData.data).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/search?q={{username_2}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{username_2}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}
+

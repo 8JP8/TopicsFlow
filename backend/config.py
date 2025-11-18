@@ -1,0 +1,131 @@
+import os
+from dotenv import load_dotenv
+
+# Load .env file from backend directory
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(env_path)
+# Also try loading from parent directory (project root)
+load_dotenv()
+
+class Config:
+    """Configuration class for the Flask application."""
+
+    # Basic Flask Config
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+    # Detect Azure environment
+    # Priority 1: Explicit override (for testing)
+    # Priority 2: Azure-specific env vars
+    _force_azure = os.getenv('FORCE_AZURE_MODE', '').lower() in ('true', '1', 'yes')
+    _force_local = os.getenv('FORCE_LOCAL_MODE', '').lower() in ('true', '1', 'yes')
+
+    if _force_local:
+        IS_AZURE = False
+    elif _force_azure:
+        IS_AZURE = True
+    else:
+        # Auto-detect: Azure App Service or Azure Cosmos connection
+        IS_AZURE = (
+            os.getenv('WEBSITE_INSTANCE_ID') is not None or  # Azure App Service
+            os.getenv('AZURE_DEPLOYMENT', '').lower() == 'true'  # Explicit Azure flag
+        )
+
+    # Database Config
+    # If Azure environment detected, use CosmosDB connection string
+    if IS_AZURE:
+        # Azure CosmosDB (MongoDB API)
+        MONGO_URI = os.getenv('AZURE_COSMOS_CONNECTIONSTRING')
+        MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'chatapp')
+        # CosmosDB specific settings
+        COSMOS_SSL = True
+        COSMOS_RETRY_WRITES = False  # CosmosDB doesn't support retryWrites
+    else:
+        # Local MongoDB
+        MONGO_URI = os.getenv('DATABASE_URL', 'mongodb://localhost:27017/chatapp')
+        MONGO_DB_NAME = os.getenv('DB_NAME', 'chatapp')
+        COSMOS_SSL = False
+        COSMOS_RETRY_WRITES = True
+
+    # CORS Config - Restricted to localhost only for security
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    CORS_ALLOW_ALL = os.getenv('CORS_ALLOW_ALL', 'false').lower() == 'true'
+
+    # TOTP/Auth Config
+    TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'ChatHub')
+    TOTP_VALIDITY_WINDOW = int(os.getenv('TOTP_VALIDITY_WINDOW', '1'))
+
+    # External Services
+    SMS_SERVICE_API_KEY = os.getenv('SMS_SERVICE_API_KEY')
+    SMS_SERVICE_NUMBER = os.getenv('SMS_SERVICE_NUMBER')
+    RESEND_API_KEY = os.getenv('RESEND_API_KEY')  # Resend email service API key
+    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@chathub.com')  # Sender email address
+    APP_NAME = os.getenv('APP_NAME', 'ChatHub')  # Application name for emails
+    TENOR_API_KEY = os.getenv('TENOR_API_KEY')
+
+    # Redis Config (for session storage in production)
+    # Azure Redis Cache or local Redis
+    if IS_AZURE and os.getenv('AZURE_REDIS_CONNECTIONSTRING'):
+        REDIS_URL = os.getenv('AZURE_REDIS_CONNECTIONSTRING')
+    else:
+        REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+    # Session Config
+    SESSION_TYPE = os.getenv('SESSION_TYPE', 'filesystem')  # filesystem, redis, or null
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = False  # Disabled to avoid bytes-to-string conversion issues with Werkzeug
+    SESSION_FILE_DIR = os.path.join(os.path.dirname(__file__), 'flask_session')
+    SESSION_COOKIE_NAME = 'session'
+
+    # Security Config
+    SESSION_COOKIE_SECURE = os.getenv('ENVIRONMENT') == 'production'
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # Rate Limiting
+    RATE_LIMIT_STORAGE_URL = REDIS_URL
+    LOGIN_RATE_LIMIT = os.getenv('LOGIN_RATE_LIMIT', '5/minute')
+    MESSAGE_RATE_LIMIT = os.getenv('MESSAGE_RATE_LIMIT', '30/minute')
+
+    # File Upload Config
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+
+    # Logging
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+
+    @staticmethod
+    def init_app(app):
+        """Initialize application with configuration."""
+        pass
+
+class DevelopmentConfig(Config):
+    """Development configuration."""
+    DEBUG = True
+    TESTING = False
+
+class ProductionConfig(Config):
+    """Production configuration."""
+    DEBUG = False
+    TESTING = False
+
+class TestingConfig(Config):
+    """Testing configuration."""
+    TESTING = True
+    MONGO_URI = 'mongodb://localhost:27017/chatapp_test'
+    WTF_CSRF_ENABLED = False
+
+class AzureConfig(ProductionConfig):
+    """Azure deployment configuration."""
+    DEBUG = False
+    TESTING = False
+    # Force HTTPS cookies in Azure
+    SESSION_COOKIE_SECURE = True
+    # Use Azure-specific settings
+    IS_AZURE = True
+
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'azure': AzureConfig,
+    'default': DevelopmentConfig
+}

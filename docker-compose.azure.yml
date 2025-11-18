@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Azure-ready unified application
+  chatapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.azure
+    image: chatapp-azure:latest
+    container_name: chatapp-azure
+    ports:
+      - "8000:8000"
+    environment:
+      # Flask Configuration
+      - FLASK_ENV=azure
+      - SECRET_KEY=${SECRET_KEY}
+      - PORT=8000
+
+      # Azure CosmosDB (MongoDB API)
+      - AZURE_COSMOS_CONNECTIONSTRING=${AZURE_COSMOS_CONNECTIONSTRING}
+      - AZURE_COSMOS_DATABASE=${AZURE_COSMOS_DATABASE:-chatapp}
+
+      # Azure Redis Cache (optional)
+      - AZURE_REDIS_CONNECTIONSTRING=${AZURE_REDIS_CONNECTIONSTRING}
+
+      # CORS Configuration
+      - FRONTEND_URL=${FRONTEND_URL:-https://yourdomain.azurewebsites.net}
+
+      # TOTP Configuration
+      - TOTP_ISSUER=${TOTP_ISSUER:-ChatHub}
+
+      # External Services (optional)
+      - TENOR_API_KEY=${TENOR_API_KEY}
+      - SMS_SERVICE_API_KEY=${SMS_SERVICE_API_KEY}
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    restart: unless-stopped
+
+    networks:
+      - azure-network
+
+  # Local MongoDB for testing Azure deployment locally
+  mongodb-test:
+    image: mongo:7.0
+    container_name: mongodb-test
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_DATABASE=chatapp
+    volumes:
+      - mongodb_test_data:/data/db
+    networks:
+      - azure-network
+    profiles:
+      - local-test
+
+  # Local Redis for testing Azure deployment locally
+  redis-test:
+    image: redis:7.2-alpine
+    container_name: redis-test
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password123}
+    volumes:
+      - redis_test_data:/data
+    networks:
+      - azure-network
+    profiles:
+      - local-test
+
+networks:
+  azure-network:
+    driver: bridge
+
+volumes:
+  mongodb_test_data:
+  redis_test_data:

@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # MongoDB local
+  mongodb:
+    image: mongo:7.0
+    container_name: chatapp-mongodb-local
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: chatapp
+    volumes:
+      - mongodb_local_data:/data/db
+    networks:
+      - chatapp-local
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis local
+  redis:
+    image: redis:7.2-alpine
+    container_name: chatapp-redis-local
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass password123
+    volumes:
+      - redis_local_data:/data
+    networks:
+      - chatapp-local
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: chatapp-backend-local
+    ports:
+      - "5000:5000"
+    environment:
+      # Force local mode (not Azure)
+      FLASK_ENV: development
+      DATABASE_URL: mongodb://admin:password123@mongodb:27017/chatapp?authSource=admin
+      DB_NAME: chatapp
+      REDIS_URL: redis://:password123@redis:6379/0
+      SECRET_KEY: dev-secret-key-local-testing
+      FRONTEND_URL: http://localhost:3000
+      PORT: 5000
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chatapp-local
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: chatapp-frontend-local
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_APP_NAME: ChatHub Local
+      NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - chatapp-local
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+networks:
+  chatapp-local:
+    driver: bridge
+
+volumes:
+  mongodb_local_data:
+  redis_local_data:
+  backend_logs:
