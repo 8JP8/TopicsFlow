@@ -11,16 +11,21 @@ class Message:
         self.db = db
         self.collection = db.messages
 
-    def create_message(self, topic_id: str, user_id: str, content: str,
+    def create_message(self, topic_id: Optional[str] = None, user_id: str = None, content: str = None,
                       message_type: str = 'text',
                       anonymous_identity: Optional[str] = None,
-                      gif_url: Optional[str] = None) -> str:
-        """Create a new message in a topic."""
+                      gif_url: Optional[str] = None,
+                      chat_room_id: Optional[str] = None,
+                      post_id: Optional[str] = None,
+                      comment_id: Optional[str] = None) -> str:
+        """Create a new message in a topic, chat room, post, or comment."""
         # Validate and filter content
-        filtered_content = self._filter_content(content)
+        filtered_content = self._filter_content(content) if content else ''
+        
+        # Process mentions
+        mentions = self._extract_mentions(filtered_content)
 
         message_data = {
-            'topic_id': ObjectId(topic_id),
             'user_id': ObjectId(user_id),
             'content': filtered_content,
             'message_type': message_type,  # 'text', 'emoji', 'gif', 'system'
@@ -30,14 +35,24 @@ class Message:
             'deleted_by': None,
             'deleted_at': None,
             'reports': [],
-            'mentions': [],  # Will be populated when mentions are processed
+            'mentions': mentions,  # Array of user_ids mentioned
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
+        
+        # Support both old (topic_id) and new (chat_room_id) formats
+        if topic_id:
+            message_data['topic_id'] = ObjectId(topic_id)
+        if chat_room_id:
+            message_data['chat_room_id'] = ObjectId(chat_room_id)
+        if post_id:
+            message_data['post_id'] = ObjectId(post_id)
+        if comment_id:
+            message_data['comment_id'] = ObjectId(comment_id)
 
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"[DB] Inserting message into database: topic_id={topic_id}, user_id={user_id}")
+        logger.info(f"[DB] Inserting message into database: user_id={user_id}, topic_id={topic_id}, chat_room_id={chat_room_id}")
         
         result = self.collection.insert_one(message_data)
         
@@ -51,10 +66,28 @@ class Message:
         else:
             logger.error(f"[DB] Message verification FAILED: message not found after insertion!")
 
-        # Update topic last activity
-        from .topic import Topic
-        topic_model = Topic(self.db)
-        topic_model.update_last_activity(topic_id)
+        # Update last activity based on message type
+        if topic_id:
+            # Legacy topic support
+            try:
+                from .topic import Topic
+                topic_model = Topic(self.db)
+                topic_model.update_last_activity(topic_id)
+            except:
+                pass
+        elif chat_room_id:
+            # New chat room support
+            try:
+                from .chat_room import ChatRoom
+                chat_room_model = ChatRoom(self.db)
+                chat_room_model.update_last_activity(chat_room_id)
+                chat_room_model.increment_message_count(chat_room_id)
+            except:
+                pass
+
+        # Send notifications for mentions
+        if mentions:
+            self._notify_mentions(inserted_id, mentions, user_id)
 
         return inserted_id
 
@@ -165,7 +198,7 @@ class Message:
         if not message:
             return False
 
-        if not self._can_delete_message(message['topic_id'], message_id, deleted_by):
+        if not self._can_delete_message(message, deleted_by):
             return False
 
         result = self.collection.update_one(
@@ -181,20 +214,33 @@ class Message:
 
         return result.modified_count > 0
 
-    def _can_delete_message(self, topic_id: str, message_id: str, user_id: str) -> bool:
-        """Check if user can delete a message."""
-        from .topic import Topic
-        topic_model = Topic(self.db)
-        permission_level = topic_model.get_user_permission_level(topic_id, user_id)
-
-        # Owner and moderators can delete any message
-        if permission_level >= 2:
+    def _can_delete_message(self, message: Dict[str, Any], user_id: str) -> bool:
+        """Check if user can delete a message. Supports both topic messages and chat room messages."""
+        # Users can always delete their own messages
+        if message.get('user_id') == user_id or str(message.get('user_id')) == user_id:
             return True
 
-        # Users can delete their own messages
-        message = self.get_message_by_id(message_id)
-        if message and message['user_id'] == user_id:
-            return True
+        # Check permissions based on message type
+        if message.get('chat_room_id'):
+            # Chat room message - check chat room permissions
+            from .chat_room import ChatRoom
+            chat_room_model = ChatRoom(self.db)
+            permission_level = chat_room_model.get_user_permission_level(
+                str(message['chat_room_id']), 
+                user_id
+            )
+            # Owner (3) or moderator (2) can delete any message
+            return permission_level >= 2
+        elif message.get('topic_id'):
+            # Topic message - check topic permissions
+            from .topic import Topic
+            topic_model = Topic(self.db)
+            permission_level = topic_model.get_user_permission_level(
+                str(message['topic_id']), 
+                user_id
+            )
+            # Owner (3) or moderator (2) can delete any message
+            return permission_level >= 2
 
         return False
 
@@ -248,6 +294,43 @@ class Message:
         content = ' '.join(words)
 
         return content.strip()
+
+    def _extract_mentions(self, content: str) -> List[ObjectId]:
+        """Extract @username mentions from content and return list of user IDs."""
+        from utils.mention_parser import extract_mentions_as_user_ids
+        return extract_mentions_as_user_ids(self.db, content)
+
+    def _notify_mentions(self, message_id: str, mentioned_user_ids: List[ObjectId], sender_id: str) -> None:
+        """Send notifications to mentioned users."""
+        from utils.mention_parser import notify_mentioned_users
+        
+        # Determine content type and context
+        context = {}
+        content_type = 'message'
+        
+        # Try to get context from message
+        try:
+            message = self.collection.find_one({'_id': ObjectId(message_id)})
+            if message:
+                if 'chat_room_id' in message:
+                    content_type = 'chat_room_message'
+                    context['chat_room_id'] = str(message['chat_room_id'])
+                elif 'topic_id' in message:
+                    content_type = 'message'
+                    context['topic_id'] = str(message['topic_id'])
+                if 'theme_id' in message:
+                    context['theme_id'] = str(message['theme_id'])
+        except:
+            pass
+        
+        notify_mentioned_users(
+            db=self.db,
+            content_id=message_id,
+            content_type=content_type,
+            mentioned_user_ids=mentioned_user_ids,
+            sender_id=sender_id,
+            context=context
+        )
 
     def get_message_reports(self, message_id: str) -> List[Dict[str, Any]]:
         """Get all reports for a specific message."""

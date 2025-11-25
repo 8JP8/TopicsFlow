@@ -22,7 +22,7 @@ const RegisterPage: React.FC = () => {
           <div className="flex items-center space-x-3">
             <img
               src="https://i.postimg.cc/52jHqBD9/chat.png"
-              alt="ChatHub Logo"
+              alt="TopicsFlow Logo"
               className="h-10 w-10"
             />
             <span className="text-xl font-bold theme-text-primary">

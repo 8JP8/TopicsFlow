@@ -26,6 +26,8 @@ const Settings: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy'>('preferences');
+  const [blockedUsers, setBlockedUsers] = useState<Array<{id: string, username: string}>>([]);
+  const [loadingBlocked, setLoadingBlocked] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -41,7 +43,42 @@ const Settings: React.FC = () => {
         sound_enabled: user.preferences.sound_enabled !== false,
       });
     }
-  }, [user, authLoading, router]);
+
+    if (user && activeTab === 'privacy') {
+      loadBlockedUsers();
+    }
+  }, [user, authLoading, router, activeTab]);
+
+  const loadBlockedUsers = async () => {
+    try {
+      setLoadingBlocked(true);
+      const response = await api.get(API_ENDPOINTS.BLOCKING.LIST_BLOCKED);
+
+      if (response.data.success) {
+        setBlockedUsers(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load blocked users:', error);
+    } finally {
+      setLoadingBlocked(false);
+    }
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const response = await api.delete(API_ENDPOINTS.BLOCKING.UNBLOCK(userId));
+
+      if (response.data.success) {
+        toast.success(t('blocking.userUnblocked'));
+        await loadBlockedUsers();
+      } else {
+        toast.error(response.data.errors?.[0] || t('blocking.failedToUnblockUser'));
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.errors?.[0] || t('blocking.failedToUnblockUser');
+      toast.error(errorMessage);
+    }
+  };
 
   const handlePreferenceChange = async (key: keyof UserPreferences, value: any) => {
     const newPreferences = { ...preferences, [key]: value };
@@ -337,6 +374,33 @@ const Settings: React.FC = () => {
                     <p className="text-sm theme-text-secondary">
                       {t('settings.dataPrivacyDesc')}
                     </p>
+                  </div>
+
+                  {/* Blocked Users */}
+                  <div className="p-4 theme-bg-tertiary rounded-lg">
+                    <h4 className="font-medium theme-text-primary mb-4">{t('blocking.blockedUsers')}</h4>
+                    {loadingBlocked ? (
+                      <LoadingSpinner size="sm" />
+                    ) : blockedUsers.length === 0 ? (
+                      <p className="text-sm theme-text-secondary">{t('blocking.noBlockedUsers')}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {blockedUsers.map(blockedUser => (
+                          <div
+                            key={blockedUser.id}
+                            className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                          >
+                            <span className="font-medium theme-text-primary">{blockedUser.username}</span>
+                            <button
+                              onClick={() => handleUnblockUser(blockedUser.id)}
+                              className="px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                            >
+                              {t('blocking.unblockUser')}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

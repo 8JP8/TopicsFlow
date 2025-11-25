@@ -40,7 +40,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       disabled: !onSendMessage,
     },
     {
-      label: isBlocked ? t('userContextMenu.unblockUser') : t('userContextMenu.blockUser'),
+      label: isBlocked ? t('blocking.unblockUser') : t('blocking.blockUser'),
       action: () => {
         if (onBlockUser) {
           onBlockUser(userId, username);

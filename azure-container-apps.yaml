@@ -56,7 +56,7 @@ properties:
 
           # TOTP Configuration
           - name: TOTP_ISSUER
-            value: "ChatHub"
+            value: "TopicsFlow"
 
           # Azure Detection
           - name: WEBSITE_INSTANCE_ID

@@ -212,7 +212,7 @@ const LoginPage: React.FC = () => {
             <div className="flex items-center space-x-3">
               <img
                 src="https://i.postimg.cc/52jHqBD9/chat.png"
-                alt="ChatHub Logo"
+                alt="TopicsFlow Logo"
                 className="h-10 w-10"
               />
               <span className="text-xl font-bold theme-text-primary">
@@ -233,7 +233,7 @@ const LoginPage: React.FC = () => {
             <div className="text-center mb-8">
               <img
                 src="https://i.postimg.cc/52jHqBD9/chat.png"
-                alt="ChatHub Logo"
+                alt="TopicsFlow Logo"
                 className="h-16 w-16 mx-auto mb-4"
               />
               <h1 className="text-3xl font-bold theme-text-primary mb-2">

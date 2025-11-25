@@ -5,7 +5,7 @@ export default function Document() {
     <Html lang="en" suppressHydrationWarning>
       <Head>
         <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
-        <meta name="description" content="ChatHub - Secure chat application with passwordless authentication" />
+        <meta name="description" content="TopicsFlow - Reddit-style discussion platform with chat rooms and passwordless authentication" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

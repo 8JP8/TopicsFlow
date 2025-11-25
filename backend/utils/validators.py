@@ -273,3 +273,94 @@ def validate_pagination_params(limit: int, offset: int) -> dict:
         offset = 10000
 
     return {'valid': len(errors) == 0, 'errors': errors, 'limit': limit, 'offset': offset}
+
+
+def validate_post_title(title: str) -> dict:
+    """Validate post title."""
+    if not title or not title.strip():
+        return {'valid': False, 'errors': ['Post title is required']}
+
+    title = title.strip()
+
+    if len(title) < 3:
+        return {'valid': False, 'errors': ['Post title must be at least 3 characters long']}
+
+    if len(title) > 300:
+        return {'valid': False, 'errors': ['Post title must be less than 300 characters long']}
+
+    # Check for valid characters
+    if not re.match(r'^[a-zA-Z0-9\s\-_.,!?()[\]{}:;]+$', title):
+        return {'valid': False, 'errors': ['Post title contains invalid characters']}
+
+    return {'valid': True, 'errors': []}
+
+
+def validate_post_content(content: str) -> dict:
+    """Validate post content."""
+    if not content or not content.strip():
+        return {'valid': False, 'errors': ['Post content is required']}
+
+    content = content.strip()
+
+    if len(content) > 10000:
+        return {'valid': False, 'errors': ['Post content must be less than 10000 characters long']}
+
+    # Basic validation - prevent script tags
+    if '<script' in content.lower():
+        return {'valid': False, 'errors': ['Post content contains invalid content']}
+
+    return {'valid': True, 'errors': []}
+
+
+def validate_comment_content(content: str) -> dict:
+    """Validate comment content."""
+    if not content or not content.strip():
+        return {'valid': False, 'errors': ['Comment content is required']}
+
+    content = content.strip()
+
+    if len(content) > 5000:
+        return {'valid': False, 'errors': ['Comment content must be less than 5000 characters long']}
+
+    # Basic validation - prevent script tags
+    if '<script' in content.lower():
+        return {'valid': False, 'errors': ['Comment content contains invalid content']}
+
+    return {'valid': True, 'errors': []}
+
+
+def validate_chat_room_name(name: str) -> dict:
+    """Validate chat room name."""
+    if not name or not name.strip():
+        return {'valid': False, 'errors': ['Chat room name is required']}
+
+    name = name.strip()
+
+    if len(name) < 2:
+        return {'valid': False, 'errors': ['Chat room name must be at least 2 characters long']}
+
+    if len(name) > 100:
+        return {'valid': False, 'errors': ['Chat room name must be less than 100 characters long']}
+
+    # Check for valid characters
+    if not re.match(r'^[a-zA-Z0-9\s\-_]+$', name):
+        return {'valid': False, 'errors': ['Chat room name contains invalid characters']}
+
+    return {'valid': True, 'errors': []}
+
+
+def validate_chat_room_description(description: str) -> dict:
+    """Validate chat room description."""
+    if not description:
+        return {'valid': True, 'errors': []}  # Description is optional
+
+    description = description.strip()
+
+    if len(description) > 500:
+        return {'valid': False, 'errors': ['Chat room description must be less than 500 characters long']}
+
+    # Basic validation
+    if '<script' in description.lower():
+        return {'valid': False, 'errors': ['Chat room description contains invalid content']}
+
+    return {'valid': True, 'errors': []}

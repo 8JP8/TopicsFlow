@@ -41,9 +41,9 @@ class TenorService:
         if client_key:
             self.client_key = client_key
         elif has_app_context():
-            self.client_key = current_app.config.get('TENOR_CLIENT_KEY', 'chathub_app')
+            self.client_key = current_app.config.get('TENOR_CLIENT_KEY', 'topicsflow_app')
         else:
-            self.client_key = os.getenv('TENOR_CLIENT_KEY', 'chathub_app')
+            self.client_key = os.getenv('TENOR_CLIENT_KEY', 'topicsflow_app')
         
         if not self.api_key:
             logger.warning("Tenor API key not configured. GIF search will be disabled.")

@@ -81,7 +81,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:5000
-      NEXT_PUBLIC_APP_NAME: ChatHub Local
+      NEXT_PUBLIC_APP_NAME: TopicsFlow Local
       NODE_ENV: development
     volumes:
       - ./frontend:/app

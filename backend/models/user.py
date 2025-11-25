@@ -91,7 +91,8 @@ class User:
             'recovery_expires': None,  # Recovery code expiry
             'original_totp_secret_hash': None,  # Hashed original secret for recovery
             'user_recovery_code_hash': None,  # User-defined recovery code (like a master password)
-            'passkey_credentials': []  # WebAuthn/Passkey credentials for biometric auth
+            'passkey_credentials': [],  # WebAuthn/Passkey credentials for biometric auth
+            'blocked_users': []  # Array of user_ids that this user has blocked
         }
 
         result = self.collection.insert_one(user_data)
@@ -192,7 +193,7 @@ class User:
             return None
         return self._decrypt_totp_secret(user['totp_secret'])
 
-    def get_totp_qr_data(self, user_id: str, issuer: str = 'ChatHub') -> Optional[str]:
+    def get_totp_qr_data(self, user_id: str, issuer: str = 'TopicsFlow') -> Optional[str]:
         """Get TOTP QR code data for authenticator app setup."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
         if not user:
@@ -702,3 +703,56 @@ class User:
             })
         
         return result
+
+    def block_user(self, user_id: str, user_to_block_id: str) -> bool:
+        """Block a user (prevent them from sending private messages)."""
+        if user_id == user_to_block_id:
+            return False  # Cannot block yourself
+        
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$addToSet': {'blocked_users': ObjectId(user_to_block_id)}}
+        )
+        return result.modified_count > 0
+
+    def unblock_user(self, user_id: str, user_to_unblock_id: str) -> bool:
+        """Unblock a user."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$pull': {'blocked_users': ObjectId(user_to_unblock_id)}}
+        )
+        return result.modified_count > 0
+
+    def get_blocked_users(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get list of users blocked by this user."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return []
+        
+        blocked_user_ids = user.get('blocked_users', [])
+        if not blocked_user_ids:
+            return []
+        
+        blocked_users = list(self.collection.find(
+            {'_id': {'$in': blocked_user_ids}},
+            {'username': 1, 'email': 1, 'profile_picture': 1}
+        ))
+        
+        result = []
+        for blocked_user in blocked_users:
+            result.append({
+                'id': str(blocked_user['_id']),
+                'username': blocked_user.get('username', ''),
+                'email': blocked_user.get('email', ''),
+                'profile_picture': blocked_user.get('profile_picture')
+            })
+        
+        return result
+
+    def is_user_blocked(self, user_id: str, other_user_id: str) -> bool:
+        """Check if a user has blocked another user."""
+        user = self.collection.find_one({
+            '_id': ObjectId(user_id),
+            'blocked_users': ObjectId(other_user_id)
+        })
+        return user is not None

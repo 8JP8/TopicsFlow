@@ -189,7 +189,7 @@ export const API_ENDPOINTS = {
     UNREAD_COUNT: '/api/users/private-messages/unread-count',
     MARK_CONVERSATION_READ: (userId: string) => `/api/users/private-messages/${userId}/read`,
     MUTE_CONVERSATION: (userId: string) => `/api/users/private-messages/${userId}/mute`,
-    BLOCK_USER: (userId: string) => `/api/users/block/${userId}`,
+    BLOCK_USER_LEGACY: (userId: string) => `/api/users/block/${userId}`, // Legacy - kept for compatibility
     DELETE_CONVERSATION: (userId: string) => `/api/users/private-messages/${userId}`,
     SEARCH: '/api/users/search',
     STATS: '/api/users/stats',
@@ -213,6 +213,76 @@ export const API_ENDPOINTS = {
     RECENT: '/api/gifs/recent',
     CATEGORIES: '/api/gifs/categories',
     REGISTER_SHARE: '/api/gifs/register-share',
+  },
+
+  // Themes (new - within Topics, Reddit-style)
+  THEMES: {
+    LIST_BY_TOPIC: (topicId: string) => `/api/themes/topics/${topicId}`,
+    CREATE: (topicId: string) => `/api/themes/topics/${topicId}`,
+    GET: (id: string) => `/api/themes/${id}`,
+    UPDATE: (id: string) => `/api/themes/${id}`,
+    DELETE: (id: string) => `/api/themes/${id}`,
+    JOIN: (id: string) => `/api/themes/${id}/join`,
+    LEAVE: (id: string) => `/api/themes/${id}/leave`,
+    MODERATORS: (id: string) => `/api/themes/${id}/moderators`,
+    ADD_MODERATOR: (id: string) => `/api/themes/${id}/moderators`,
+    REMOVE_MODERATOR: (id: string, moderatorId: string) => `/api/themes/${id}/moderators/${moderatorId}`,
+    BAN_USER: (id: string) => `/api/themes/${id}/ban`,
+    UNBAN_USER: (id: string) => `/api/themes/${id}/unban`,
+    TRANSFER_OWNERSHIP: (id: string) => `/api/themes/${id}/transfer-ownership`,
+    USER_THEMES: '/api/themes/my',
+    ANONYMOUS_IDENTITY: (id: string) => `/api/themes/${id}/anonymous-identity`,
+    // Legacy - kept for backward compatibility (returns error)
+    LIST: '/api/themes',
+  },
+
+  // Posts (within Topics, Reddit-style)
+  POSTS: {
+    LIST_BY_TOPIC: (topicId: string) => `/api/posts/topics/${topicId}/posts`,
+    CREATE: (topicId: string) => `/api/posts/topics/${topicId}/posts`,
+    GET: (id: string) => `/api/posts/${id}`,
+    DELETE: (id: string) => `/api/posts/${id}`,
+    UPVOTE: (id: string) => `/api/posts/${id}/upvote`,
+    DOWNVOTE: (id: string) => `/api/posts/${id}/downvote`,
+    REPORT: (id: string) => `/api/posts/${id}/report`,
+    // Legacy - kept for backward compatibility
+    LIST_BY_THEME: (themeId: string) => `/api/posts/themes/${themeId}/posts`,
+  },
+
+  // Comments (new)
+  COMMENTS: {
+    LIST_BY_POST: (postId: string) => `/api/comments/posts/${postId}/comments`,
+    CREATE: (postId: string) => `/api/comments/posts/${postId}/comments`,
+    REPLY: (commentId: string) => `/api/comments/${commentId}/reply`,
+    GET: (id: string) => `/api/comments/${id}`,
+    DELETE: (id: string) => `/api/comments/${id}`,
+    UPVOTE: (id: string) => `/api/comments/${id}/upvote`,
+    REPORT: (id: string) => `/api/comments/${id}/report`,
+  },
+
+  // Chat Rooms / Conversations (within Topics, Discord-style)
+  CHAT_ROOMS: {
+    LIST_BY_TOPIC: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
+    CREATE: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
+    GET: (id: string) => `/api/chat-rooms/${id}`,
+    DELETE: (id: string) => `/api/chat-rooms/${id}`,
+    JOIN: (id: string) => `/api/chat-rooms/${id}/join`,
+    LEAVE: (id: string) => `/api/chat-rooms/${id}/leave`,
+    MESSAGES: (id: string) => `/api/chat-rooms/${id}/messages`,
+    SEND_MESSAGE: (id: string) => `/api/chat-rooms/${id}/messages`,
+    ADD_MODERATOR: (id: string) => `/api/chat-rooms/${id}/moderators`,
+    REMOVE_MODERATOR: (id: string, moderatorId: string) => `/api/chat-rooms/${id}/moderators/${moderatorId}`,
+    BAN_USER: (id: string, userId: string) => `/api/chat-rooms/${id}/ban/${userId}`,
+    UNBAN_USER: (id: string, userId: string) => `/api/chat-rooms/${id}/unban/${userId}`,
+    // Legacy - kept for backward compatibility
+    LIST_BY_THEME: (themeId: string) => `/api/chat-rooms/themes/${themeId}/chat-rooms`,
+  },
+
+  // Blocking (new)
+  BLOCKING: {
+    BLOCK: (userId: string) => `/api/users/${userId}/block`,
+    UNBLOCK: (userId: string) => `/api/users/${userId}/block`,
+    LIST_BLOCKED: '/api/users/blocked',
   },
 } as const;
 

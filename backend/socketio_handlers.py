@@ -891,6 +891,171 @@ def register_socketio_handlers(socketio):
             emit('error', {'message': 'Failed to get online users'})
 
 
+    # ========== NEW HANDLERS FOR THEMES, POSTS, COMMENTS, CHAT ROOMS ==========
+    
+    @socketio.on('join_theme')
+    def handle_join_theme(data):
+        """Handle user joining a theme room."""
+        try:
+            theme_id = data.get('theme_id')
+            
+            if not theme_id:
+                emit('error', {'message': 'Theme ID is required'})
+                return
+            
+            theme_id = str(theme_id)
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('error', {'message': 'Authentication required'})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Verify theme exists
+            from models.theme import Theme
+            theme_model = Theme(current_app.db)
+            theme = theme_model.get_theme_by_id(theme_id)
+            
+            if not theme:
+                emit('error', {'message': 'Theme not found'})
+                return
+            
+            # Check if user is banned
+            if theme_model.is_user_banned_from_theme(theme_id, user_id):
+                emit('error', {'message': 'You are banned from this theme'})
+                return
+            
+            # Join room
+            room_name = f"theme_{theme_id}"
+            join_room(room_name)
+            
+            # Track user's rooms
+            if user_id not in user_rooms:
+                user_rooms[user_id] = set()
+            user_rooms[user_id].add(f"theme_{theme_id}")
+            
+            emit('theme_joined', {
+                'theme_id': theme_id,
+                'theme_title': theme['title']
+            })
+            
+            logger.info(f"User {user['username']} joined theme {theme_id}")
+            
+        except Exception as e:
+            logger.error(f"Join theme error: {str(e)}", exc_info=True)
+            emit('error', {'message': 'Failed to join theme'})
+    
+    @socketio.on('join_chat_room')
+    def handle_join_chat_room(data):
+        """Handle user joining a chat room."""
+        try:
+            room_id = data.get('room_id')
+            
+            if not room_id:
+                emit('error', {'message': 'Chat room ID is required'})
+                return
+            
+            room_id = str(room_id)
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('error', {'message': 'Authentication required'})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Verify chat room exists
+            from models.chat_room import ChatRoom
+            chat_room_model = ChatRoom(current_app.db)
+            room = chat_room_model.get_chat_room_by_id(room_id)
+            
+            if not room:
+                emit('error', {'message': 'Chat room not found'})
+                return
+            
+            # Join room
+            room_name = f"chat_room_{room_id}"
+            join_room(room_name)
+            
+            # Track user's rooms
+            if user_id not in user_rooms:
+                user_rooms[user_id] = set()
+            user_rooms[user_id].add(f"chat_room_{room_id}")
+            
+            emit('chat_room_joined', {
+                'room_id': room_id,
+                'room_name': room['name']
+            })
+            
+            logger.info(f"User {user['username']} joined chat room {room_id}")
+            
+        except Exception as e:
+            logger.error(f"Join chat room error: {str(e)}", exc_info=True)
+            emit('error', {'message': 'Failed to join chat room'})
+    
+    @socketio.on('join_post')
+    def handle_join_post(data):
+        """Handle user joining a post room (for real-time comment updates)."""
+        try:
+            post_id = data.get('post_id')
+            
+            if not post_id:
+                emit('error', {'message': 'Post ID is required'})
+                return
+            
+            post_id = str(post_id)
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('error', {'message': 'Authentication required'})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Verify post exists
+            from models.post import Post
+            post_model = Post(current_app.db)
+            post = post_model.get_post_by_id(post_id)
+            
+            if not post:
+                emit('error', {'message': 'Post not found'})
+                return
+            
+            # Join room
+            room_name = f"post_{post_id}"
+            join_room(room_name)
+            
+            # Track user's rooms
+            if user_id not in user_rooms:
+                user_rooms[user_id] = set()
+            user_rooms[user_id].add(f"post_{post_id}")
+            
+            emit('post_joined', {
+                'post_id': post_id,
+                'post_title': post.get('title', '')
+            })
+            
+            logger.info(f"User {user['username']} joined post {post_id}")
+            
+        except Exception as e:
+            logger.error(f"Join post error: {str(e)}", exc_info=True)
+            emit('error', {'message': 'Failed to join post'})
+    
+    # Note: The actual events (new_post, post_upvoted, new_comment, comment_upvoted, 
+    # new_chat_room_message, user_mentioned) are emitted from the routes/models,
+    # not handled here. These are one-way broadcasts from server to clients.
+
+
 def get_online_users_count() -> int:
     """Get count of currently online users."""
     return len([u for u in connected_users.values() if u.get('is_online', False)])

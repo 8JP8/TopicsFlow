@@ -1,7 +1,7 @@
 {
-  "name": "chatapp-frontend",
+  "name": "topicsflow-frontend",
   "version": "1.0.0",
-  "description": "Reddit-style chat application frontend",
+  "description": "TopicsFlow - Reddit-style discussion platform with chat rooms",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

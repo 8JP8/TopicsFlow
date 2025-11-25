@@ -103,7 +103,11 @@ def create_app(config_name=None):
 
     # Register blueprints
     from routes.auth import auth_bp
-    from routes.topics import topics_bp
+    from routes.topics import topics_bp  # Legacy - keep for compatibility
+    from routes.themes import themes_bp  # New
+    from routes.posts import posts_bp  # New
+    from routes.comments import comments_bp  # New
+    from routes.chat_rooms import chat_rooms_bp  # New
     from routes.messages import messages_bp
     from routes.reports import reports_bp
     from routes.users import users_bp
@@ -111,7 +115,11 @@ def create_app(config_name=None):
     from routes.gifs import gifs_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(topics_bp, url_prefix='/api/topics')
+    app.register_blueprint(topics_bp, url_prefix='/api/topics')  # Legacy
+    app.register_blueprint(themes_bp, url_prefix='/api/themes')  # New
+    app.register_blueprint(posts_bp, url_prefix='/api/posts')  # New
+    app.register_blueprint(comments_bp, url_prefix='/api/comments')  # New
+    app.register_blueprint(chat_rooms_bp, url_prefix='/api/chat-rooms')  # New
     app.register_blueprint(messages_bp, url_prefix='/api/messages')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
     app.register_blueprint(users_bp, url_prefix='/api/users')
@@ -169,21 +177,87 @@ def create_db_indexes(app):
         db.users.create_index("username", unique=True)
         db.users.create_index("email", unique=True)
         db.users.create_index("ip_addresses")
+        db.users.create_index("blocked_users")
 
-        # Topics collection indexes
+        # Themes collection indexes (new - within Topics)
+        db.themes.create_index("topic_id")  # Themes belong to Topics
+        db.themes.create_index([("topic_id", 1), ("last_activity", -1)])
+        db.themes.create_index([("topic_id", 1), ("post_count", -1)])
+        db.themes.create_index("created_at")
+        db.themes.create_index([("member_count", -1)])
+        db.themes.create_index([("last_activity", -1)])
+        db.themes.create_index([("post_count", -1)])
+        db.themes.create_index("tags")
+        db.themes.create_index("owner_id")
+        db.themes.create_index("members")
+        db.themes.create_index("banned_users")
+
+        # Topics collection indexes (main containers)
         db.topics.create_index("created_at")
         db.topics.create_index([("member_count", -1)])
         db.topics.create_index([("last_activity", -1)])
+        db.topics.create_index([("post_count", -1)])  # Number of posts
+        db.topics.create_index([("conversation_count", -1)])  # Number of conversations
         db.topics.create_index("tags")
+        db.topics.create_index("owner_id")
+        db.topics.create_index("members")
+        db.topics.create_index("banned_users")
 
-        # Messages collection indexes
-        db.messages.create_index([("topic_id", 1), ("created_at", -1)])
+        # Posts collection indexes (updated - now within Topics)
+        db.posts.create_index([("topic_id", 1), ("created_at", -1)])  # New: posts belong to topics
+        db.posts.create_index([("topic_id", 1), ("score", -1)])  # New: sort by score
+        db.posts.create_index([("topic_id", 1), ("score", -1), ("created_at", -1)])  # For hot sorting
+        db.posts.create_index([("theme_id", 1), ("created_at", -1)])  # Legacy support
+        db.posts.create_index("user_id")
+        db.posts.create_index("created_at")
+        db.posts.create_index([("score", -1)])  # New: score = upvotes - downvotes
+        db.posts.create_index([("upvote_count", -1)])
+        db.posts.create_index("upvotes")
+        db.posts.create_index("downvotes")  # New: downvotes
+        db.posts.create_index("is_deleted")
+
+        # Comments collection indexes (new)
+        db.comments.create_index([("post_id", 1), ("created_at", -1)])
+        db.comments.create_index([("post_id", 1), ("upvote_count", -1)])
+        db.comments.create_index("parent_comment_id")
+        db.comments.create_index("user_id")
+        db.comments.create_index("created_at")
+        db.comments.create_index([("upvote_count", -1)])
+        db.comments.create_index("upvotes")
+        db.comments.create_index("depth")
+        db.comments.create_index("is_deleted")
+
+        # Chat rooms (Conversations) collection indexes (updated - within Topics)
+        db.chat_rooms.create_index("topic_id")  # Conversations belong to Topics
+        db.chat_rooms.create_index([("topic_id", 1), ("last_activity", -1)])
+        db.chat_rooms.create_index([("topic_id", 1), ("tags", 1)])  # New: filter by tags
+        db.chat_rooms.create_index([("theme_id", 1), ("last_activity", -1)])  # Legacy support
+        db.chat_rooms.create_index("theme_id")  # Legacy support
+        db.chat_rooms.create_index("owner_id")
+        db.chat_rooms.create_index("moderators")  # New: moderators
+        db.chat_rooms.create_index("members")
+        db.chat_rooms.create_index("banned_users")  # New: banned users
+        db.chat_rooms.create_index("tags")  # New: tags for search
+        db.chat_rooms.create_index("is_public")
+        db.chat_rooms.create_index("created_at")
+
+        # Messages collection indexes (updated)
+        db.messages.create_index([("topic_id", 1), ("created_at", -1)])  # Legacy
+        db.messages.create_index([("chat_room_id", 1), ("created_at", -1)])  # New
+        db.messages.create_index([("post_id", 1), ("created_at", -1)])  # New
+        db.messages.create_index([("comment_id", 1), ("created_at", -1)])  # New
         db.messages.create_index("user_id")
         db.messages.create_index("created_at")
+        db.messages.create_index("mentions")
+        db.messages.create_index("is_deleted")
 
-        # Reports collection indexes
-        db.reports.create_index([("topic_id", 1), ("status", 1)])
+        # Reports collection indexes (updated)
+        db.reports.create_index([("theme_id", 1), ("status", 1)])  # Updated
+        db.reports.create_index([("reported_content_id", 1), ("content_type", 1)])  # New
+        db.reports.create_index("content_type")  # New
         db.reports.create_index("created_at")
+        db.reports.create_index("status")
+        db.reports.create_index([("topic_id", 1), ("status", 1)])  # Legacy
 
         # Private messages collection indexes
         db.private_messages.create_index([("from_user_id", 1), ("to_user_id", 1)])
@@ -191,7 +265,8 @@ def create_db_indexes(app):
         db.private_messages.create_index("created_at")
 
         # Anonymous identities collection indexes
-        db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)
+        db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)  # Legacy
+        db.anonymous_identities.create_index([("user_id", 1), ("theme_id", 1)], unique=True)  # New
 
         logger.info("Database indexes created successfully")
 

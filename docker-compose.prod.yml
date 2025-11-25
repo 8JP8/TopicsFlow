@@ -4,7 +4,7 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: chathub-mongodb-prod
+    container_name: topicsflow-mongodb-prod
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
@@ -14,7 +14,7 @@ services:
       - mongodb_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
-      - chathub-network
+      - topicsflow-network
     secrets:
       - mongo_root_username
       - mongo_root_password
@@ -22,20 +22,20 @@ services:
   # Redis
   redis:
     image: redis:7.2-alpine
-    container_name: chathub-redis-prod
+    container_name: topicsflow-redis-prod
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
-      - chathub-network
+      - topicsflow-network
 
   # Backend API
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: chathub-backend-prod
+    container_name: topicsflow-backend-prod
     restart: always
     environment:
       FLASK_ENV: production
@@ -43,7 +43,7 @@ services:
       DATABASE_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/chatapp?authSource=admin
       DB_NAME: chatapp
       FRONTEND_URL: ${FRONTEND_URL}
-      TOTP_ISSUER: ChatHub
+      TOTP_ISSUER: TopicsFlow
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       SMS_SERVICE_API_KEY_FILE: /run/secrets/sms_service_api_key
       EMAIL_SERVICE_API_KEY_FILE: /run/secrets/email_service_api_key
@@ -54,7 +54,7 @@ services:
       - mongodb
       - redis
     networks:
-      - chathub-network
+      - topicsflow-network
     secrets:
       - flask_secret_key
       - sms_service_api_key
@@ -66,23 +66,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: chathub-frontend-prod
+    container_name: topicsflow-frontend-prod
     restart: always
     environment:
       NEXT_PUBLIC_API_URL: ${FRONTEND_URL}
-      NEXT_PUBLIC_APP_NAME: ChatHub
+      NEXT_PUBLIC_APP_NAME: TopicsFlow
       NEXT_PUBLIC_TENOR_API_KEY_FILE: /run/secrets/tenor_api_key
     depends_on:
       - backend
     networks:
-      - chathub-network
+      - topicsflow-network
     secrets:
       - tenor_api_key
 
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: chathub-nginx
+    container_name: topicsflow-nginx
     restart: always
     ports:
       - "80:80"
@@ -95,7 +95,7 @@ services:
       - frontend
       - backend
     networks:
-      - chathub-network
+      - topicsflow-network
 
 volumes:
   mongodb_data:
@@ -103,7 +103,7 @@ volumes:
   totp_keys:
 
 networks:
-  chathub-network:
+  topicsflow-network:
     driver: bridge
 
 secrets:

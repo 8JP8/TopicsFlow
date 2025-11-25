@@ -26,19 +26,19 @@ logger = logging.getLogger(__name__)
 class PasskeyService:
     """Service for managing WebAuthn/Passkey authentication."""
 
-    def __init__(self, rp_id: str = None, rp_name: str = "ChatHub"):
+    def __init__(self, rp_id: str = None, rp_name: str = "TopicsFlow"):
         """
         Initialize passkey service.
 
         Args:
-            rp_id: Relying Party ID (your domain, e.g., 'localhost' or 'chathub.com')
+            rp_id: Relying Party ID (your domain, e.g., 'localhost' or 'topicsflow.com')
             rp_name: Relying Party name (your app name)
         """
         # Use environment variable or default
         self.rp_id = rp_id or os.getenv('PASSKEY_RP_ID', 'localhost')
-        self.rp_name = rp_name or os.getenv('APP_NAME', 'ChatHub')
+        self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
 
-        # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://chathub.com')
+        # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.com')
         self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
         logger.info(f"PasskeyService initialized: RP ID={self.rp_id}, Origin={self.origin}")

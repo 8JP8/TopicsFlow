@@ -51,15 +51,15 @@ class Config:
     CORS_ALLOW_ALL = os.getenv('CORS_ALLOW_ALL', 'false').lower() == 'true'
 
     # TOTP/Auth Config
-    TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'ChatHub')
+    TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'TopicsFlow')
     TOTP_VALIDITY_WINDOW = int(os.getenv('TOTP_VALIDITY_WINDOW', '1'))
 
     # External Services
     SMS_SERVICE_API_KEY = os.getenv('SMS_SERVICE_API_KEY')
     SMS_SERVICE_NUMBER = os.getenv('SMS_SERVICE_NUMBER')
     RESEND_API_KEY = os.getenv('RESEND_API_KEY')  # Resend email service API key
-    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@chathub.com')  # Sender email address
-    APP_NAME = os.getenv('APP_NAME', 'ChatHub')  # Application name for emails
+    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@topicsflow.com')  # Sender email address
+    APP_NAME = os.getenv('APP_NAME', 'TopicsFlow')  # Application name for emails
     TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 
     # Redis Config (for session storage in production)

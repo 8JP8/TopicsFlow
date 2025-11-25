@@ -370,22 +370,22 @@ def mute_conversation(other_user_id):
         return jsonify({'success': False, 'errors': [f'Failed to mute conversation: {str(e)}']}), 500
 
 
-@users_bp.route('/block/<other_user_id>', methods=['POST'])
+@users_bp.route('/<user_id>/block', methods=['POST'])
 @require_auth()
 @log_requests
-def block_user(other_user_id):
+def block_user(user_id):
     """Block a user."""
     try:
         from flask import current_app
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()
-        user_id = current_user_result['user']['id']
+        current_user_id = current_user_result['user']['id']
         
-        if user_id == other_user_id:
+        if current_user_id == user_id:
             return jsonify({'success': False, 'errors': ['Cannot block yourself']}), 400
         
-        settings_model = ConversationSettings(current_app.db)
-        success = settings_model.block_user(user_id, other_user_id)
+        user_model = User(current_app.db)
+        success = user_model.block_user(current_user_id, user_id)
         
         if success:
             return jsonify({
@@ -401,6 +401,60 @@ def block_user(other_user_id):
     except Exception as e:
         logger.error(f"Block user error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to block user: {str(e)}']}), 500
+
+
+@users_bp.route('/<user_id>/block', methods=['DELETE'])
+@require_auth()
+@log_requests
+def unblock_user(user_id):
+    """Unblock a user."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        current_user_id = current_user_result['user']['id']
+        
+        user_model = User(current_app.db)
+        success = user_model.unblock_user(current_user_id, user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User unblocked successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'errors': ['Failed to unblock user']
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Unblock user error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unblock user: {str(e)}']}), 500
+
+
+@users_bp.route('/blocked', methods=['GET'])
+@require_auth()
+@log_requests
+def get_blocked_users():
+    """Get list of users blocked by current user."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        current_user_id = current_user_result['user']['id']
+        
+        user_model = User(current_app.db)
+        blocked_users = user_model.get_blocked_users(current_user_id)
+        
+        return jsonify({
+            'success': True,
+            'data': blocked_users
+        }), 200
+            
+    except Exception as e:
+        logger.error(f"Get blocked users error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get blocked users: {str(e)}']}), 500
 
 
 @users_bp.route('/private-messages/<other_user_id>', methods=['DELETE'])

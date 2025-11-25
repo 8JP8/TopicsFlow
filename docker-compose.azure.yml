@@ -27,7 +27,7 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-https://yourdomain.azurewebsites.net}
 
       # TOTP Configuration
-      - TOTP_ISSUER=${TOTP_ISSUER:-ChatHub}
+      - TOTP_ISSUER=${TOTP_ISSUER:-TopicsFlow}
 
       # External Services (optional)
       - TENOR_API_KEY=${TENOR_API_KEY}

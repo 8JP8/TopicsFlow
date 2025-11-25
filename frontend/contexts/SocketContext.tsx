@@ -187,6 +187,44 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         console.error('Socket error:', data.message);
         toast.error(data.message || t('errors.generic'));
       },
+      'new_post': (data: any) => {
+        console.log('[SocketContext] new_post event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('new_post', { detail: data }));
+        }
+      },
+      'post_upvoted': (data: any) => {
+        console.log('[SocketContext] post_upvoted event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('post_upvoted', { detail: data }));
+        }
+      },
+      'new_comment': (data: any) => {
+        console.log('[SocketContext] new_comment event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('new_comment', { detail: data }));
+        }
+      },
+      'comment_upvoted': (data: any) => {
+        console.log('[SocketContext] comment_upvoted event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('comment_upvoted', { detail: data }));
+        }
+      },
+      'new_chat_room_message': (data: any) => {
+        console.log('[SocketContext] new_chat_room_message event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('new_chat_room_message', { detail: data }));
+        }
+      },
+      'user_mentioned': (data: any) => {
+        console.log('[SocketContext] user_mentioned event received:', data);
+        const contentType = data.content_type || 'message';
+        toast.success(t('mentions.mentionedYou') + ' ' + t(`mentions.in${contentType.charAt(0).toUpperCase() + contentType.slice(1)}`));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('user_mentioned', { detail: data }));
+        }
+      },
     };
 
     // Register all handlers

@@ -49,8 +49,9 @@ class PrivateMessage:
         if user_model.is_user_banned(from_user_id) or user_model.is_user_banned(to_user_id):
             return False
 
-        # Check if users have blocked each other (implement if needed)
-        # For now, allow all users to message each other
+        # Check if either user has blocked the other
+        if user_model.is_user_blocked(from_user_id, to_user_id) or user_model.is_user_blocked(to_user_id, from_user_id):
+            return False
 
         return True
 
@@ -233,22 +234,39 @@ class PrivateMessage:
         user_model = User(self.db)
 
         for conv in conversations:
-            # Convert main _id - ensure it's converted to string
-            if isinstance(conv['_id'], ObjectId):
-                conv['_id'] = str(conv['_id'])
-            conv['other_user_id'] = str(conv['_id'])  # Use the already converted _id
+            # Helper function to convert ObjectIds recursively
+            def convert_objectids(obj):
+                """Recursively convert ObjectIds to strings."""
+                if isinstance(obj, ObjectId):
+                    return str(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_objectids(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_objectids(item) for item in obj]
+                elif isinstance(obj, datetime):
+                    return obj.isoformat()
+                return obj
             
-            # Convert last_message ObjectIds and datetimes
+            # Convert all ObjectIds in the conversation first
+            conv = convert_objectids(conv)
+            
+            # Ensure other_user_id is set correctly (from _id which is the other user's ID)
+            if '_id' in conv:
+                conv['other_user_id'] = str(conv['_id']) if not isinstance(conv['_id'], str) else conv['_id']
+            
+            # Convert last_message ObjectIds and datetimes (if not already converted)
             if 'last_message' in conv and conv['last_message']:
                 last_msg = conv['last_message']
-                # Convert all ObjectId fields - recursively check and convert
+                # Ensure all ObjectIds are strings
                 for key in ['_id', 'from_user_id', 'to_user_id']:
                     if key in last_msg and last_msg[key] is not None:
                         if isinstance(last_msg[key], ObjectId):
                             last_msg[key] = str(last_msg[key])
                         elif not isinstance(last_msg[key], str):
-                            # If it's not a string and not None, try to convert it
-                            last_msg[key] = str(last_msg[key])
+                            try:
+                                last_msg[key] = str(last_msg[key])
+                            except:
+                                pass
                 # Convert datetime to ISO string if present
                 if 'created_at' in last_msg and isinstance(last_msg['created_at'], datetime):
                     last_msg['created_at'] = last_msg['created_at'].isoformat()
@@ -257,9 +275,9 @@ class PrivateMessage:
                 
                 # Also add an 'id' field for frontend compatibility
                 if '_id' in last_msg:
-                    last_msg['id'] = str(last_msg['_id'])
+                    last_msg['id'] = str(last_msg['_id']) if not isinstance(last_msg['_id'], str) else last_msg['_id']
 
-            # Get other user details
+            # Get other user details (after conversion)
             other_user = user_model.get_user_by_id(conv['other_user_id'])
             if other_user:
                 conv['other_user'] = {

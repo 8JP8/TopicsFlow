@@ -30,7 +30,9 @@ class Topic:
                 'require_approval': require_approval
             },
             'members': [ObjectId(owner_id)],  # Track members for permissions
-            'banned_users': []  # Users banned from this specific topic
+            'banned_users': [],  # Users banned from this specific topic
+            'post_count': 0,  # Number of posts in this topic
+            'conversation_count': 0  # Number of conversations (Discord-style) in this topic
         }
 
         result = self.collection.insert_one(topic_data)
@@ -42,6 +44,7 @@ class Topic:
         if topic:
             # Convert ObjectId to string for JSON serialization
             topic['_id'] = str(topic['_id'])
+            topic['id'] = str(topic['_id'])  # Add 'id' field for frontend compatibility
             topic['owner_id'] = str(topic['owner_id'])
             
             # Convert members list ObjectIds to strings
@@ -105,6 +108,7 @@ class Topic:
         for topic in topics:
             # Convert all ObjectIds to strings
             topic['_id'] = str(topic['_id'])
+            topic['id'] = str(topic['_id'])  # Add 'id' field for frontend compatibility
             topic['owner_id'] = str(topic['owner_id'])
             
             # Convert members list ObjectIds to strings
@@ -376,6 +380,7 @@ class Topic:
         for topic in topics:
             # Convert all ObjectIds to strings
             topic['_id'] = str(topic['_id'])
+            topic['id'] = str(topic['_id'])  # Add 'id' field for frontend compatibility
             topic['owner_id'] = str(topic['owner_id'])
             
             # Convert members list ObjectIds to strings
@@ -397,6 +402,34 @@ class Topic:
             topic['user_permission_level'] = self.get_user_permission_level(str(topic['_id']), user_id)
 
         return topics
+
+    def increment_post_count(self, topic_id: str) -> None:
+        """Increment the post count for a topic."""
+        self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {'$inc': {'post_count': 1}, '$set': {'last_activity': datetime.utcnow()}}
+        )
+
+    def decrement_post_count(self, topic_id: str) -> None:
+        """Decrement the post count for a topic."""
+        self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {'$inc': {'post_count': -1}}
+        )
+
+    def increment_conversation_count(self, topic_id: str) -> None:
+        """Increment the conversation count for a topic."""
+        self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {'$inc': {'conversation_count': 1}}
+        )
+
+    def decrement_conversation_count(self, topic_id: str) -> None:
+        """Decrement the conversation count for a topic."""
+        self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {'$inc': {'conversation_count': -1}}
+        )
 
     def delete_topic(self, topic_id: str, user_id: str) -> bool:
         """Delete a topic (only owner can delete)."""

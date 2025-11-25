@@ -10,13 +10,17 @@ class Report:
         self.db = db
         self.collection = db.reports
 
-    def create_report(self, message_id: str, reporter_id: str, reason: str, topic_id: str) -> str:
-        """Create a new report for a message with context."""
-        # Get context messages (previous 3-4 messages from same topic)
-        context_messages = self._get_context_messages(message_id, topic_id)
+    def create_report(self, content_id: str, reporter_id: str, reason: str, theme_id: str, content_type: str = 'message') -> str:
+        """Create a new report for a message, post, or comment with context."""
+        # Get context messages (previous 3-4 messages from same topic/theme) if it's a message
+        context_messages = []
+        if content_type == 'message':
+            context_messages = self._get_context_messages(content_id, theme_id)
 
         report_data = {
-            'reported_message_id': ObjectId(message_id),
+            'reported_content_id': ObjectId(content_id),
+            'content_type': content_type,  # 'message', 'post', 'comment'
+            'theme_id': ObjectId(theme_id),
             'reported_by': ObjectId(reporter_id),
             'reason': reason,
             'context_messages': [ObjectId(msg_id) for msg_id in context_messages],
@@ -31,7 +35,7 @@ class Report:
         result = self.collection.insert_one(report_data)
         return str(result.inserted_id)
 
-    def _get_context_messages(self, message_id: str, topic_id: str, count: int = 4) -> List[str]:
+    def _get_context_messages(self, message_id: str, theme_id: str, count: int = 4) -> List[str]:
         """Get previous messages for context."""
         from .message import Message
         message_model = Message(self.db)
@@ -41,10 +45,13 @@ class Report:
         if not reported_message:
             return []
 
-        # Get previous messages from same topic
+        # Get previous messages from same topic/theme (support both old and new format)
         context_query = {
-            'topic_id': ObjectId(topic_id),
             'is_deleted': False,
+            '$or': [
+                {'topic_id': ObjectId(theme_id)},
+                {'chat_room_id': {'$exists': True}}  # For chat room messages, we'd need theme_id lookup
+            ],
             'created_at': {'$lt': reported_message['created_at']}
         }
 

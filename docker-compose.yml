@@ -4,7 +4,7 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: chathub-mongodb
+    container_name: topicsflow-mongodb
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
@@ -16,26 +16,26 @@ services:
       - mongodb_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
-      - chathub-network
+      - topicsflow-network
 
   # Redis (for session storage and caching)
   redis:
     image: redis:7.2-alpine
-    container_name: chathub-redis
+    container_name: topicsflow-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - chathub-network
+      - topicsflow-network
 
   # Backend API
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: chathub-backend
+    container_name: topicsflow-backend
     restart: unless-stopped
     environment:
       FLASK_ENV: development
@@ -43,7 +43,7 @@ services:
       DATABASE_URL: mongodb://admin:password123@mongodb:27017/chatapp?authSource=admin
       DB_NAME: chatapp
       FRONTEND_URL: http://localhost:3000
-      TOTP_ISSUER: ChatHub
+      TOTP_ISSUER: TopicsFlow
       REDIS_URL: redis://redis:6379/0
       # External API keys (add your own)
       SMS_SERVICE_API_KEY: ${SMS_SERVICE_API_KEY:-}
@@ -58,25 +58,25 @@ services:
       - mongodb
       - redis
     networks:
-      - chathub-network
+      - topicsflow-network
 
   # Frontend
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: chathub-frontend
+    container_name: topicsflow-frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:5000
-      NEXT_PUBLIC_APP_NAME: ChatHub
+      NEXT_PUBLIC_APP_NAME: TopicsFlow
       NEXT_PUBLIC_TENOR_API_KEY: ${TENOR_API_KEY:-}
     ports:
       - "3000:3000"
     depends_on:
       - backend
     networks:
-      - chathub-network
+      - topicsflow-network
 
 volumes:
   mongodb_data:
@@ -84,5 +84,5 @@ volumes:
   totp_keys:
 
 networks:
-  chathub-network:
+  topicsflow-network:
     driver: bridge

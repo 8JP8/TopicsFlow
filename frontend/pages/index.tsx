@@ -6,8 +6,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import Layout from '@/components/Layout/Layout';
 import TopicList from '@/components/Topic/TopicList';
+import PostList from '@/components/Post/PostList';
+import ChatList from '@/components/Chat/ChatList';
 import TopicCreate from '@/components/Topic/TopicCreate';
-import ChatContainer from '@/components/Chat/ChatContainer';
 import PrivateMessagesSimplified from '@/components/PrivateMessages/PrivateMessagesSimplified';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import ResizableSidebar from '@/components/UI/ResizableSidebar';
@@ -19,6 +20,8 @@ interface Topic {
   description: string;
   tags: string[];
   member_count: number;
+  post_count?: number;
+  conversation_count?: number;
   last_activity: string;
   owner: {
     id: string;
@@ -52,10 +55,10 @@ export default function Home() {
   const router = useRouter();
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateTopic, setShowCreateTopic] = useState(false);
-  const [activeTab, setActiveTab] = useState<'topics' | 'chat' | 'messages'>('topics');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'topics' | 'messages'>('topics');
+  const [activeContentTab, setActiveContentTab] = useState<'posts' | 'chats'>('posts');
   const [sidebarHighlight, setSidebarHighlight] = useState(false);
   const [expandedPrivateMessage, setExpandedPrivateMessage] = useState<{userId: string, username: string} | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -68,15 +71,9 @@ export default function Home() {
     const permissionRequested = localStorage.getItem('notificationPermissionRequested');
     const hasNotificationSupport = 'Notification' in window;
     
-    // Show dialog if:
-    // 1. Browser supports notifications
-    // 2. User is logged in
-    // 3. Permission hasn't been requested yet
-    // 4. Permission is not already granted
     if (hasNotificationSupport && !permissionRequested) {
       const currentPermission = Notification.permission;
       if (currentPermission === 'default') {
-        // Wait a bit before showing to not interrupt initial load
         const timer = setTimeout(() => {
           setShowNotificationDialog(true);
         }, 2000);
@@ -90,83 +87,12 @@ export default function Home() {
     const handleOpenPrivateMessage = (event: CustomEvent) => {
       const { userId, username } = event.detail;
       setExpandedPrivateMessage({ userId, username });
-      setActiveTab('messages');
+      setActiveSidebarTab('messages');
     };
 
     window.addEventListener('openPrivateMessage', handleOpenPrivateMessage as EventListener);
     return () => window.removeEventListener('openPrivateMessage', handleOpenPrivateMessage as EventListener);
   }, []);
-
-  const handleMessageReceived = (message: Message) => {
-    if (selectedTopic && message.topic_id === selectedTopic.id) {
-      // Check if message already exists to avoid duplicates
-      setMessages(prev => {
-        // Remove any temp messages with the same content (optimistic updates)
-        const filtered = prev.filter(m => {
-          // If this is a temp message and we got a real one, remove the temp
-          if (m.id.startsWith('temp-') && m.content === message.content && !message.id.startsWith('temp-')) {
-            console.log('Removing temp message, replacing with real one:', m.id);
-            return false;
-          }
-          return true;
-        });
-        
-        // Check if message already exists
-        const exists = filtered.some(m => m.id === message.id);
-        if (exists) {
-          console.log('Message already exists, skipping:', message.id);
-          return filtered;
-        }
-        console.log('Adding new message to state:', message);
-        return [...filtered, message];
-      });
-    }
-  };
-
-  // Set up socket listeners for new messages
-  useEffect(() => {
-    if (!socket || !connected) return;
-
-    const handleNewMessage = (data: any) => {
-      console.log('New message received in index:', data);
-      // Compare topic IDs as strings to handle ObjectId conversion
-      const receivedTopicId = String(data.topic_id || '');
-      const currentTopicId = String(selectedTopic?.id || '');
-      
-      console.log('Comparing topic IDs for new message:', { 
-        receivedTopicId, 
-        currentTopicId, 
-        match: receivedTopicId === currentTopicId,
-        hasSelectedTopic: !!selectedTopic
-      });
-      
-      if (receivedTopicId && selectedTopic && receivedTopicId === currentTopicId) {
-        const message: Message = {
-          id: String(data.id),
-          content: data.content,
-          message_type: data.message_type || 'text',
-          created_at: data.created_at,
-          display_name: data.display_name || 'Unknown',
-          sender_username: data.sender_username,
-          user_id: data.user_id,
-          is_anonymous: data.is_anonymous || false,
-          can_delete: data.can_delete || false,
-          topic_id: receivedTopicId,
-          gif_url: data.gif_url,
-        };
-        console.log('Adding message to state:', message);
-        handleMessageReceived(message);
-      } else {
-        console.log('Message not for current topic, ignoring');
-      }
-    };
-
-    socket.on('new_message', handleNewMessage);
-
-    return () => {
-      socket.off('new_message', handleNewMessage);
-    };
-  }, [socket, connected, selectedTopic, handleMessageReceived]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -182,16 +108,22 @@ export default function Home() {
   const loadTopics = async () => {
     try {
       setLoading(true);
-      const response = await api.get(API_ENDPOINTS.TOPICS.LIST, {
+      const topicsResponse = await api.get(API_ENDPOINTS.TOPICS.LIST, {
         limit: 50,
         sort_by: 'last_activity',
       });
 
-      if (response.data.success) {
-        setTopics(response.data.data || []);
+      if (topicsResponse.data.success) {
+        const loadedTopics = topicsResponse.data.data || [];
+        setTopics(loadedTopics);
+        // Auto-select first topic if available
+        if (loadedTopics.length > 0 && !selectedTopic) {
+          setSelectedTopic(loadedTopics[0]);
+        }
       }
     } catch (error) {
       console.error('Failed to load topics:', error);
+      setTopics([]);
     } finally {
       setLoading(false);
     }
@@ -199,20 +131,14 @@ export default function Home() {
 
   const handleTopicSelect = (topic: Topic) => {
     setSelectedTopic(topic);
-    // Keep the activeTab as 'topics' to maintain sidebar visibility
-    // Don't change to 'chat' - the chat will show in the main area
-    setMessages([]); // Clear messages when switching topics
+    setActiveContentTab('posts'); // Default to posts tab
   };
 
   const handleTopicCreated = (newTopic: Topic) => {
     setTopics(prev => [newTopic, ...prev]);
     setShowCreateTopic(false);
-    handleTopicSelect(newTopic);
-  };
-
-  const handleBackToTopics = () => {
-    setSelectedTopic(null);
-    setActiveTab('topics');
+    setSelectedTopic(newTopic);
+    setActiveContentTab('posts');
   };
 
   if (authLoading) {
@@ -246,7 +172,7 @@ export default function Home() {
           {/* Header */}
           <div className="p-4 border-b theme-border">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold theme-text-primary">ChatHub</h1>
+              <h1 className="text-xl font-bold theme-text-primary">TopicsFlow</h1>
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-1">
                   <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -260,19 +186,19 @@ export default function Home() {
             {/* Tab Navigation */}
             <div className="flex space-x-1 p-1 theme-bg-secondary rounded-lg">
               <button
-                onClick={() => setActiveTab('topics')}
+                onClick={() => setActiveSidebarTab('topics')}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'topics'
+                  activeSidebarTab === 'topics'
                     ? 'theme-bg-primary theme-text-primary shadow-sm'
                     : 'theme-text-secondary hover:theme-text-primary'
                 }`}
               >
-                {t('home.topics')}
+                {t('topics.title') || 'Topics'}
               </button>
               <button
-                onClick={() => setActiveTab('messages')}
+                onClick={() => setActiveSidebarTab('messages')}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'messages'
+                  activeSidebarTab === 'messages'
                     ? 'theme-bg-primary theme-text-primary shadow-sm'
                     : 'theme-text-secondary hover:theme-text-primary'
                 }`}
@@ -284,13 +210,13 @@ export default function Home() {
 
           {/* Content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'topics' && (
+            {activeSidebarTab === 'topics' && (
               <div className="h-full flex flex-col">
                 {showCreateTopic ? (
-                  <div className="p-4">
+                  <div className="p-4 overflow-y-auto">
                     <TopicCreate
-                      onClose={() => setShowCreateTopic(false)}
                       onTopicCreated={handleTopicCreated}
+                      onCancel={() => setShowCreateTopic(false)}
                     />
                   </div>
                 ) : (
@@ -300,7 +226,7 @@ export default function Home() {
                         onClick={() => setShowCreateTopic(true)}
                         className="w-full btn btn-primary"
                       >
-                        {t('home.createNewTopic')}
+                        {t('topics.createTopic') || 'Criar Tópico'}
                       </button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
@@ -317,12 +243,12 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === 'messages' && (
+            {activeSidebarTab === 'messages' && (
               <div className="h-full">
                 <PrivateMessagesSimplified 
                   onExpandMessage={(userId, username) => {
                     setExpandedPrivateMessage({userId, username});
-                    setActiveTab('messages');
+                    setActiveSidebarTab('messages');
                   }}
                   expandedMessage={expandedPrivateMessage}
                 />
@@ -339,18 +265,53 @@ export default function Home() {
               expandedMessage={expandedPrivateMessage}
               onCloseExpanded={() => {
                 setExpandedPrivateMessage(null);
-                setActiveTab('messages');
+                setActiveSidebarTab('messages');
               }}
               isExpanded={true}
             />
           ) : selectedTopic ? (
-            <ChatContainer
-              topic={selectedTopic}
-              messages={messages}
-              onMessageReceived={handleMessageReceived}
-              onBackToTopics={handleBackToTopics}
-            />
-          ) : expandedPrivateMessage ? null : (
+            <div className="h-full flex flex-col">
+              {/* Topic Header */}
+              <div className="p-4 border-b theme-border">
+                <h2 className="text-2xl font-bold theme-text-primary mb-2">{selectedTopic.title}</h2>
+                <p className="theme-text-secondary text-sm mb-4">{selectedTopic.description}</p>
+                
+                {/* Tabs: Posts / Chats */}
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setActiveContentTab('posts')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeContentTab === 'posts'
+                        ? 'theme-bg-primary theme-text-primary shadow-sm'
+                        : 'theme-text-secondary hover:theme-text-primary'
+                    }`}
+                  >
+                    {t('posts.title') || 'Posts'}
+                  </button>
+                  <button
+                    onClick={() => setActiveContentTab('chats')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeContentTab === 'chats'
+                        ? 'theme-bg-primary theme-text-primary shadow-sm'
+                        : 'theme-text-secondary hover:theme-text-primary'
+                    }`}
+                  >
+                    {t('chats.title') || 'Chats'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Content based on active tab */}
+              <div className="flex-1 overflow-hidden">
+                {activeContentTab === 'posts' && (
+                  <PostList topicId={selectedTopic.id} />
+                )}
+                {activeContentTab === 'chats' && (
+                  <ChatList topicId={selectedTopic.id} />
+                )}
+              </div>
+            </div>
+          ) : (
             <div className="flex-1 flex items-center justify-center theme-bg-primary">
               <div className="text-center">
                 <div className="mb-4">
@@ -366,21 +327,9 @@ export default function Home() {
                 <p className="theme-text-secondary mb-6 max-w-md">
                   {t('home.subtitle')}
                 </p>
-                <button
-                  onClick={() => {
-                    setActiveTab('topics');
-                    setSidebarHighlight(true);
-                    // Scroll sidebar into view if needed
-                    if (sidebarRef.current) {
-                      sidebarRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                    // Remove highlight after animation
-                    setTimeout(() => setSidebarHighlight(false), 2000);
-                  }}
-                  className="btn btn-primary"
-                >
-                  {t('home.browseTopics')}
-                </button>
+                <p className="theme-text-muted text-sm">
+                  {t('topics.selectTopic') || 'Selecione um tópico da lista para começar'}
+                </p>
               </div>
             </div>
           )}

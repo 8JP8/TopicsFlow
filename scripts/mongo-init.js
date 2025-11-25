@@ -1,7 +1,7 @@
-// MongoDB initialization script for ChatHub
+// MongoDB initialization script for TopicsFlow
 // This script runs when MongoDB starts for the first time
 
-// Switch to the ChatHub database
+// Switch to the TopicsFlow database
 db = db.getSiblingDB('chatapp');
 
 // Create collections and indexes
@@ -98,4 +98,4 @@ db.createCollection('users', {
 });
 
 print('MongoDB initialization completed successfully!');
-print('ChatHub database is ready for use.');
+print('TopicsFlow database is ready for use.');

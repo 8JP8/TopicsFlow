@@ -1,6 +1,6 @@
-# ChatHub - Reddit-Style Chat Application
+# TopicsFlow - Reddit-Style Discussion Platform
 
-A comprehensive Reddit-style chat application with authenticator-based authentication, real-time messaging, topic management, moderation system, anonymous mode, and PWA capabilities.
+A comprehensive Reddit-style discussion platform with authenticator-based authentication, real-time messaging, theme management, posts and comments system, chat rooms, moderation system, anonymous mode, and PWA capabilities.
 
 ## Features
 
@@ -146,7 +146,7 @@ REDIS_PASSWORD=secure_redis_password_here
 # Application Configuration
 FLASK_SECRET_KEY=your_super_secret_key_here
 FRONTEND_URL=http://localhost:3000
-TOTP_ISSUER=ChatHub
+TOTP_ISSUER=TopicsFlow
 
 # External Services (Optional)
 SMS_SERVICE_API_KEY=your_twilio_api_key

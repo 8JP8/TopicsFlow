@@ -14,8 +14,8 @@ class EmailService:
         """Initialize email service with Resend API key."""
         self.api_key = os.getenv('RESEND_API_KEY')
         self.api_url = 'https://api.resend.com/emails'
-        self.from_email = os.getenv('FROM_EMAIL', 'noreply@chathub.com')
-        self.app_name = os.getenv('APP_NAME', 'ChatHub')
+        self.from_email = os.getenv('FROM_EMAIL', 'noreply@topicsflow.com')
+        self.app_name = os.getenv('APP_NAME', 'TopicsFlow')
 
     def send_email(self, to_email: str, subject: str, html_content: str, text_content: Optional[str] = None) -> Dict[str, Any]:
         """Send an email using Resend API."""

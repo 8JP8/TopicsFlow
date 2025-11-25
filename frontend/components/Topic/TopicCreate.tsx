@@ -21,11 +21,13 @@ interface Topic {
 }
 
 interface TopicCreateProps {
-  onClose: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
   onTopicCreated: (topic: Topic) => void;
 }
 
-const TopicCreate: React.FC<TopicCreateProps> = ({ onClose, onTopicCreated }) => {
+const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCreated }) => {
+  const handleCancel = onCancel || onClose || (() => {});
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -110,9 +112,9 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onClose, onTopicCreated }) =>
     }
   };
 
-  const handleCancel = () => {
+  const handleCancelClick = () => {
     if (!loading) {
-      onClose();
+      handleCancel();
     }
   };
 
@@ -121,7 +123,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onClose, onTopicCreated }) =>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold theme-text-primary">Create New Topic</h2>
         <button
-          onClick={handleCancel}
+          onClick={handleCancelClick}
           className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
         >
           <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,7 +239,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onClose, onTopicCreated }) =>
         <div className="flex justify-end space-x-3 pt-4">
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={handleCancelClick}
             disabled={loading}
             className="px-4 py-2 btn btn-ghost"
           >
