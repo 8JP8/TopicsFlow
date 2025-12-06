@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import TopicContextMenu from '@/components/UI/TopicContextMenu';
+import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
+import TopicInviteModal from './TopicInviteModal';
 
 interface Topic {
   id: string;
@@ -27,6 +31,7 @@ interface TopicListProps {
   onTopicSelect: (topic: Topic) => void;
   onRefresh: () => void;
   selectedTopicId?: string;
+  unreadCounts?: {[topicId: string]: number};
 }
 
 const TopicList: React.FC<TopicListProps> = ({
@@ -35,11 +40,18 @@ const TopicList: React.FC<TopicListProps> = ({
   onTopicSelect,
   onRefresh,
   selectedTopicId,
+  unreadCounts = {},
 }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [sortBy, setSortBy] = useState<'last_activity' | 'member_count' | 'created_at'>('last_activity');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{topicId: string, topicTitle: string, x: number, y: number} | null>(null);
+  const [silencedTopics, setSilencedTopics] = useState<Set<string>>(new Set());
+  const [hiddenTopics, setHiddenTopics] = useState<Set<string>>(new Set());
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedTopicForInvite, setSelectedTopicForInvite] = useState<Topic | null>(null);
 
   // Get unique tags from topics
   const allTags = Array.from(new Set(topics.flatMap(topic => topic.tags))).sort();
@@ -93,6 +105,70 @@ const TopicList: React.FC<TopicListProps> = ({
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
+  };
+
+  const handleSilenceTopic = async (topicId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.SILENCE(topicId));
+      if (response.data.success) {
+        setSilencedTopics(prev => new Set(prev).add(topicId));
+        toast.success(t('contextMenu.topicSilenced') || 'Topic silenced');
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    }
+  };
+
+  const handleUnsilenceTopic = async (topicId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.UNSILENCE(topicId));
+      if (response.data.success) {
+        setSilencedTopics(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(topicId);
+          return newSet;
+        });
+        toast.success(t('contextMenu.topicUnsilenced') || 'Topic unsilenced');
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    }
+  };
+
+  const handleHideTopic = async (topicId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.HIDE(topicId));
+      if (response.data.success) {
+        setHiddenTopics(prev => new Set(prev).add(topicId));
+        toast.success(t('contextMenu.topicHidden') || 'Topic hidden');
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    }
+  };
+
+  const handleUnhideTopic = async (topicId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.UNHIDE(topicId));
+      if (response.data.success) {
+        setHiddenTopics(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(topicId);
+          return newSet;
+        });
+        toast.success(t('contextMenu.topicUnhidden') || 'Topic unhidden');
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    }
   };
 
   return (
@@ -193,32 +269,69 @@ const TopicList: React.FC<TopicListProps> = ({
           </div>
         ) : (
           <div className="divide-y theme-border">
-            {sortedTopics.map((topic) => (
+            {sortedTopics
+              .filter(topic => !hiddenTopics.has(topic.id))
+              .map((topic) => (
               <div
                 key={topic.id}
                 onClick={() => onTopicSelect(topic)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setContextMenu({
+                    topicId: topic.id,
+                    topicTitle: topic.title,
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
+                }}
                 className={`p-4 cursor-pointer hover:theme-bg-tertiary transition-colors ${
                   selectedTopicId === topic.id ? 'theme-bg-tertiary' : ''
-                }`}
+                } ${silencedTopics.has(topic.id) ? 'opacity-60' : ''}`}
               >
                 {/* Title and Member Count */}
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-medium theme-text-primary truncate pr-2">
-                    {topic.title}
-                  </h3>
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs theme-bg-tertiary theme-text-secondary">
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                        />
-                      </svg>
-                      {topic.member_count} {t('home.members')}
-                    </span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <h3 className="font-medium theme-text-primary truncate">
+                      {topic.title}
+                    </h3>
+                    {unreadCounts[topic.id] > 0 && (
+                      <span className="flex-shrink-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {unreadCounts[topic.id] > 9 ? '9+' : unreadCounts[topic.id]}
+                      </span>
+                    )}
                   </div>
+                  {/* Member count and invite button for invite-only topics */}
+                  {topic.settings?.require_approval && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs theme-bg-tertiary theme-text-secondary">
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                          />
+                        </svg>
+                        {topic.member_count} {t('home.members')}
+                      </span>
+                      {topic.user_permission_level >= 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowInviteModal(true);
+                            setSelectedTopicForInvite(topic);
+                          }}
+                          className="px-2 py-1 text-xs btn btn-ghost text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-7"
+                        >
+                          <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          {t('topics.inviteUsers') || 'Invite Users'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -267,16 +380,70 @@ const TopicList: React.FC<TopicListProps> = ({
         )}
       </div>
 
-      {/* Refresh Button */}
-      <div className="p-4 border-t theme-border">
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="w-full btn btn-ghost"
-        >
-          {loading ? <LoadingSpinner size="sm" /> : t('home.refresh')}
-        </button>
-      </div>
+
+      {/* Topic Context Menu */}
+      {contextMenu && (
+        <TopicContextMenu
+          topicId={contextMenu.topicId}
+          topicTitle={contextMenu.topicTitle}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onSilence={(topicId) => {
+            if (silencedTopics.has(topicId)) {
+              handleUnsilenceTopic(topicId);
+            } else {
+              handleSilenceTopic(topicId);
+            }
+          }}
+          onHide={(topicId) => {
+            if (hiddenTopics.has(topicId)) {
+              handleUnhideTopic(topicId);
+            } else {
+              handleHideTopic(topicId);
+            }
+          }}
+          onDelete={async (topicId) => {
+            const topic = topics.find(t => t.id === topicId);
+            if (!topic) return;
+            
+            if (!confirm(t('topics.confirmDelete') || `Are you sure you want to delete "${topic.title}"? This will request deletion and the topic will be permanently deleted in 7 days pending admin approval.`)) {
+              return;
+            }
+            
+            try {
+              const response = await api.delete(API_ENDPOINTS.TOPICS.DELETE(topicId));
+              if (response.data.success) {
+                toast.success(response.data.message || t('topics.deletionRequested') || 'Topic deletion requested. It will be permanently deleted in 7 days pending admin approval.');
+                onRefresh();
+              } else {
+                toast.error(response.data.errors?.[0] || t('errors.generic'));
+              }
+            } catch (error: any) {
+              toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+            }
+          }}
+          isSilenced={silencedTopics.has(contextMenu.topicId)}
+          isHidden={hiddenTopics.has(contextMenu.topicId)}
+          isOwner={topics.find(t => t.id === contextMenu.topicId)?.user_permission_level === 3}
+        />
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && selectedTopicForInvite && (
+        <TopicInviteModal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            setSelectedTopicForInvite(null);
+          }}
+          topicId={selectedTopicForInvite.id}
+          topicTitle={selectedTopicForInvite.title}
+          onInviteSent={() => {
+            onRefresh();
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 """
-Rate limiting configuration for the ChatHub application.
+Rate limiting configuration for the TopicsFlow application.
 
 This file defines rate limits for different parts of the application.
 Format: 'requests/timeframe' where timeframe can be:
@@ -137,6 +137,8 @@ RATE_LIMITING_ENABLED = True
 
 # Rate limit headers (include rate limit info in response headers)
 INCLUDE_RATE_LIMIT_HEADERS = True
+
+
 
 
 

@@ -13,7 +13,8 @@ class Post:
 
     def create_post(self, topic_id: str, user_id: str, title: str, content: str,
                    anonymous_identity: Optional[str] = None,
-                   gif_url: Optional[str] = None) -> str:
+                   gif_url: Optional[str] = None,
+                   tags: Optional[List[str]] = None) -> str:
         """Create a new post in a topic."""
         # Validate and filter content
         filtered_content = self._filter_content(content)
@@ -25,6 +26,7 @@ class Post:
             'content': filtered_content,
             'anonymous_identity': anonymous_identity,
             'gif_url': gif_url,
+            'tags': tags or [],
             'upvotes': [],  # Array of user_ids who upvoted
             'downvotes': [],  # Array of user_ids who downvoted
             'upvote_count': 0,
@@ -74,12 +76,7 @@ class Post:
         if post:
             post['_id'] = str(post['_id'])
             post['id'] = str(post['_id'])
-            # Handle migration: support both topic_id (new) and theme_id (old)
-            if 'topic_id' in post:
-                post['topic_id'] = str(post['topic_id'])
-            elif 'theme_id' in post:
-                post['topic_id'] = str(post['theme_id'])
-                del post['theme_id']
+            post['topic_id'] = str(post['topic_id'])
             post['user_id'] = str(post['user_id'])
             
             # Convert upvotes and downvotes list ObjectIds to strings
@@ -105,6 +102,10 @@ class Post:
                 post['display_name'] = post['anonymous_identity']
                 post['is_anonymous'] = True
                 post['author_username'] = post['anonymous_identity']
+                post['profile_picture'] = None  # Explicitly set to None for anonymous
+                post['is_admin'] = False
+                post['is_owner'] = False
+                post['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -112,9 +113,26 @@ class Post:
                 if user:
                     post['display_name'] = user['username']
                     post['author_username'] = user['username']
+                    post['profile_picture'] = user.get('profile_picture')
+                    post['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator of the topic
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
+                    if post.get('topic_id'):
+                        from .topic import Topic
+                        topic_model = Topic(self.db)
+                        topic = topic_model.get_topic_by_id(str(post['topic_id']))
+                        if topic:
+                            post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
+                            post['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(post['user_id']))
                 else:
                     post['display_name'] = 'Deleted User'
                     post['author_username'] = 'Deleted User'
+                    post['profile_picture'] = None
+                    post['is_admin'] = False
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
                 post['is_anonymous'] = False
 
         return post
@@ -123,12 +141,8 @@ class Post:
                           limit: int = 50, offset: int = 0,
                           user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get posts for a topic with sorting and pagination."""
-        # Support both topic_id (new) and theme_id (old) for migration
         query = {
-            '$or': [
-                {'topic_id': ObjectId(topic_id)},
-                {'theme_id': ObjectId(topic_id)}  # Legacy support
-            ],
+            'topic_id': ObjectId(topic_id),
             'is_deleted': False
         }
 
@@ -152,12 +166,7 @@ class Post:
         for post in posts:
             post['_id'] = str(post['_id'])
             post['id'] = str(post['_id'])
-            # Handle migration: support both topic_id (new) and theme_id (old)
-            if 'topic_id' in post:
-                post['topic_id'] = str(post['topic_id'])
-            elif 'theme_id' in post:
-                post['topic_id'] = str(post['theme_id'])
-                del post['theme_id']
+            post['topic_id'] = str(post['topic_id'])
             post['user_id'] = str(post['user_id'])
             
             # Convert upvotes and downvotes list ObjectIds to strings
@@ -192,6 +201,10 @@ class Post:
                 post['display_name'] = post['anonymous_identity']
                 post['is_anonymous'] = True
                 post['author_username'] = post['anonymous_identity']
+                post['profile_picture'] = None  # Explicitly set to None for anonymous
+                post['is_admin'] = False
+                post['is_owner'] = False
+                post['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -199,12 +212,135 @@ class Post:
                 if user:
                     post['display_name'] = user['username']
                     post['author_username'] = user['username']
+                    post['profile_picture'] = user.get('profile_picture')
+                    post['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator of the topic
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
+                    if post.get('topic_id'):
+                        from .topic import Topic
+                        topic_model = Topic(self.db)
+                        topic = topic_model.get_topic_by_id(str(post['topic_id']))
+                        if topic:
+                            post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
+                            post['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(post['user_id']))
                 else:
                     post['display_name'] = 'Deleted User'
                     post['author_username'] = 'Deleted User'
+                    post['profile_picture'] = None
+                    post['is_admin'] = False
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
                 post['is_anonymous'] = False
 
         return posts
+
+    def get_recent_posts(self, limit: int = 20, offset: int = 0,
+                        user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get recent posts from all topics for the right sidebar."""
+        query = {
+            'is_deleted': False
+        }
+
+        # Sort by most recent
+        sort_key = [('created_at', -1)]
+
+        posts = list(self.collection.find(query)
+                    .sort(sort_key)
+                    .limit(limit)
+                    .skip(offset))
+
+        # Process posts (same as get_posts_by_topic)
+        processed_posts = []
+        for post in posts:
+            # Check if topic_id exists before processing
+            if 'topic_id' not in post:
+                # Skip posts without topic_id (shouldn't happen, but handle gracefully)
+                continue
+                
+            post['_id'] = str(post['_id'])
+            post['id'] = str(post['_id'])
+            post['topic_id'] = str(post['topic_id'])
+            post['user_id'] = str(post['user_id'])
+            
+            # Convert upvotes and downvotes list ObjectIds to strings
+            if 'upvotes' in post and post['upvotes']:
+                post['upvotes'] = [str(user_id) for user_id in post['upvotes']]
+            if 'downvotes' in post and post['downvotes']:
+                post['downvotes'] = [str(user_id) for user_id in post['downvotes']]
+            
+            # Calculate score if not present
+            if 'score' not in post:
+                up_count = post.get('upvote_count', 0)
+                down_count = post.get('downvote_count', 0)
+                post['score'] = up_count - down_count
+            
+            # Check if user has upvoted or downvoted
+            if user_id:
+                user_obj_id = ObjectId(user_id)
+                post['user_has_upvoted'] = user_obj_id in post.get('upvotes', [])
+                post['user_has_downvoted'] = user_obj_id in post.get('downvotes', [])
+            else:
+                post['user_has_upvoted'] = False
+                post['user_has_downvoted'] = False
+            
+            # Convert datetime to ISO string
+            if 'created_at' in post and isinstance(post['created_at'], datetime):
+                post['created_at'] = post['created_at'].isoformat()
+            if 'updated_at' in post and isinstance(post['updated_at'], datetime):
+                post['updated_at'] = post['updated_at'].isoformat()
+            
+            # Get user details (or anonymous identity)
+            if post.get('anonymous_identity'):
+                post['display_name'] = post['anonymous_identity']
+                post['is_anonymous'] = True
+                post['author_username'] = post['anonymous_identity']
+                post['profile_picture'] = None  # Explicitly set to None for anonymous
+                post['is_admin'] = False
+                post['is_owner'] = False
+                post['is_moderator'] = False
+            else:
+                from .user import User
+                user_model = User(self.db)
+                user = user_model.get_user_by_id(post['user_id'])
+                if user:
+                    post['display_name'] = user['username']
+                    post['author_username'] = user['username']
+                    post['profile_picture'] = user.get('profile_picture')
+                    post['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator of the topic
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
+                    if post.get('topic_id'):
+                        from .topic import Topic
+                        topic_model = Topic(self.db)
+                        topic = topic_model.get_topic_by_id(str(post['topic_id']))
+                        if topic:
+                            post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
+                            post['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(post['user_id']))
+                else:
+                    post['display_name'] = 'Deleted User'
+                    post['author_username'] = 'Deleted User'
+                    post['profile_picture'] = None
+                    post['is_admin'] = False
+                    post['is_owner'] = False
+                    post['is_moderator'] = False
+                post['is_anonymous'] = False
+
+            # Get topic title
+            from .topic import Topic
+            topic_model = Topic(self.db)
+            topic = topic_model.get_topic_by_id(post['topic_id'])
+            if topic:
+                post['topic_title'] = topic.get('title', 'Unknown Topic')
+            else:
+                post['topic_title'] = 'Unknown Topic'
+            
+            processed_posts.append(post)
+
+        return processed_posts
 
     def upvote_post(self, post_id: str, user_id: str) -> bool:
         """Upvote a post (toggle - if already upvoted, remove upvote). If downvoted, remove downvote and add upvote."""
@@ -293,22 +429,25 @@ class Post:
         if not post:
             return False
 
-        # Check permissions - use Topic instead of Theme
+        # Check permissions
         from .topic import Topic
         topic_model = Topic(self.db)
         topic_id = post.get('topic_id')
-        if not topic_id:
-            # Legacy support: try theme_id
-            topic_id = post.get('theme_id')
-        
+
         if topic_id:
             permission_level = topic_model.get_user_permission_level(topic_id, deleted_by)
         else:
-            permission_level = 0
+            return False  # No topic_id means invalid post
 
         # Owner and moderators can delete any post, users can delete their own
-        if permission_level < 2 and post['user_id'] != deleted_by:
+        is_owner = str(post['user_id']) == deleted_by
+        if permission_level < 2 and not is_owner:
             return False
+
+        # If owner is deleting, require admin approval
+        from datetime import timedelta
+        permanent_delete_at = datetime.utcnow() + timedelta(days=7) if is_owner else None
+        deletion_status = 'pending' if is_owner else 'approved'
 
         result = self.collection.update_one(
             {'_id': ObjectId(post_id)},
@@ -317,6 +456,8 @@ class Post:
                     'is_deleted': True,
                     'deleted_by': ObjectId(deleted_by),
                     'deleted_at': datetime.utcnow(),
+                    'permanent_delete_at': permanent_delete_at,
+                    'deletion_status': deletion_status,
                     'updated_at': datetime.utcnow()
                 }
             }
@@ -326,6 +467,104 @@ class Post:
             # Decrement topic post count
             topic_model.decrement_post_count(topic_id)
 
+        return result.modified_count > 0
+    
+    def get_pending_deletions(self) -> List[Dict[str, Any]]:
+        """Get all posts pending deletion approval."""
+        # First, update any deleted posts without deletion_status to 'pending' if owner deleted (backward compatibility)
+        # Only update posts where deleted_by == user_id (owner deletion)
+        self.collection.update_many(
+            {
+                'is_deleted': True,
+                'deletion_status': {'$exists': False},
+                '$expr': {'$eq': ['$deleted_by', '$user_id']}
+            },
+            {
+                '$set': {
+                    'deletion_status': 'pending'
+                }
+            }
+        )
+        
+        # Find posts that are deleted and have deletion_status='pending'
+        posts = list(self.collection.find({
+            'is_deleted': True,
+            'deletion_status': 'pending'
+        }).sort([('deleted_at', -1)]))
+        
+        for post in posts:
+            # Convert all ObjectIds to strings
+            post['_id'] = str(post['_id'])
+            post['id'] = str(post['_id'])
+            post['user_id'] = str(post['user_id'])
+            
+            topic_id = post.get('topic_id')
+            if topic_id:
+                post['topic_id'] = str(topic_id) if isinstance(topic_id, ObjectId) else str(topic_id)
+            else:
+                post['topic_id'] = ''
+            
+            deleted_by = post.get('deleted_by')
+            if deleted_by:
+                post['deleted_by'] = str(deleted_by) if isinstance(deleted_by, ObjectId) else str(deleted_by)
+            else:
+                post['deleted_by'] = ''
+            
+            # Convert upvotes and downvotes lists
+            if 'upvotes' in post and post['upvotes']:
+                post['upvotes'] = [str(u) if isinstance(u, ObjectId) else u for u in post['upvotes']]
+            if 'downvotes' in post and post['downvotes']:
+                post['downvotes'] = [str(d) if isinstance(d, ObjectId) else d for d in post['downvotes']]
+            
+            # Convert datetime fields to ISO strings
+            if 'created_at' in post and isinstance(post['created_at'], datetime):
+                post['created_at'] = post['created_at'].isoformat()
+            if 'updated_at' in post and isinstance(post.get('updated_at'), datetime):
+                post['updated_at'] = post['updated_at'].isoformat()
+            if 'deleted_at' in post and isinstance(post.get('deleted_at'), datetime):
+                post['deleted_at'] = post['deleted_at'].isoformat()
+            if 'permanent_delete_at' in post and isinstance(post.get('permanent_delete_at'), datetime):
+                post['permanent_delete_at'] = post['permanent_delete_at'].isoformat()
+            
+            # Get owner details
+            from .user import User
+            user_model = User(self.db)
+            owner = user_model.get_user_by_id(post['user_id'])
+            if owner:
+                post['owner'] = {
+                    'id': str(owner['_id']),
+                    'username': owner['username']
+                }
+        
+        return posts
+    
+    def approve_post_deletion(self, post_id: str) -> bool:
+        """Approve post deletion (admin only)."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(post_id)},
+            {
+                '$set': {
+                    'deletion_status': 'approved'
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    def reject_post_deletion(self, post_id: str) -> bool:
+        """Reject post deletion and restore it (admin only)."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(post_id)},
+            {
+                '$set': {
+                    'is_deleted': False,
+                    'deleted_by': None,
+                    'deleted_at': None,
+                    'permanent_delete_at': None,
+                    'deletion_status': 'rejected',
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
         return result.modified_count > 0
 
     def report_post(self, post_id: str, reporter_id: str, reason: str) -> bool:
@@ -358,7 +597,7 @@ class Post:
             # Create report entry in reports collection
             from .report import Report
             report_model = Report(self.db)
-            topic_id = post.get('topic_id') or post.get('theme_id')  # Support both
+            topic_id = post.get('topic_id')
             if topic_id:
                 report_model.create_report(post_id, reporter_id, reason, topic_id, 'post')
 

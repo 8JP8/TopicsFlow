@@ -9,6 +9,7 @@ interface User {
   username: string;
   email: string;
   profile_picture?: string;
+  is_admin?: boolean;
   preferences: {
     theme: 'dark' | 'light';
     language: 'en' | 'pt';
@@ -19,6 +20,11 @@ interface User {
   totp_enabled: boolean;
   created_at: string;
   last_login?: string;
+  active_warning?: {
+    message: string;
+    warned_at: string;
+    dismissed_at?: string;
+  };
 }
 
 interface AuthContextType {

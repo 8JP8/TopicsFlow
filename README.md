@@ -14,11 +14,15 @@ A comprehensive Reddit-style discussion platform with authenticator-based authen
 ### 💬 Real-time Chat
 - **WebSocket Communication** via Socket.IO
 - **Topic-based Chat Rooms** with unlimited participants
+- **Chatroom Customization**: Upload profile pictures and background images
 - **Anonymous Mode** with per-topic fake usernames
-- **Private Messaging** between users
-- **Message Types**: Text, emojis, GIFs (Tenor integration)
+- **Private Messaging** between users with "Delete for me" functionality
+- **Message Types**: Text, emojis, GIFs (Tenor integration), images, videos, files
+- **File Attachments**: Images and videos stored externally with deduplication (local filesystem or Azure Blob Storage)
+- **Media Viewing**: Full-screen image viewer and enhanced video player with download/share options
 - **Typing Indicators** and user presence
 - **Content Filtering**: Links blocked, profanity filtered
+- **Message Management**: Delete messages with reason (for owners/moderators), report messages
 
 ### 📝 Topic Management
 - **Public Topics** that anyone can join
@@ -29,17 +33,23 @@ A comprehensive Reddit-style discussion platform with authenticator-based authen
 
 ### 🛡️ Moderation System
 - **Multi-level Permissions**: Owner (3) → Moderator (2) → User (1)
-- **Message Reporting** with context (previous 3-4 messages)
-- **Moderation Actions**: Delete messages, ban users, timeout users
-- **Ban Management**: Temporary and permanent bans
-- **Report Review Interface** for moderators and owners
+- **Comprehensive Reporting System**: Report users, messages, posts, comments, chatrooms, chatroom backgrounds, and chatroom pictures
+- **Context-Aware Reports**: Attach message history, owner/moderator information for admin analysis
+- **Moderation Actions**: Delete messages (with reason for owners), ban users, timeout users, warn users
+- **Ban Management**: Temporary and permanent bans with detailed reasons
+- **Report Review Interface** for moderators and owners with predefined warnings
+- **Content Management**: Silence/hide topics, posts, and chats per user
 
 ### 🎨 User Experience
-- **Dark/Light Themes** with smooth transitions
-- **Internationalization**: English and Portuguese support
-- **PWA Support**: Install on any device with browser prompts
+- **Dark/Light Themes** with smooth transitions and harmonized blue/purple color scheme
+- **Internationalization**: Full English and Portuguese support with comprehensive translations
+- **PWA Support**: Install on any device with native browser install prompts and notifications
 - **Responsive Design**: Mobile, tablet, and desktop optimized
 - **Real-time Notifications**: For messages, mentions, and reports
+- **Hidden Items Management**: Organize hidden private messages, publications, chatrooms, and topics with category separators
+- **User Profile Pictures**: Upload, update, and delete profile pictures (stored as binary in database)
+- **Chatroom Visuals**: Custom profile pictures and background images with dimming overlay
+- **Media Handling**: Secure file storage with encryption keys, deduplication, and Azure Blob Storage support
 
 ## Technology Stack
 
@@ -53,9 +63,12 @@ A comprehensive Reddit-style discussion platform with authenticator-based authen
 ### Frontend
 - **Next.js** with TypeScript
 - **Socket.IO Client** (real-time communication)
-- **Tailwind CSS** (styling)
+- **Tailwind CSS** (styling with theme variables)
 - **React Hot Toast** (notifications)
-- **PWA** capabilities with service workers
+- **PWA** capabilities with service workers and native install prompts
+- **Image Viewer Modal**: Full-screen image viewing with download controls
+- **Enhanced Video Player**: Fullscreen support, download, and right-click context menu
+- **Context Menus**: Right-click menus for posts, messages, chatrooms, and users
 
 ### Infrastructure
 - **Docker** with multi-stage builds
@@ -135,24 +148,111 @@ If you prefer to set up manually:
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+The application uses environment variables for configuration. You can set them up automatically or manually.
+
+#### Automatic Setup (Recommended)
+
+**Windows:**
+```cmd
+setup-env.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup-env.sh
+./setup-env.sh
+```
+
+**PowerShell:**
+```powershell
+powershell -ExecutionPolicy Bypass -File setup-env.ps1
+```
+
+#### Manual Setup
+
+Create a `.env` file in the `backend/` directory:
 
 ```env
 # Database Configuration
-MONGO_ROOT_USERNAME=admin
-MONGO_ROOT_PASSWORD=secure_password_here
-REDIS_PASSWORD=secure_redis_password_here
+DATABASE_URL=mongodb://localhost:27017/chatapp
+REDIS_URL=redis://localhost:6379/0
 
 # Application Configuration
-FLASK_SECRET_KEY=your_super_secret_key_here
+SECRET_KEY=your_super_secret_key_here
 FRONTEND_URL=http://localhost:3000
 TOTP_ISSUER=TopicsFlow
+APP_NAME=TopicsFlow
 
-# External Services (Optional)
-SMS_SERVICE_API_KEY=your_twilio_api_key
-EMAIL_SERVICE_API_KEY=your_sendgrid_api_key
+# Email Service (Resend)
+RESEND_API_KEY=your_resend_api_key
+FROM_EMAIL=chat@taskflow.pt
+
+# External Services
 TENOR_API_KEY=your_tenor_api_key
+
+# File Storage (Optional - for Azure deployments)
+USE_AZURE_STORAGE=false
+AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
+AZURE_STORAGE_CONTAINER=attachments
+FILE_ENCRYPTION_KEY=your_file_encryption_key  # Optional, defaults to SECRET_KEY
+
+# CORS (Development)
+CORS_ALLOW_ALL=true
 ```
+
+#### Required Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `RESEND_API_KEY` | Resend email API key for passwordless auth | ✅ Yes |
+| `FROM_EMAIL` | Verified sender email address | ✅ Yes |
+| `TENOR_API_KEY` | Tenor API key for GIF search | Optional |
+| `SECRET_KEY` | Flask secret key | ✅ Yes |
+| `DATABASE_URL` | MongoDB connection string | ✅ Yes |
+
+### Email Service Setup (Resend)
+
+1. Get your API key from [Resend Dashboard](https://resend.com/api-keys)
+2. Verify your domain in [Resend Domains](https://resend.com/domains)
+3. Add DNS records provided by Resend to your domain
+4. Set `FROM_EMAIL` to use your verified domain
+
+### Tenor API Setup
+
+1. Go to [Tenor Developer Portal](https://tenor.com/developer/keyregistration)
+2. Sign in with Google account
+3. Create a new API key
+4. Add `TENOR_API_KEY` to your `.env` file
+
+### Passwordless Authentication
+
+The application uses **passwordless authentication** with TOTP (Time-based One-Time Password):
+
+- **No passwords** - Users authenticate with username/email + 6-digit authenticator code
+- **Email verification** - Required during registration (6-digit codes)
+- **TOTP 2FA** - Industry-standard authenticator apps (Google Authenticator, Authy, etc.)
+- **Backup codes** - Emergency access codes for account recovery
+- **Secure recovery** - Requires email verification + original TOTP secret
+
+**User Registration Flow:**
+1. Enter username and email
+2. Verify email with 6-digit code
+3. Setup authenticator app (scan QR code or manual entry)
+4. Verify TOTP code
+5. Save backup codes
+
+**User Login Flow:**
+1. Enter username/email
+2. Enter 6-digit code from authenticator app
+
+**Account Recovery:**
+1. Enter email → receive verification code
+2. Verify email code
+3. Enter original TOTP secret (saved during registration)
+4. Setup new authenticator
+5. Get new backup codes
+
+**⚠️ Important:** Users must save their TOTP secret during registration for account recovery!
 
 ### Production Deployment
 
@@ -166,50 +266,110 @@ For production deployment:
    ```
 4. **Configure Nginx** for reverse proxy and SSL termination
 
+See [Azure Deployment](#azure-deployment) section for cloud deployment options.
+
 ## API Documentation
 
 ### Authentication Endpoints
 
-#### Registration
+#### Passwordless Registration (Step 1: Start Registration)
 ```http
-POST /api/auth/register
+POST /api/auth/register-passwordless
 Content-Type: application/json
 
 {
   "username": "username",
-  "email": "user@example.com",
-  "password": "secure_password",
-  "phone": "+1234567890",
-  "security_questions": [
-    {
-      "question": "What was your first pet's name?",
-      "answer": "fluffy"
-    }
-  ]
+  "email": "user@example.com"
+}
+
+Response 201:
+{
+  "success": true,
+  "user_id": "507f1f77bcf86cd799439011",
+  "message": "Verification code sent to your email"
 }
 ```
 
-#### Login
+#### Verify Email (Step 2)
 ```http
-POST /api/auth/login
+POST /api/auth/verify-email
 Content-Type: application/json
 
 {
-  "username": "username",
-  "password": "password",
+  "user_id": "507f1f77bcf86cd799439011",
+  "code": "123456"
+}
+
+Response 200:
+{
+  "success": true,
+  "totp_qr_data": "otpauth://totp/TopicsFlow:username?secret=...",
+  "totp_secret": "JBSWY3DPEHPK3PXP",
+  "user_id": "507f1f77bcf86cd799439011"
+}
+```
+
+#### Complete TOTP Setup (Step 3)
+```http
+POST /api/auth/complete-totp-setup
+Content-Type: application/json
+
+{
+  "user_id": "507f1f77bcf86cd799439011",
   "totp_code": "123456"
 }
+
+Response 200:
+{
+  "success": true,
+  "backup_codes": ["12345678", "23456789", ...]
+}
 ```
 
-#### Login with Backup Code
+#### Passwordless Login
 ```http
-POST /api/auth/login-backup
+POST /api/auth/login-passwordless
 Content-Type: application/json
 
 {
-  "username": "username",
-  "password": "password",
-  "backup_code": "12345678"
+  "identifier": "username",  // username or email
+  "totp_code": "123456"
+}
+
+Response 200:
+{
+  "success": true,
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "username": "username",
+    "email": "user@example.com"
+  }
+}
+```
+
+#### Account Recovery
+```http
+POST /api/auth/recovery/initiate-passwordless
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+
+POST /api/auth/recovery/verify-email-code
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+
+POST /api/auth/recovery/reset-totp
+Content-Type: application/json
+
+{
+  "user_id": "507f1f77bcf86cd799439011",
+  "original_secret": "JBSWY3DPEHPK3PXP"  // Saved during registration
 }
 ```
 
@@ -315,12 +475,25 @@ Authorization: Session cookie
   topic_id: ObjectId,
   user_id: ObjectId,
   content: String,
-  message_type: String ('text' | 'emoji' | 'gif' | 'system'),
+  topic_id: ObjectId,
+  chat_room_id: ObjectId,  // For chat room messages
+  user_id: ObjectId,
+  content: String,
+  message_type: String ('text' | 'emoji' | 'gif' | 'image' | 'video' | 'file' | 'system'),
   anonymous_identity: String,
   gif_url: String,
+  attachments: [{  // File references (not base64 data)
+    type: String,
+    file_id: String,
+    url: String,
+    filename: String,
+    size: Number,
+    mime_type: String
+  }],
   is_deleted: Boolean,
   deleted_by: ObjectId,
   deleted_at: Date,
+  deletion_reason: String,  // For owner deletions
   reports: [{
     reported_by: ObjectId,
     reason: String,
@@ -328,6 +501,58 @@ Authorization: Session cookie
   }],
   created_at: Date,
   updated_at: Date
+}
+```
+
+### Chat Rooms Collection
+```javascript
+{
+  _id: ObjectId,
+  topic_id: ObjectId,
+  name: String,
+  description: String,
+  owner_id: ObjectId,
+  moderators: [ObjectId],
+  members: [ObjectId],
+  picture: String,  // Base64 profile picture
+  background_picture: String,  // Base64 background image
+  is_public: Boolean,
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+### Private Messages Collection
+```javascript
+{
+  _id: ObjectId,
+  from_user_id: ObjectId,
+  to_user_id: ObjectId,
+  content: String,
+  message_type: String,
+  gif_url: String,
+  deleted_for_user_ids: [ObjectId],  // Soft delete per user
+  is_read: Boolean,
+  read_at: Date,
+  created_at: Date
+}
+```
+
+### Reports Collection
+```javascript
+{
+  _id: ObjectId,
+  reporter_id: ObjectId,
+  reported_user_id: ObjectId,
+  content_id: String,  // Message, post, comment, or chatroom ID
+  content_type: String,  // 'user' | 'message' | 'post' | 'comment' | 'chatroom' | 'chatroom_background' | 'chatroom_picture'
+  reason: String,
+  description: String,
+  owner_id: ObjectId,  // For chatroom/content reports
+  owner_username: String,
+  moderators: [{id: ObjectId, username: String}],  // For admin analysis
+  status: String,
+  created_at: Date
 }
 ```
 
@@ -362,15 +587,58 @@ Authorization: Session cookie
 
 ### Testing
 
-```bash
-# Backend tests
-cd backend
-python -m pytest
+#### Quick Testing Guide
 
-# Frontend tests
-cd frontend
-npm run test
+```bash
+# 1. Migrate database
+python migrate_database.py migrate
+
+# 2. Make admin user
+python make_admin.py <username>
+
+# 3. Start backend
+cd backend && python app.py
+
+# 4. Start frontend
+cd frontend && npm run dev
+
+# 5. Access app
+http://localhost:3000
 ```
+
+#### Test Scenarios
+
+1. **Admin Controls**: Login as admin, check for shield icon (🛡️) in top bar
+2. **Clickable Usernames**: Click username in chat → user banner appears
+3. **Right-Click Menu**: Right-click username → context menu with options
+4. **Report User**: Right-click → Report User → fill form → submit
+5. **Ticket Creation**: Profile menu → Open Ticket → create ticket
+6. **Anonymous Mode**: Enable "Use Anonymous" toggle in chat
+
+#### Backend API Testing
+
+**Using Postman:**
+1. Import `TopicsFlow_API.postman_collection.json`
+2. Import environment file from `tests/postman/environments/`
+3. Run collection tests
+
+**Using Newman (CLI):**
+```bash
+npm install -g newman newman-reporter-html
+newman run tests/postman/TopicsFlow_Backend_API.postman_collection.json \
+  -e tests/postman/environments/Local.postman_environment.json \
+  -r html --reporter-html-export tests/reports/report.html
+```
+
+**WebSocket Testing:**
+- Use browser DevTools console
+- See `tests/postman/TopicsFlow_WebSocket_Tests.md` for detailed instructions
+
+For comprehensive testing documentation, see:
+- `TESTING_GUIDE.md` - Quick testing scenarios
+- `TEST_PLAN.md` - Comprehensive test plan
+- `tests/TESTING_GUIDE.md` - Backend API testing guide
+- `tests/TEST_TROUBLESHOOTING.md` - Test troubleshooting
 
 ### Code Quality
 
@@ -414,6 +682,83 @@ docker-compose logs -f frontend
 - Frontend: HTTP status checks
 - Database: Connection health monitoring
 
+## Azure Deployment
+
+### Quick Start (5 minutes)
+
+```bash
+# 1. Install Azure CLI
+# Linux/Mac: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+# Windows: Download from https://aka.ms/installazurecliwindows
+
+# 2. Login to Azure
+az login
+
+# 3. Configure variables
+cp .env.azure.example .env.azure
+# Edit .env.azure with your values
+
+# 4. Deploy
+export $(cat .env.azure | xargs)
+./azure-deploy.sh
+```
+
+### Architecture
+
+- **Backend**: Flask + SocketIO + Static Frontend (served by Flask)
+- **Database**: Azure CosmosDB (MongoDB API)
+- **Cache**: Azure Cache for Redis (optional)
+- **Deployment**: Azure Container Apps
+- **SSL**: Automatic HTTPS
+
+### Environment Detection
+
+The application automatically detects Azure environment via:
+- `WEBSITE_INSTANCE_ID`
+- `AZURE_COSMOS_CONNECTIONSTRING`
+
+When detected, it automatically:
+- Uses CosmosDB instead of MongoDB
+- Configures SSL connections
+- Disables `retryWrites` (not supported by CosmosDB)
+- Serves static frontend
+
+### Required Azure Resources
+
+- Azure Container Registry (ACR)
+- Azure CosmosDB (MongoDB API)
+- Azure Container Apps Environment
+- Azure Container App
+
+### Cost Estimate
+
+- Container Apps: ~$40/month
+- CosmosDB: ~$24/month
+- Redis Cache: ~$16/month (optional)
+- Container Registry: ~$5/month
+- **Total: ~$85/month** (or ~$69 without Redis)
+
+### CI/CD with GitHub Actions
+
+1. Configure GitHub Secrets:
+   - `AZURE_CREDENTIALS` - Service Principal JSON
+   - `AZURE_CONTAINER_REGISTRY` - ACR name
+   - `AZURE_RESOURCE_GROUP` - Resource group name
+   - `AZURE_APP_NAME` - Container App name
+   - `ACR_USERNAME` - ACR username
+   - `ACR_PASSWORD` - ACR password
+
+2. Push to trigger deployment:
+   ```bash
+   git push origin main
+   ```
+
+See `GITHUB_ACTIONS_SETUP.md` for detailed CI/CD setup instructions.
+
+For complete Azure deployment documentation, see:
+- `AZURE_DEPLOYMENT.md` - Comprehensive deployment guide
+- `AZURE_QUICKSTART.md` - Quick start guide
+
 ## Troubleshooting
 
 ### Common Issues
@@ -421,6 +766,11 @@ docker-compose logs -f frontend
 1. **Services won't start**
    ```bash
    # Check if ports are available
+   # Windows
+   netstat -ano | findstr :5000
+   taskkill /PID <number> /F
+   
+   # Linux/Mac
    lsof -i :3000
    lsof -i :5000
    lsof -i :27017
@@ -445,6 +795,7 @@ docker-compose logs -f frontend
    - Ensure server time is synchronized
    - Check TOTP secret encryption
    - Verify authenticator app time sync
+   - Codes expire every 30 seconds - use current code
 
 4. **Frontend build issues**
    ```bash
@@ -452,6 +803,49 @@ docker-compose logs -f frontend
    rm -rf .next
    npm run build
    ```
+
+5. **Email not sending**
+   - Verify Resend API key is set: `echo $RESEND_API_KEY`
+   - Check domain is verified in Resend dashboard
+   - Verify `FROM_EMAIL` uses verified domain
+   - Check backend logs for errors
+
+6. **bcrypt module not found (Windows)**
+   ```bash
+   # Solution 1: Reinstall bcrypt
+   pip uninstall -y bcrypt
+   pip install --only-binary :all: bcrypt==4.1.0
+   
+   # Solution 2: Install Visual Studio Build Tools
+   # Download from https://visualstudio.microsoft.com/downloads/
+   # Install "Desktop development with C++"
+   
+   # Solution 3: Use compatible version
+   pip install bcrypt==4.0.1
+   ```
+
+7. **Port already in use (Windows)**
+   ```cmd
+   netstat -ano | findstr :5000
+   taskkill /PID <number> /F
+   ```
+
+8. **MongoDB connection failed**
+   ```bash
+   # Check if MongoDB is running
+   docker ps | findstr mongodb
+   
+   # Start MongoDB
+   docker start mongodb-test
+   
+   # Or create new container
+   docker run -d --name mongodb-test -p 27017:27017 \
+     -e MONGO_INITDB_ROOT_USERNAME=admin \
+     -e MONGO_INITDB_ROOT_PASSWORD=password123 \
+     mongo:7.0
+   ```
+
+For Windows-specific troubleshooting, see `WINDOWS_TROUBLESHOOTING.md`.
 
 ## Contributing
 

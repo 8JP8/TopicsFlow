@@ -18,6 +18,9 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     """Register a new user with TOTP setup."""
     try:
+        # Get client IP for security
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
+
         data = request.get_json()
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
@@ -74,6 +77,12 @@ def register():
         )
 
         if result['success']:
+            # Track IP address on registration
+            if ip_address:
+                from models.user import User
+                user_model = User(current_app.db)
+                user_model.add_ip_address(result['user_id'], ip_address)
+
             return jsonify({
                 'success': True,
                 'message': 'User registered successfully',
@@ -436,6 +445,9 @@ def get_session_info():
 def register_passwordless():
     """Register a new user without password (only username and email)."""
     try:
+        # Get client IP for security
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
+
         data = request.get_json()
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
@@ -449,6 +461,12 @@ def register_passwordless():
         result = auth_service.register_user_passwordless(username, email)
 
         if result['success']:
+            # Track IP address on registration
+            if ip_address:
+                from models.user import User
+                user_model = User(current_app.db)
+                user_model.add_ip_address(result['user_id'], ip_address)
+
             return jsonify(result), 201
         else:
             return jsonify(result), 400

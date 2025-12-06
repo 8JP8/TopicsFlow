@@ -48,8 +48,8 @@ touch .env
 
 # Add the following line to your .env file
 echo "RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec" >> .env
-echo "FROM_EMAIL=noreply@chathub.com" >> .env
-echo "APP_NAME=ChatHub" >> .env
+echo "FROM_EMAIL=noreply@topicsflow.com" >> .env
+echo "APP_NAME=TopicsFlow" >> .env
 ```
 
 **Option B: Export as Environment Variable (Temporary)**
@@ -57,22 +57,22 @@ echo "APP_NAME=ChatHub" >> .env
 For Linux/Mac:
 ```bash
 export RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec
-export FROM_EMAIL=noreply@chathub.com
-export APP_NAME=ChatHub
+export FROM_EMAIL=noreply@topicsflow.com
+export APP_NAME=TopicsFlow
 ```
 
 For Windows CMD:
 ```cmd
 set RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec
-set FROM_EMAIL=noreply@chathub.com
-set APP_NAME=ChatHub
+set FROM_EMAIL=noreply@topicsflow.com
+set APP_NAME=TopicsFlow
 ```
 
 For Windows PowerShell:
 ```powershell
 $env:RESEND_API_KEY="re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec"
-$env:FROM_EMAIL="noreply@chathub.com"
-$env:APP_NAME="ChatHub"
+$env:FROM_EMAIL="noreply@topicsflow.com"
+$env:APP_NAME="TopicsFlow"
 ```
 
 #### For Azure Deployment:
@@ -83,8 +83,8 @@ Add these environment variables in Azure App Service Configuration:
 2. Click "+ New application setting"
 3. Add:
    - Name: `RESEND_API_KEY` | Value: `re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec`
-   - Name: `FROM_EMAIL` | Value: `noreply@chathub.com`
-   - Name: `APP_NAME` | Value: `ChatHub`
+   - Name: `FROM_EMAIL` | Value: `noreply@topicsflow.com`
+   - Name: `APP_NAME` | Value: `TopicsFlow`
 4. Click "Save"
 
 #### For Docker:
@@ -94,15 +94,15 @@ Add to your `docker-compose.yml`:
 ```yaml
 environment:
   - RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec
-  - FROM_EMAIL=noreply@chathub.com
-  - APP_NAME=ChatHub
+  - FROM_EMAIL=noreply@topicsflow.com
+  - APP_NAME=TopicsFlow
 ```
 
 Or pass via command line:
 ```bash
 docker run -e RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec \
-           -e FROM_EMAIL=noreply@chathub.com \
-           -e APP_NAME=ChatHub \
+           -e FROM_EMAIL=noreply@topicsflow.com \
+           -e APP_NAME=TopicsFlow \
            your-image-name
 ```
 
@@ -111,7 +111,7 @@ docker run -e RESEND_API_KEY=re_D3FqYGuy_3gPou6PoPHGnE4gwReKT8Vec \
 **Important:** Resend requires you to verify your sender email domain before sending emails.
 
 1. Go to [Resend Dashboard](https://resend.com/domains)
-2. Add your domain (e.g., `chathub.com`)
+2. Add your domain (e.g., `topicsflow.com`)
 3. Add the required DNS records to your domain
 4. Wait for verification (usually a few minutes)
 5. Update `FROM_EMAIL` in your `.env` to use your verified domain:
@@ -344,7 +344,7 @@ Response 200:
 {
   "success": true,
   "message": "Email verified successfully",
-  "totp_qr_data": "otpauth://totp/ChatHub:johndoe?secret=JBSWY3DPEHPK3PXP&issuer=ChatHub",
+  "totp_qr_data": "otpauth://totp/TopicsFlow:johndoe?secret=JBSWY3DPEHPK3PXP&issuer=TopicsFlow",
   "totp_secret": "JBSWY3DPEHPK3PXP",
   "user_id": "507f1f77bcf86cd799439011"
 }
@@ -618,7 +618,7 @@ print(f"Secret: {secret}")
 # Create QR data
 totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
     name='testuser',
-    issuer_name='ChatHub'
+    issuer_name='TopicsFlow'
 )
 
 # Generate QR code

@@ -11,6 +11,51 @@ logger = logging.getLogger(__name__)
 posts_bp = Blueprint('posts', __name__)
 
 
+@posts_bp.route('/recent', methods=['GET'])
+@log_requests
+def get_recent_posts():
+    """Get recent posts from all topics for the right sidebar."""
+    try:
+        # Parse query parameters
+        limit = int(request.args.get('limit', 20))
+        offset = int(request.args.get('offset', 0))
+
+        # Validate pagination
+        pagination_result = validate_pagination_params(limit, offset)
+        if not pagination_result['valid']:
+            return jsonify({'success': False, 'errors': pagination_result['errors']}), 400
+
+        limit = pagination_result['limit']
+        offset = pagination_result['offset']
+
+        # Get current user ID if authenticated
+        user_id = None
+        try:
+            auth_service = AuthService(current_app.db)
+            if auth_service.is_authenticated():
+                current_user_result = auth_service.get_current_user()
+                if current_user_result.get('success'):
+                    user_id = current_user_result['user']['id']
+        except:
+            pass
+
+        post_model = Post(current_app.db)
+        posts = post_model.get_recent_posts(
+            limit=limit,
+            offset=offset,
+            user_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'data': posts
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get recent posts error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get recent posts: {str(e)}']}), 500
+
+
 @posts_bp.route('/topics/<topic_id>/posts', methods=['GET'])
 @log_requests
 def get_topic_posts(topic_id):
@@ -91,6 +136,11 @@ def create_post(topic_id):
         content = data.get('content', '').strip()
         use_anonymous = data.get('use_anonymous', False)
         gif_url = data.get('gif_url')
+        tags = data.get('tags', [])
+        if isinstance(tags, str):
+            tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        # Validate tags
+        tags = [tag for tag in tags if 2 <= len(tag) <= 20]
 
         if not title:
             return jsonify({'success': False, 'errors': ['Post title is required']}), 400
@@ -142,8 +192,16 @@ def create_post(topic_id):
             title=title,
             content=content if content else '[GIF]',
             anonymous_identity=anonymous_identity,
-            gif_url=gif_url
+            gif_url=gif_url,
+            tags=tags
         )
+        
+        # Add post tags to topic (non-duplicate)
+        if tags:
+            topic_tags = topic.get('tags', [])
+            new_tags = [tag for tag in tags if tag not in topic_tags]
+            if new_tags:
+                topic_model.add_tags_to_topic(topic_id, new_tags)
 
         # Get created post
         new_post = post_model.get_post_by_id(post_id)

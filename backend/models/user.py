@@ -46,9 +46,13 @@ class User:
                    phone: Optional[str] = None, security_questions: Optional[List[Dict]] = None) -> str:
         """Create a new user with TOTP setup. Password is optional for passwordless auth."""
         # Check if username or email already exists
-        if self.collection.find_one({'username': username}):
+        # Note: For passwordless registration, the service layer handles incomplete registrations
+        existing_username = self.collection.find_one({'username': username})
+        if existing_username:
             raise ValueError('Username already exists')
-        if self.collection.find_one({'email': email}):
+
+        existing_email = self.collection.find_one({'email': email})
+        if existing_email:
             raise ValueError('Email already exists')
 
         # Generate TOTP secret
@@ -75,12 +79,15 @@ class User:
             'email_verification_code': None,  # Verification code
             'email_verification_expires': None,  # Verification code expiry
             'security_questions': security_questions or [],
+            'is_admin': False,  # Admin status
             'is_banned': False,
             'ban_reason': None,
             'ban_expiry': None,
+            'banned_at': None,  # When the user was banned
             'ip_addresses': [],
             'created_at': datetime.utcnow(),
             'last_login': None,
+            'last_online': None,  # Timestamp of last WebSocket disconnect
             'preferences': {
                 'theme': 'dark',
                 'language': 'en',
@@ -92,7 +99,9 @@ class User:
             'original_totp_secret_hash': None,  # Hashed original secret for recovery
             'user_recovery_code_hash': None,  # User-defined recovery code (like a master password)
             'passkey_credentials': [],  # WebAuthn/Passkey credentials for biometric auth
-            'blocked_users': []  # Array of user_ids that this user has blocked
+            'blocked_users': [],  # Array of user_ids that this user has blocked
+            'active_warning': None,  # Current active warning: {message, warned_at, warned_by, dismissed_at}
+            'warning_history': []  # Array of past warnings
         }
 
         result = self.collection.insert_one(user_data)
@@ -267,14 +276,22 @@ class User:
         """Get user by ID."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
         if user:
-            # Convert ObjectId to string
-            user['_id'] = str(user['_id'])
-            user['id'] = str(user['_id'])
-            # Convert datetime to ISO string if present
-            if 'created_at' in user and isinstance(user['created_at'], datetime):
-                user['created_at'] = user['created_at'].isoformat()
-            if 'updated_at' in user and isinstance(user['updated_at'], datetime):
-                user['updated_at'] = user['updated_at'].isoformat()
+            # Recursively convert all ObjectIds and datetimes
+            def convert_objectids(obj):
+                if isinstance(obj, ObjectId):
+                    return str(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_objectids(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_objectids(item) for item in obj]
+                elif isinstance(obj, datetime):
+                    return obj.isoformat()
+                return obj
+            
+            # Convert all ObjectIds and datetimes in the user dict
+            user = convert_objectids(user)
+            # Ensure id field is set
+            user['id'] = user['_id']
         return user
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
@@ -321,6 +338,20 @@ class User:
         )
         return result.modified_count > 0
 
+    def update_user(self, user_id: str, update_data: Dict[str, Any]) -> bool:
+        """Update user profile data."""
+        # Remove None values and empty strings
+        update_data = {k: v for k, v in update_data.items() if v is not None and v != ''}
+        
+        if not update_data:
+            return False
+        
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': update_data}
+        )
+        return result.modified_count > 0
+
     def add_ip_address(self, user_id: str, ip_address: str) -> None:
         """Add IP address to user's IP history."""
         self.collection.update_one(
@@ -328,12 +359,23 @@ class User:
             {'$addToSet': {'ip_addresses': ip_address}}
         )
 
-    def ban_user(self, user_id: str, reason: str, duration_days: Optional[int] = None) -> bool:
-        """Ban a user temporarily or permanently."""
+    def ban_user(self, user_id: str, reason: str, admin_id: str, duration_days: Optional[int] = None) -> bool:
+        """Ban a user temporarily or permanently.
+
+        Args:
+            user_id: ID of user to ban
+            reason: Reason for ban
+            admin_id: ID of admin performing the ban
+            duration_days: Optional duration in days (None = permanent)
+
+        Returns:
+            True if ban successful, False otherwise
+        """
         update_data = {
             'is_banned': True,
             'ban_reason': reason,
-            'banned_at': datetime.utcnow()
+            'banned_at': datetime.utcnow(),
+            'banned_by': ObjectId(admin_id)
         }
 
         if duration_days:
@@ -348,15 +390,26 @@ class User:
         )
         return result.modified_count > 0
 
-    def unban_user(self, user_id: str) -> bool:
-        """Unban a user."""
+    def unban_user(self, user_id: str, admin_id: str) -> bool:
+        """Unban a user.
+
+        Args:
+            user_id: ID of user to unban
+            admin_id: ID of admin performing the unban
+
+        Returns:
+            True if unban successful, False otherwise
+        """
         result = self.collection.update_one(
             {'_id': ObjectId(user_id)},
             {'$set': {
                 'is_banned': False,
                 'ban_reason': None,
                 'ban_expiry': None,
-                'banned_at': None
+                'banned_at': None,
+                'banned_by': None,
+                'unbanned_at': datetime.utcnow(),
+                'unbanned_by': ObjectId(admin_id)
             }}
         )
         return result.modified_count > 0
@@ -373,6 +426,133 @@ class User:
             return False
 
         return True
+
+    def get_ban_info(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get ban information for a user."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user or not user.get('is_banned'):
+            return None
+
+        # Check if ban has expired
+        if user.get('ban_expiry') and user['ban_expiry'] < datetime.utcnow():
+            self.unban_user(user_id)
+            return None
+
+        return {
+            'reason': user.get('ban_reason', 'No reason provided'),
+            'expiry': user.get('ban_expiry'),
+            'banned_at': user.get('banned_at')
+        }
+
+    def warn_user(self, user_id: str, warning_message: str, admin_id: str, report_id: Optional[str] = None) -> bool:
+        """Warn a user for violating community guidelines.
+
+        Args:
+            user_id: ID of user to warn
+            warning_message: Warning message to display to user
+            admin_id: ID of admin issuing the warning
+            report_id: Optional report ID that triggered the warning
+
+        Returns:
+            True if warning successful, False otherwise
+        """
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return False
+
+        # If there's an existing active warning, move it to history
+        if user.get('active_warning'):
+            warning_history = user.get('warning_history', [])
+            warning_history.append(user['active_warning'])
+        else:
+            warning_history = user.get('warning_history', [])
+
+        # Create new active warning
+        active_warning = {
+            'message': warning_message,
+            'warned_at': datetime.utcnow(),
+            'warned_by': ObjectId(admin_id),
+            'dismissed_at': None
+        }
+        
+        if report_id:
+            active_warning['report_id'] = ObjectId(report_id)
+
+        # Update user with new warning
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'active_warning': active_warning,
+                    'warning_history': warning_history
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+
+    def dismiss_warning(self, user_id: str) -> bool:
+        """Dismiss the active warning for a user (user manually dismisses it).
+
+        Args:
+            user_id: ID of user dismissing the warning
+
+        Returns:
+            True if dismissal successful, False otherwise
+        """
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user or not user.get('active_warning'):
+            return False
+
+        # Move active warning to history with dismissed_at timestamp
+        active_warning = user['active_warning'].copy()
+        active_warning['dismissed_at'] = datetime.utcnow()
+        
+        warning_history = user.get('warning_history', [])
+        warning_history.append(active_warning)
+
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'active_warning': None,
+                    'warning_history': warning_history
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+
+    def clear_warning(self, user_id: str) -> bool:
+        """Clear the active warning after it expires (10 seconds auto-clear).
+
+        Args:
+            user_id: ID of user whose warning should be cleared
+
+        Returns:
+            True if clear successful, False otherwise
+        """
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user or not user.get('active_warning'):
+            return False
+
+        # Move active warning to history without dismissed_at (auto-cleared)
+        active_warning = user['active_warning'].copy()
+        
+        warning_history = user.get('warning_history', [])
+        warning_history.append(active_warning)
+
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'active_warning': None,
+                    'warning_history': warning_history
+                }
+            }
+        )
+        
+        return result.modified_count > 0
 
     def verify_security_questions(self, username: str, answers: List[str]) -> bool:
         """Verify security question answers for account recovery."""
@@ -676,6 +856,46 @@ class User:
         )
         return result.modified_count > 0
 
+    def update_profile(self, user_id: str, update_data: Dict[str, Any]) -> bool:
+        """Update user profile information."""
+        if '_id' in update_data:
+            del update_data['_id']
+        if 'id' in update_data:
+            del update_data['id']
+        
+        update_data['updated_at'] = datetime.utcnow()
+        
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': update_data}
+        )
+        return result.modified_count > 0
+    
+    def block_user(self, blocker_id: str, blocked_id: str) -> bool:
+        """Block a user."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(blocker_id)},
+            {'$addToSet': {'blocked_users': ObjectId(blocked_id)}}
+        )
+        return result.modified_count > 0 or result.matched_count > 0
+    
+    def unblock_user(self, blocker_id: str, blocked_id: str) -> bool:
+        """Unblock a user."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(blocker_id)},
+            {'$pull': {'blocked_users': ObjectId(blocked_id)}}
+        )
+        return result.modified_count > 0
+    
+    def update_last_online(self, user_id: str) -> bool:
+        """Update last_online timestamp when user disconnects from WebSocket."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'last_online': datetime.utcnow()}}
+        )
+        return result.modified_count > 0 or result.matched_count > 0
+
+
     def has_passkeys(self, user_id: str) -> bool:
         """Check if user has any passkey credentials registered."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
@@ -703,25 +923,6 @@ class User:
             })
         
         return result
-
-    def block_user(self, user_id: str, user_to_block_id: str) -> bool:
-        """Block a user (prevent them from sending private messages)."""
-        if user_id == user_to_block_id:
-            return False  # Cannot block yourself
-        
-        result = self.collection.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$addToSet': {'blocked_users': ObjectId(user_to_block_id)}}
-        )
-        return result.modified_count > 0
-
-    def unblock_user(self, user_id: str, user_to_unblock_id: str) -> bool:
-        """Unblock a user."""
-        result = self.collection.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$pull': {'blocked_users': ObjectId(user_to_unblock_id)}}
-        )
-        return result.modified_count > 0
 
     def get_blocked_users(self, user_id: str) -> List[Dict[str, Any]]:
         """Get list of users blocked by this user."""

@@ -76,6 +76,7 @@ def notify_mentioned_users(db, content_id: str, content_type: str,
                            sender_id: str, context: Optional[dict] = None) -> None:
     """
     Send notifications to mentioned users.
+    Creates database notifications and emits socket events.
     
     Args:
         db: Database connection
@@ -83,41 +84,128 @@ def notify_mentioned_users(db, content_id: str, content_type: str,
         content_type: Type of content ('message', 'post', 'comment', 'chat_room_message')
         mentioned_user_ids: List of user ObjectIds mentioned
         sender_id: ID of the user who created the content
-        context: Optional context dict with additional info (theme_id, post_id, etc.)
+        context: Optional context dict with additional info (topic_id, post_id, chat_room_id, chat_room_name, post_title, etc.)
     """
     if not mentioned_user_ids:
         return
     
-    import logging
-    logger = logging.getLogger(__name__)
     logger.info(f"[MENTIONS] {content_type} {content_id} mentions users: {[str(uid) for uid in mentioned_user_ids]}")
     
-    # TODO: Integrate with notification system to send real-time notifications
-    # For now, we can emit Socket.IO events for real-time notifications
-    
     try:
-        from app import socketio
-        if socketio:
-            # Emit notification to each mentioned user
-            for mentioned_user_id in mentioned_user_ids:
-                user_room = f"user_{mentioned_user_id}"
-                
-                notification_data = {
-                    'type': 'mention',
-                    'content_type': content_type,
+        from models.notification import Notification
+        from models.user import User
+        from flask import current_app
+        
+        notification_model = Notification(db)
+        user_model = User(db)
+        
+        # Get sender username
+        sender = user_model.get_user_by_id(sender_id)
+        sender_username = sender.get('username', 'Unknown') if sender else 'Unknown'
+        
+        # Get context name (chatroom name or post title)
+        context_name = None
+        context_id = None
+        context_type = None
+        
+        if context:
+            if 'chat_room_name' in context:
+                context_name = context['chat_room_name']
+                context_id = context.get('chat_room_id')
+                context_type = 'chat_room'
+            elif 'post_title' in context:
+                context_name = context['post_title']
+                context_id = context.get('post_id')
+                context_type = 'post'
+            elif 'topic_title' in context:
+                context_name = context['topic_title']
+                context_id = context.get('topic_id')
+                context_type = 'topic'
+        
+        # Create notification for each mentioned user
+        for mentioned_user_id in mentioned_user_ids:
+            mentioned_user_id_str = str(mentioned_user_id)
+            
+            # Build notification message
+            if context_name:
+                message = f'{sender_username} mentioned you on "{context_name}"'
+            else:
+                message = f'{sender_username} mentioned you'
+            
+            # Create database notification
+            notification_id = notification_model.create_notification(
+                user_id=mentioned_user_id_str,
+                notification_type='mention',
+                title='You were mentioned',
+                message=message,
+                data={
                     'content_id': content_id,
+                    'content_type': content_type,
                     'sender_id': sender_id,
-                    'mentioned_user_id': str(mentioned_user_id),
-                    'context': context or {}
-                }
+                    'sender_username': sender_username,
+                    'chat_room_id': context.get('chat_room_id') if context else None,
+                    'chat_room_name': context.get('chat_room_name') if context else None,
+                    'post_id': context.get('post_id') if context else None,
+                    'post_title': context.get('post_title') if context else None,
+                    'topic_id': context.get('topic_id') if context else None,
+                },
+                sender_id=sender_id,
+                context_id=context_id,
+                context_type=context_type
+            )
+            
+            if notification_id:
+                logger.info(f"Created mention notification {notification_id} for user {mentioned_user_id_str}")
                 
-                socketio.emit('user_mentioned', notification_data, room=user_room)
-                logger.info(f"Emitted user_mentioned event to room {user_room} for user {mentioned_user_id}")
+                # Emit socket events
+                try:
+                    socketio = current_app.extensions.get('socketio')
+                    if socketio:
+                        user_room = f"user_{mentioned_user_id_str}"
+                        
+                        # Emit new_notification event
+                        socketio.emit('new_notification', {
+                            'id': notification_id,
+                            'type': 'mention',
+                            'title': 'You were mentioned',
+                            'message': message,
+                            'data': {
+                                'content_id': content_id,
+                                'content_type': content_type,
+                                'sender_id': sender_id,
+                                'sender_username': sender_username,
+                                'chat_room_id': context.get('chat_room_id') if context else None,
+                                'chat_room_name': context.get('chat_room_name') if context else None,
+                                'post_id': context.get('post_id') if context else None,
+                                'post_title': context.get('post_title') if context else None,
+                            },
+                            'sender_username': sender_username,
+                            'context_id': context_id,
+                            'context_type': context_type,
+                            'context_name': context_name,
+                            'timestamp': None  # Will be set by notification model
+                        }, room=user_room)
+                        
+                        # Also emit user_mentioned event for backward compatibility
+                        socketio.emit('user_mentioned', {
+                            'type': 'mention',
+                            'content_type': content_type,
+                            'content_id': content_id,
+                            'sender_id': sender_id,
+                            'sender_username': sender_username,
+                            'mentioned_user_id': mentioned_user_id_str,
+                            'context': context or {},
+                            'notification_id': notification_id
+                        }, room=user_room)
+                        
+                        logger.info(f"Emitted mention notifications to room {user_room} for user {mentioned_user_id_str}")
+                except Exception as e:
+                    logger.warning(f"Failed to emit mention socket events: {str(e)}")
+            else:
+                logger.warning(f"Failed to create mention notification for user {mentioned_user_id_str}")
+                
     except Exception as e:
-        logger.warning(f"Failed to emit mention notification: {str(e)}")
-    
-    # TODO: Store notification in database for persistence
-    # This would require a notifications collection/model
+        logger.error(f"Failed to notify mentioned users: {str(e)}", exc_info=True)
 
 
 def process_mentions_in_content(db, content: str, content_id: str, 
@@ -143,5 +231,11 @@ def process_mentions_in_content(db, content: str, content_id: str,
         notify_mentioned_users(db, content_id, content_type, mentioned_user_ids, sender_id, context)
     
     return mentioned_user_ids
+
+
+
+
+
+
 
 

@@ -1,9 +1,9 @@
 #!/bin/bash
-# ChatHub Backend API Test Runner
+# TopicsFlow Backend API Test Runner
 # This script clears test data and runs Postman collection tests
 
 echo "========================================"
-echo "ChatHub Backend API Test Suite"
+echo "TopicsFlow Backend API Test Suite"
 echo "========================================"
 echo ""
 
@@ -85,7 +85,7 @@ echo "Running Tests..."
 echo "========================================"
 echo ""
 
-newman run Tests/postman/ChatHub_Backend_API.postman_collection.json \
+newman run Tests/postman/TopicsFlow_Backend_API.postman_collection.json \
     -e Tests/postman/environments/Local.postman_environment.json \
     -r html,cli \
     --reporter-html-export Tests/reports/report.html \

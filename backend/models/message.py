@@ -17,7 +17,8 @@ class Message:
                       gif_url: Optional[str] = None,
                       chat_room_id: Optional[str] = None,
                       post_id: Optional[str] = None,
-                      comment_id: Optional[str] = None) -> str:
+                      comment_id: Optional[str] = None,
+                      attachments: Optional[List[Dict[str, Any]]] = None) -> str:
         """Create a new message in a topic, chat room, post, or comment."""
         # Validate and filter content
         filtered_content = self._filter_content(content) if content else ''
@@ -25,15 +26,24 @@ class Message:
         # Process mentions
         mentions = self._extract_mentions(filtered_content)
 
+        # Clean attachments - remove any base64 data before storing
+        clean_attachments = []
+        if attachments:
+            for att in attachments:
+                clean_att = {k: v for k, v in att.items() if k != 'data'}
+                clean_attachments.append(clean_att)
+        
         message_data = {
             'user_id': ObjectId(user_id),
             'content': filtered_content,
-            'message_type': message_type,  # 'text', 'emoji', 'gif', 'system'
+            'message_type': message_type,  # 'text', 'emoji', 'gif', 'image', 'video', 'file', 'system'
             'anonymous_identity': anonymous_identity,
             'gif_url': gif_url,
+            'attachments': clean_attachments,  # List of attachment objects: {type, file_id, url, filename, size, mime_type} - NO base64 data
             'is_deleted': False,
             'deleted_by': None,
             'deleted_at': None,
+            'deletion_reason': None,  # Reason for deletion (for owner deletions)
             'reports': [],
             'mentions': mentions,  # Array of user_ids mentioned
             'created_at': datetime.utcnow(),
@@ -137,6 +147,10 @@ class Message:
                 message['display_name'] = message['anonymous_identity']
                 message['is_anonymous'] = True
                 message['sender_username'] = message['anonymous_identity']  # For consistency
+                message['profile_picture'] = None  # Explicitly set to None for anonymous
+                message['is_admin'] = False
+                message['is_owner'] = False
+                message['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -144,9 +158,34 @@ class Message:
                 if user:
                     message['display_name'] = user['username']
                     message['sender_username'] = user['username']  # Ensure sender_username is set
+                    message['profile_picture'] = user.get('profile_picture')
+                    message['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
+                    if message.get('chat_room_id'):
+                        from .chat_room import ChatRoom
+                        chat_room_model = ChatRoom(self.db)
+                        room = chat_room_model.get_chat_room_by_id(str(message['chat_room_id']))
+                        if room:
+                            message['is_owner'] = str(room.get('owner_id')) == str(message['user_id'])
+                            moderators = room.get('moderators', [])
+                            message['is_moderator'] = any(str(mod) == str(message['user_id']) for mod in moderators)
+                    elif message.get('topic_id'):
+                        from .topic import Topic
+                        topic_model = Topic(self.db)
+                        topic = topic_model.get_topic_by_id(str(message['topic_id']))
+                        if topic:
+                            message['is_owner'] = str(topic.get('owner_id')) == str(message['user_id'])
+                            message['is_moderator'] = topic_model.is_user_moderator(str(message['topic_id']), str(message['user_id']))
                 else:
                     message['display_name'] = 'Deleted User'
                     message['sender_username'] = 'Deleted User'
+                    message['profile_picture'] = None
+                    message['is_admin'] = False
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
                 message['is_anonymous'] = False
 
             # Get user's permission level for this message
@@ -165,19 +204,47 @@ class Message:
         if message:
             message['_id'] = str(message['_id'])
             message['id'] = str(message['_id'])  # Also add 'id' field for frontend compatibility
-            message['topic_id'] = str(message['topic_id'])
+            
+            # Convert topic_id if present
+            if 'topic_id' in message and message['topic_id'] is not None:
+                if isinstance(message['topic_id'], ObjectId):
+                    message['topic_id'] = str(message['topic_id'])
+            
+            # Convert chat_room_id if present
+            if 'chat_room_id' in message and message['chat_room_id'] is not None:
+                if isinstance(message['chat_room_id'], ObjectId):
+                    message['chat_room_id'] = str(message['chat_room_id'])
+            
             message['user_id'] = str(message['user_id'])
+            
             # Convert datetime to ISO string for JSON serialization
             if 'created_at' in message and isinstance(message['created_at'], datetime):
                 message['created_at'] = message['created_at'].isoformat()
             if 'updated_at' in message and isinstance(message['updated_at'], datetime):
                 message['updated_at'] = message['updated_at'].isoformat()
             
+            # Convert mentions to strings if present
+            if 'mentions' in message and isinstance(message['mentions'], list):
+                message['mentions'] = [str(m) if isinstance(m, ObjectId) else m for m in message['mentions']]
+            
+            # Convert reports array if present
+            if 'reports' in message and isinstance(message['reports'], list):
+                for report in message['reports']:
+                    if isinstance(report, dict):
+                        if 'reported_by' in report and isinstance(report['reported_by'], ObjectId):
+                            report['reported_by'] = str(report['reported_by'])
+                        if 'created_at' in report and isinstance(report['created_at'], datetime):
+                            report['created_at'] = report['created_at'].isoformat()
+            
             # Get user details (or anonymous identity) - same as get_messages
             if message.get('anonymous_identity'):
                 message['display_name'] = message['anonymous_identity']
                 message['is_anonymous'] = True
                 message['sender_username'] = message['anonymous_identity']  # For consistency
+                message['profile_picture'] = None  # Explicitly set to None for anonymous
+                message['is_admin'] = False
+                message['is_owner'] = False
+                message['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -185,14 +252,39 @@ class Message:
                 if user:
                     message['display_name'] = user['username']
                     message['sender_username'] = user['username']  # Ensure sender_username is set
+                    message['profile_picture'] = user.get('profile_picture')
+                    message['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
+                    if message.get('chat_room_id'):
+                        from .chat_room import ChatRoom
+                        chat_room_model = ChatRoom(self.db)
+                        room = chat_room_model.get_chat_room_by_id(str(message['chat_room_id']))
+                        if room:
+                            message['is_owner'] = str(room.get('owner_id')) == str(message['user_id'])
+                            moderators = room.get('moderators', [])
+                            message['is_moderator'] = any(str(mod) == str(message['user_id']) for mod in moderators)
+                    elif message.get('topic_id'):
+                        from .topic import Topic
+                        topic_model = Topic(self.db)
+                        topic = topic_model.get_topic_by_id(str(message['topic_id']))
+                        if topic:
+                            message['is_owner'] = str(topic.get('owner_id')) == str(message['user_id'])
+                            message['is_moderator'] = topic_model.is_user_moderator(str(message['topic_id']), str(message['user_id']))
                 else:
                     message['display_name'] = 'Deleted User'
                     message['sender_username'] = 'Deleted User'
+                    message['profile_picture'] = None
+                    message['is_admin'] = False
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
                 message['is_anonymous'] = False
         return message
 
-    def delete_message(self, message_id: str, deleted_by: str) -> bool:
-        """Delete a message (soft delete)."""
+    def delete_message(self, message_id: str, deleted_by: str, deletion_reason: Optional[str] = None) -> bool:
+        """Delete a message (soft delete). Supports deletion with reason for chat owners."""
         # Check if user has permission to delete this message
         message = self.get_message_by_id(message_id)
         if not message:
@@ -201,15 +293,22 @@ class Message:
         if not self._can_delete_message(message, deleted_by):
             return False
 
+        from datetime import timedelta
+        
+        update_data = {
+            'is_deleted': True,
+            'deleted_by': ObjectId(deleted_by),
+            'deleted_at': datetime.utcnow(),
+            'permanent_delete_at': datetime.utcnow() + timedelta(days=30)  # Permanent delete after 30 days
+        }
+        
+        # Add deletion reason if provided (for owner deletions)
+        if deletion_reason:
+            update_data['deletion_reason'] = deletion_reason
+
         result = self.collection.update_one(
             {'_id': ObjectId(message_id)},
-            {
-                '$set': {
-                    'is_deleted': True,
-                    'deleted_by': ObjectId(deleted_by),
-                    'deleted_at': datetime.utcnow()
-                }
-            }
+            {'$set': update_data}
         )
 
         return result.modified_count > 0
@@ -318,8 +417,6 @@ class Message:
                 elif 'topic_id' in message:
                     content_type = 'message'
                     context['topic_id'] = str(message['topic_id'])
-                if 'theme_id' in message:
-                    context['theme_id'] = str(message['theme_id'])
         except:
             pass
         
@@ -418,6 +515,60 @@ class Message:
         for message in messages:
             message['_id'] = str(message['_id'])
             message['topic_id'] = str(message['topic_id'])
-            message['user_id'] = str(message['user_id'])
-
+        
         return messages
+    
+    def get_deleted_messages(self, limit: int = 100, skip: int = 0) -> List[Dict[str, Any]]:
+        """Get all deleted messages for admin review."""
+        query = {'is_deleted': True}
+        
+        messages = list(self.collection.find(query)
+                       .sort([('deleted_at', -1)])
+                       .skip(skip)
+                       .limit(limit))
+        
+        for message in messages:
+            message['_id'] = str(message['_id'])
+            message['user_id'] = str(message.get('user_id', ''))
+            message['topic_id'] = str(message.get('topic_id', '')) if message.get('topic_id') else None
+            message['chat_room_id'] = str(message.get('chat_room_id', '')) if message.get('chat_room_id') else None
+            message['deleted_by'] = str(message.get('deleted_by', '')) if message.get('deleted_by') else None
+            
+            # Convert datetime to ISO string
+            if 'created_at' in message and isinstance(message['created_at'], datetime):
+                message['created_at'] = message['created_at'].isoformat()
+            if 'deleted_at' in message and isinstance(message['deleted_at'], datetime):
+                message['deleted_at'] = message['deleted_at'].isoformat()
+            if 'permanent_delete_at' in message and isinstance(message['permanent_delete_at'], datetime):
+                message['permanent_delete_at'] = message['permanent_delete_at'].isoformat()
+            
+            # Get user info
+            from .user import User
+            user_model = User(self.db)
+            user = user_model.get_user_by_id(message['user_id'])
+            if user:
+                message['username'] = user.get('username', 'Unknown')
+            
+            deleted_by_user = user_model.get_user_by_id(message['deleted_by']) if message['deleted_by'] else None
+            if deleted_by_user:
+                message['deleted_by_username'] = deleted_by_user.get('username', 'Unknown')
+        
+        return messages
+    
+    def get_deleted_messages_count(self) -> int:
+        """Get count of deleted messages."""
+        return self.collection.count_documents({'is_deleted': True})
+    
+    def permanently_delete_message(self, message_id: str) -> bool:
+        """Permanently delete a message from the database."""
+        result = self.collection.delete_one({'_id': ObjectId(message_id), 'is_deleted': True})
+        return result.deleted_count > 0
+    
+    def permanently_delete_expired_messages(self) -> int:
+        """Permanently delete messages that have passed their permanent_delete_at date."""
+        now = datetime.utcnow()
+        result = self.collection.delete_many({
+            'is_deleted': True,
+            'permanent_delete_at': {'$lt': now}
+        })
+        return result.deleted_count

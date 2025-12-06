@@ -152,13 +152,13 @@ const AnonymousIdentities: React.FC = () => {
                       <div className="flex items-center mb-2">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center mr-3">
                           <span className="text-white font-semibold text-sm">
-                            {identity.identity_name.charAt(0).toUpperCase()}
+                            {identity.identity_name?.charAt(0)?.toUpperCase() || '?'}
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold theme-text-primary">{identity.identity_name}</h3>
+                          <h3 className="font-semibold theme-text-primary">{identity.identity_name || 'Unknown'}</h3>
                           <p className="text-sm theme-text-secondary">
-                            in <span className="font-medium">{identity.topic_title}</span>
+                            in <span className="font-medium">{identity.topic_title || 'Unknown Topic'}</span>
                           </p>
                         </div>
                       </div>

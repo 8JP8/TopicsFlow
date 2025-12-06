@@ -53,6 +53,24 @@ const nextConfig = {
       },
     ];
   },
+  // Webpack configuration to handle module federation errors
+  webpack: (config, { isServer }) => {
+    // Suppress module federation warnings/errors in development
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: 'deterministic',
+      };
+      // Handle module federation errors gracefully
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

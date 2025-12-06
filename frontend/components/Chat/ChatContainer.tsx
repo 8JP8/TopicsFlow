@@ -6,8 +6,16 @@ import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import GifPicker from './GifPicker';
 import UserTooltip from '@/components/UI/UserTooltip';
 import UserContextMenu from '@/components/UI/UserContextMenu';
+import MessageContextMenu from '@/components/UI/MessageContextMenu';
+import UserBanner from '@/components/UI/UserBanner';
+import Avatar from '@/components/UI/Avatar';
+import UserBadges from '@/components/UI/UserBadges';
+import { useUserProfile, getUserProfilePicture } from '@/hooks/useUserProfile';
+import ReportUserDialog from '@/components/Reports/ReportUserDialog';
 import toast from 'react-hot-toast';
 import { api, API_ENDPOINTS } from '@/utils/api';
+import { useRouter } from 'next/router';
+import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName, saveLastAnonymousName } from '@/utils/anonymousStorage';
 
 interface Message {
   id: string;
@@ -20,7 +28,11 @@ interface Message {
   is_anonymous: boolean;
   can_delete: boolean;
   topic_id?: string;
+  chat_room_id?: string;
   gif_url?: string;
+  is_admin?: boolean;
+  is_owner?: boolean;
+  is_moderator?: boolean;
 }
 
 interface Topic {
@@ -46,6 +58,8 @@ interface ChatContainerProps {
   messages: Message[];
   onMessageReceived: (message: Message) => void;
   onBackToTopics: () => void;
+  anonymousIdentity?: {isAnonymous: boolean, name?: string};
+  onAnonymousIdentityUpdate?: (isAnonymous: boolean, name?: string) => void;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -53,6 +67,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   messages,
   onMessageReceived,
   onBackToTopics,
+  anonymousIdentity,
+  onAnonymousIdentityUpdate,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -75,7 +91,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{username: string, x: number, y: number} | null>(null);
   const [contextMenu, setContextMenu] = useState<{userId: string, username: string, x: number, y: number} | null>(null);
+  const [userProfiles, setUserProfiles] = useState<Map<string, {username: string, profile_picture?: string}>>(new Map());
+  const [messageContextMenu, setMessageContextMenu] = useState<{messageId: string, userId?: string, username?: string, x: number, y: number} | null>(null);
+  const [showUserBanner, setShowUserBanner] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{userId: string, username: string, isAnonymous?: boolean} | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [userToReport, setUserToReport] = useState<{userId: string, username: string} | null>(null);
   const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+  
+  // Mention autocomplete state
+  const [mentionUsers, setMentionUsers] = useState<Array<{id: string, username: string}>>([]);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
 
   // Listen for topic_joined event (messages are now loaded via REST API when topic changes)
   useEffect(() => {
@@ -235,6 +265,103 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     return topicIdRaw ? String(topicIdRaw).trim() : null;
   }, [topic?.id, (topic as any)?._id]);
 
+  // Load anonymous identity when topic changes
+  useEffect(() => {
+    if (!currentTopicId) return;
+
+    const loadAnonymousIdentity = async () => {
+      // First, check localStorage for saved state
+      const savedState = getAnonymousModeState(currentTopicId);
+      const lastName = getLastAnonymousName(currentTopicId);
+      
+      // If we have a saved state, use it immediately
+      if (savedState.isAnonymous) {
+        setUseAnonymous(true);
+        // Use saved name or last name
+        if (savedState.name) {
+          setAnonymousName(savedState.name);
+        } else if (lastName) {
+          setAnonymousName(lastName);
+        }
+      }
+
+      // Then try to load from API to get the actual identity
+      try {
+        const response = await api.get(API_ENDPOINTS.TOPICS.ANONYMOUS_IDENTITY(currentTopicId));
+        if (response.data.success && response.data.data?.anonymous_name) {
+          const apiName = response.data.data.anonymous_name;
+          setAnonymousName(apiName);
+          setUseAnonymous(true);
+          // Save to localStorage
+          saveAnonymousModeState(currentTopicId, true, apiName);
+          saveLastAnonymousName(currentTopicId, apiName);
+          // Notify parent if callback provided
+          if (onAnonymousIdentityUpdate) {
+            onAnonymousIdentityUpdate(true, apiName);
+          }
+        } else {
+          // If API doesn't have identity but localStorage says it should be on, keep it on with saved name
+          if (savedState.isAnonymous && savedState.name) {
+            setUseAnonymous(true);
+            setAnonymousName(savedState.name);
+            if (onAnonymousIdentityUpdate) {
+              onAnonymousIdentityUpdate(true, savedState.name);
+            }
+          } else {
+            setAnonymousName(lastName || '');
+            setUseAnonymous(false);
+            if (onAnonymousIdentityUpdate) {
+              onAnonymousIdentityUpdate(false);
+            }
+          }
+        }
+      } catch (error: any) {
+        // If identity doesn't exist, that's fine
+        if (error.response?.status !== 404) {
+          console.error('Failed to load anonymous identity:', error);
+        }
+        // Use saved state if available
+        if (savedState.isAnonymous && savedState.name) {
+          setUseAnonymous(true);
+          setAnonymousName(savedState.name);
+          if (onAnonymousIdentityUpdate) {
+            onAnonymousIdentityUpdate(true, savedState.name);
+          }
+        } else {
+          setAnonymousName(lastName || '');
+          setUseAnonymous(false);
+          if (onAnonymousIdentityUpdate) {
+            onAnonymousIdentityUpdate(false);
+          }
+        }
+      }
+    };
+
+    loadAnonymousIdentity();
+  }, [currentTopicId, onAnonymousIdentityUpdate]);
+
+  // Update from prop if provided (e.g., from parent state)
+  useEffect(() => {
+    if (anonymousIdentity) {
+      setUseAnonymous(anonymousIdentity.isAnonymous);
+      if (anonymousIdentity.isAnonymous && anonymousIdentity.name) {
+        setAnonymousName(anonymousIdentity.name);
+      } else {
+        setAnonymousName('');
+      }
+    }
+  }, [anonymousIdentity]);
+
+  // Save anonymous mode state to localStorage whenever it changes
+  useEffect(() => {
+    if (currentTopicId) {
+      saveAnonymousModeState(currentTopicId, useAnonymous, anonymousName);
+      if (anonymousName) {
+        saveLastAnonymousName(currentTopicId, anonymousName);
+      }
+    }
+  }, [currentTopicId, useAnonymous, anonymousName]);
+
   // Load messages when topic changes
   useEffect(() => {
     console.log('[ChatContainer] Topic changed effect triggered:', {
@@ -329,6 +456,31 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     loadMessages();
   }, [currentTopicId]); // Use the stable topic ID
+
+  // Fetch room members for @ mentions
+  const fetchRoomMembers = useCallback(async () => {
+    if (!topic || !topicJoined || localMessages.length === 0) return;
+    
+    try {
+      // Get the current room ID from the first message
+      const currentRoomId = localMessages[0]?.chat_room_id;
+      if (!currentRoomId) return;
+      
+      const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_MEMBERS(currentRoomId));
+      if (response.data.success) {
+        setMentionUsers(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch room members:', error);
+    }
+  }, [topic, topicJoined, localMessages]);
+
+  // Fetch members when room changes or messages load
+  useEffect(() => {
+    if (topicJoined && localMessages.length > 0) {
+      fetchRoomMembers();
+    }
+  }, [topicJoined, localMessages.length, fetchRoomMembers]);
 
   // Scroll to bottom when new messages arrive (but not when loading older messages)
   useEffect(() => {
@@ -681,21 +833,126 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   };
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (seconds < 60) return t('notifications.justNow') || 'Just now';
+      if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
+      if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
+      if (days < 7) return `${days} ${t('posts.days')} ${t('posts.ago')}`;
+      return date.toLocaleDateString();
+    } catch {
+      return '';
+    }
   };
 
-  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+  // Fetch topic members for @ mention autocomplete (legacy - for topic-level mentions)
+  const fetchTopicMembers = async () => {
+    if (!topic) return;
+    
+    try {
+      const topicId = String(topic.id || (topic as any)?._id);
+      const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_MEMBERS(topicId));
+      
+      if (response.data.success && response.data.data) {
+        setMentionUsers(response.data.data.map((member: any) => ({
+          id: member.id,
+          username: member.username
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch topic members:', error);
+    }
+  };
 
-    if (e.target.value.trim()) {
+  // Fetch members when topic changes (legacy - only if no room members available)
+  useEffect(() => {
+    if (topicJoined && mentionUsers.length === 0) {
+      fetchTopicMembers();
+    }
+  }, [topicJoined, topic?.id]);
+
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart || 0;
+    setMessageInput(value);
+
+    // Check for @ mention
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const atIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
+      const textAfterAt = textBeforeCursor.substring(atIndex + 1);
+      const hasSpaceAfter = textAfterAt.includes(' ');
+      
+      if (!hasSpaceAfter && /^\w*$/.test(textAfterAt)) {
+        setMentionSearch(textAfterAt);
+        setMentionCursorPosition(atIndex);
+        setShowMentionDropdown(true);
+        setSelectedMentionIndex(0);
+      } else {
+        setShowMentionDropdown(false);
+      }
+    } else {
+      setShowMentionDropdown(false);
+    }
+
+    // Typing indicator
+    if (value.trim()) {
       handleTypingStart();
     } else {
       handleTypingStop();
+    }
+  };
+
+  const handleSelectMention = (username: string) => {
+    const before = messageInput.substring(0, mentionCursorPosition);
+    const after = messageInput.substring(mentionCursorPosition + mentionSearch.length + 1);
+    const newValue = `${before}@${username} ${after}`;
+    setMessageInput(newValue);
+    setShowMentionDropdown(false);
+    setMentionSearch('');
+    
+    setTimeout(() => {
+      const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        const newCursorPos = before.length + username.length + 2;
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
+  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showMentionDropdown) return;
+
+    const filteredUsers = mentionUsers.filter(u => 
+      u.username.toLowerCase().includes(mentionSearch.toLowerCase())
+    );
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedMentionIndex((prev) => 
+        prev < filteredUsers.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedMentionIndex((prev) => prev > 0 ? prev - 1 : 0);
+    } else if (e.key === 'Enter' && filteredUsers.length > 0) {
+      e.preventDefault();
+      handleSelectMention(filteredUsers[selectedMentionIndex].username);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowMentionDropdown(false);
+    } else if (e.key === 'Tab' && filteredUsers.length > 0) {
+      e.preventDefault();
+      handleSelectMention(filteredUsers[selectedMentionIndex].username);
     }
   };
 
@@ -818,14 +1075,51 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                 (!message.is_anonymous && messageDisplayName && messageDisplayName.toLowerCase() === currentUsername)
               );
 
+              // For anonymous messages from current user, show "Você" instead of anonymous name
+              const displayNameForAnonymous = isFromMe && message.is_anonymous 
+                ? t('common.you') || 'Você'
+                : messageDisplayName;
+
               return (
                 <div 
                   key={message.id} 
                   className={`flex items-start ${isFromMe ? 'justify-end' : 'justify-start'} ${isFromMe ? 'flex-row-reverse' : ''} space-x-3`}
                 >
-                  {!isFromMe && (
-                    <div 
-                      className="w-8 h-8 rounded-full theme-bg-tertiary flex items-center justify-center flex-shrink-0 cursor-pointer"
+                  {message.is_anonymous ? (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm">
+                      {isFromMe ? (t('common.you') || 'Você')?.charAt(0).toUpperCase() : messageDisplayName?.charAt(0).toUpperCase() || 'A'}
+                    </div>
+                  ) : !isFromMe && (
+                    <Avatar
+                      userId={message.user_id}
+                      username={messageDisplayName}
+                      profilePicture={message.user_id ? (userProfiles.get(message.user_id)?.profile_picture || getUserProfilePicture(message.user_id)) : undefined}
+                      size="sm"
+                      onClick={() => {
+                        // Don't show banner for anonymous users
+                        if (message.is_anonymous && !isFromMe) {
+                          return;
+                        }
+                        if (displayNameForAnonymous) {
+                          setSelectedUser({
+                            userId: message.is_anonymous ? '' : (message.user_id || ''),
+                            username: displayNameForAnonymous,
+                            isAnonymous: message.is_anonymous && !isFromMe || false
+                          });
+                          setShowUserBanner(true);
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (message.user_id) {
+                          setContextMenu({
+                            userId: message.user_id,
+                            username: messageDisplayName,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }
+                      }}
                       onMouseEnter={(e) => {
                         // Only set tooltip if it's not already set for this username
                         if (!tooltip || tooltip.username !== messageDisplayName) {
@@ -853,35 +1147,61 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                           tooltipTimeoutRef.current = null;
                         }, 200);
                       }}
-                    >
-                      <span className="text-sm font-medium theme-text-primary">
-                        {messageDisplayName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    />
+                  )}
+                  {isFromMe && !message.is_anonymous && (
+                    <Avatar
+                      userId={message.user_id}
+                      username={messageDisplayName}
+                      profilePicture={message.user_id ? (userProfiles.get(message.user_id)?.profile_picture || getUserProfilePicture(message.user_id)) : undefined}
+                      size="sm"
+                    />
                   )}
                   <div className={`max-w-xs lg:max-w-md`}>
-                    <div className={`flex items-center space-x-2 mb-1 ${isFromMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex items-center space-x-2 mb-1 ${isFromMe ? 'justify-end' : 'justify-start'} flex-wrap`}>
                       <span
-                        className="text-sm font-medium theme-text-primary cursor-pointer hover:underline"
+                        className={`text-sm font-medium theme-text-primary ${
+                          message.is_anonymous && !isFromMe ? 'cursor-default' : 'cursor-pointer hover:underline'
+                        }`}
+                        onClick={() => {
+                          // Don't show banner for anonymous users (except own messages which show "Você")
+                          if (message.is_anonymous && !isFromMe) {
+                            return;
+                          }
+                          if (displayNameForAnonymous) {
+                            setSelectedUser({
+                              userId: message.is_anonymous ? '' : (message.user_id || ''),
+                              username: displayNameForAnonymous,
+                              isAnonymous: message.is_anonymous && !isFromMe || false
+                            });
+                            setShowUserBanner(true);
+                          }
+                        }}
                         onContextMenu={(e) => {
                           e.preventDefault();
+                          // Don't show context menu for anonymous users
+                          if (message.is_anonymous && !isFromMe) {
+                            return;
+                          }
                           if (message.user_id) {
                             setContextMenu({
                               userId: message.user_id,
-                              username: messageDisplayName,
+                              username: displayNameForAnonymous,
                               x: e.clientX,
                               y: e.clientY,
                             });
                           }
                         }}
                       >
-                        {messageDisplayName}
+                        {displayNameForAnonymous}
                       </span>
-                      {message.is_anonymous && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs theme-bg-tertiary theme-text-secondary">
-                          {t('chat.anonymous')}
-                        </span>
-                      )}
+                      <UserBadges
+                        isFromMe={isFromMe}
+                        isAdmin={message.is_admin}
+                        isOwner={message.is_owner}
+                        isModerator={message.is_moderator}
+                        isAnonymous={message.is_anonymous}
+                      />
                       <span className="text-xs theme-text-muted">
                         {formatTimestamp(message.created_at)}
                       </span>
@@ -890,7 +1210,17 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                       className={`message-bubble ${isFromMe ? 'message-bubble-own' : 'message-bubble-other'}`}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        if (message.user_id) {
+                        e.stopPropagation();
+                        // Show message context menu (for reporting message)
+                        setMessageContextMenu({
+                          messageId: message.id,
+                          userId: message.user_id,
+                          username: messageDisplayName,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                        // Also show user context menu if clicking on username
+                        if (message.user_id && !message.is_anonymous) {
                           setContextMenu({
                             userId: message.user_id,
                             username: messageDisplayName,
@@ -919,6 +1249,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                                 <span
                                   key={idx}
                                   className="font-semibold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                  onClick={async () => {
+                                    // Fetch user ID and show banner
+                                    try {
+                                      const response = await api.get(API_ENDPOINTS.USERS.GET_BY_USERNAME(username));
+                                      if (response.data.success && response.data.data) {
+                                        setSelectedUser({
+                                          userId: response.data.data.id,
+                                          username: response.data.data.username
+                                        });
+                                        setShowUserBanner(true);
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to fetch user:', error);
+                                    }
+                                  }}
                                   onMouseEnter={(e) => {
                                     // Only set tooltip if it's not already set for this username
                                     if (!tooltip || tooltip.username !== username) {
@@ -1025,10 +1370,49 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               type="text"
               value={messageInput}
               onChange={handleMessageInputChange}
-              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}
+              onKeyDown={handleMentionKeyDown}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
+                  handleSendMessage(e);
+                }
+              }}
               placeholder={t('chat.messageAs', { name: useAnonymous && anonymousName ? anonymousName : user?.username || '' })}
               className="w-full px-4 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
+              autoComplete="off"
             />
+            
+            {/* Mention Autocomplete Dropdown */}
+            {showMentionDropdown && mentionUsers.length > 0 && (
+              <div className="absolute bottom-full left-0 mb-2 w-64 max-h-60 overflow-y-auto theme-bg-secondary border theme-border rounded-lg shadow-xl z-50">
+                {mentionUsers
+                  .filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))
+                  .slice(0, 10)
+                  .map((user, index) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => handleSelectMention(user.username)}
+                      onMouseEnter={() => setSelectedMentionIndex(index)}
+                      className={`w-full px-4 py-2 text-left hover:theme-bg-hover transition-colors flex items-center space-x-2 ${
+                        index === selectedMentionIndex ? 'theme-bg-hover' : ''
+                      }`}
+                    >
+                      <Avatar
+                        userId={user.id}
+                        username={user.username}
+                        size="sm"
+                      />
+                      <span className="theme-text-primary font-medium">{user.username}</span>
+                    </button>
+                  ))}
+                {mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-center theme-text-muted text-sm">
+                    {t('chat.noUsersFound') || 'No users found'}
+                  </div>
+                )}
+              </div>
+            )}
+            
             {selectedGifUrl && (
               <div className="absolute top-1 right-1">
                 <img src={selectedGifUrl} alt="Selected GIF" className="w-8 h-8 rounded object-cover" />
@@ -1092,21 +1476,114 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onSendMessage={async (userId, username) => {
-            // Navigate to private messages with this user
+            // Navigate to private messages with this user (works for self too)
             console.log('Send message to:', userId, username);
             setContextMenu(null);
             // Emit custom event or use router to navigate
             window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
           }}
+          onAddFriend={async (userId, username) => {
+            try {
+              const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
+                to_user_id: userId
+              });
+              if (response.data.success) {
+                toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
+              } else {
+                toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+              }
+              setContextMenu(null);
+            } catch (error: any) {
+              console.error('Failed to send friend request:', error);
+              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+            }
+          }}
+          onReportUser={async (userId, username) => {
+            setContextMenu(null);
+            setUserToReport({ userId, username });
+            setShowReportDialog(true);
+          }}
           onBlockUser={async (userId, username) => {
             try {
-              await api.post(API_ENDPOINTS.USERS.BLOCK_USER(userId));
+              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
               toast.success(t('chat.blockedUser', { username }));
               setContextMenu(null);
             } catch (error: any) {
               console.error('Failed to block user:', error);
               toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
             }
+          }}
+        />
+      )}
+
+      {/* Message Context Menu */}
+      {messageContextMenu && (
+        <MessageContextMenu
+          messageId={messageContextMenu.messageId}
+          userId={messageContextMenu.userId}
+          username={messageContextMenu.username}
+          x={messageContextMenu.x}
+          y={messageContextMenu.y}
+          onClose={() => setMessageContextMenu(null)}
+          onReportMessage={async (messageId, userId, username) => {
+            try {
+              await api.post(API_ENDPOINTS.MESSAGES.REPORT(messageId), {
+                reason: 'Inappropriate content',
+                content_type: 'message'
+              });
+              toast.success(t('chat.messageReported') || 'Message reported successfully');
+              setMessageContextMenu(null);
+            } catch (error: any) {
+              console.error('Failed to report message:', error);
+              toast.error(error.response?.data?.errors?.[0] || t('chat.failedToReportMessage') || 'Failed to report message');
+            }
+          }}
+        />
+      )}
+
+      {/* User Banner */}
+      {showUserBanner && selectedUser && (
+        <UserBanner
+          userId={selectedUser.userId}
+          username={selectedUser.username}
+          isAnonymous={selectedUser.isAnonymous || false}
+          onClose={() => {
+            setShowUserBanner(false);
+            setSelectedUser(null);
+          }}
+          onSendMessage={(userId, username) => {
+            setShowUserBanner(false);
+            setSelectedUser(null);
+            window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
+          }}
+          onReport={(userId, username) => {
+            setShowUserBanner(false);
+            setSelectedUser(null);
+            setUserToReport({ userId, username });
+            setShowReportDialog(true);
+          }}
+          onBlock={async (userId, username) => {
+            try {
+              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+              toast.success(t('chat.blockedUser', { username }) || `Blocked ${username}`);
+              setShowUserBanner(false);
+              setSelectedUser(null);
+            } catch (error: any) {
+              console.error('Failed to block user:', error);
+              toast.error(error.response?.data?.errors?.[0] || t('chat.failedToBlockUser') || 'Failed to block user');
+            }
+          }}
+        />
+      )}
+
+      {/* Report User Dialog */}
+      {showReportDialog && userToReport && (
+        <ReportUserDialog
+          userId={userToReport.userId}
+          username={userToReport.username}
+          onClose={() => {
+            setShowReportDialog(false);
+            setUserToReport(null);
           }}
         />
       )}

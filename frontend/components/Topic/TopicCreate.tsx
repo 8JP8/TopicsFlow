@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Topic {
   id: string;
@@ -27,6 +28,7 @@ interface TopicCreateProps {
 }
 
 const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCreated }) => {
+  const { t } = useLanguage();
   const handleCancel = onCancel || onClose || (() => {});
   const [formData, setFormData] = useState({
     title: '',
@@ -41,9 +43,17 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
+    
+    // Auto-convert spaces to commas for tags input
+    let processedValue = value;
+    if (name === 'tags' && type === 'text') {
+      // Replace spaces with commas to separate tags
+      processedValue = value.replace(/\s+/g, ',');
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : processedValue,
     }));
   };
 
@@ -121,7 +131,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold theme-text-primary">Create New Topic</h2>
+        <h2 className="text-lg font-semibold theme-text-primary">{t('topics.createTopic')}</h2>
         <button
           onClick={handleCancelClick}
           className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
@@ -147,7 +157,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
         {/* Title */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium theme-text-primary mb-1">
-            Title *
+            {t('topics.title')} *
           </label>
           <input
             type="text"
@@ -155,7 +165,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
             name="title"
             value={formData.title}
             onChange={handleChange}
-            placeholder="Enter topic title..."
+            placeholder={t('topics.titlePlaceholder') || 'Título do tópico...'}
             className="w-full px-3 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
             disabled={loading}
             required
@@ -165,27 +175,27 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
         {/* Description */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium theme-text-primary mb-1">
-            Description
+            {t('topics.description')}
           </label>
           <textarea
             id="description"
             name="description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Describe your topic..."
+            placeholder={t('topics.descriptionPlaceholder') || 'Descreva o seu tópico...'}
             rows={3}
             className="w-full px-3 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted resize-none"
             disabled={loading}
           />
           <p className="text-xs theme-text-muted mt-1">
-            Optional. Maximum 500 characters.
+            {t('topics.descriptionHint') || 'Opcional. Máximo 500 caracteres.'}
           </p>
         </div>
 
         {/* Tags */}
         <div>
           <label htmlFor="tags" className="block text-sm font-medium theme-text-primary mb-1">
-            Tags
+            {t('topics.tags')}
           </label>
           <input
             type="text"
@@ -193,12 +203,12 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
             name="tags"
             value={formData.tags}
             onChange={handleChange}
-            placeholder="chat, general, random (comma separated)"
+            placeholder={t('topics.tagsPlaceholder') || 'chat, geral, random (separado por vírgulas)'}
             className="w-full px-3 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
             disabled={loading}
           />
           <p className="text-xs theme-text-muted mt-1">
-            Optional. Use lowercase letters, numbers, and underscores only. Maximum 10 tags.
+            {t('topics.tagsHint') || 'Opcional. Use letras minúsculas, números e sublinhados. Máximo 10 tags.'}
           </p>
         </div>
 
@@ -215,7 +225,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
               disabled={loading}
             />
             <label htmlFor="allow_anonymous" className="ml-2 text-sm theme-text-primary">
-              Allow anonymous messages
+              {t('topics.allowAnonymous') || 'Permitir mensagens anónimas'}
             </label>
           </div>
 
@@ -230,7 +240,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
               disabled={loading}
             />
             <label htmlFor="require_approval" className="ml-2 text-sm theme-text-primary">
-              Require approval for new members
+              {t('topics.requireApproval') || 'Apenas convite'}
             </label>
           </div>
         </div>
@@ -243,14 +253,14 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
             disabled={loading}
             className="px-4 py-2 btn btn-ghost"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             disabled={loading}
             className="px-4 py-2 btn btn-primary"
           >
-            {loading ? <LoadingSpinner size="sm" /> : 'Create Topic'}
+            {loading ? <LoadingSpinner size="sm" /> : t('topics.createTopic')}
           </button>
         </div>
       </form>

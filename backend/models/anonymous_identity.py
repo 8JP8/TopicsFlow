@@ -48,6 +48,16 @@ class AnonymousIdentity:
         })
 
         if existing:
+            # If custom name provided and different, update it
+            if custom_name:
+                cleaned_name = self._validate_and_clean_name(custom_name)
+                if cleaned_name and cleaned_name != existing['anonymous_name']:
+                    cleaned_name = self._ensure_unique_name(topic_id, cleaned_name, user_id)
+                    self.collection.update_one(
+                        {'_id': existing['_id']},
+                        {'$set': {'anonymous_name': cleaned_name, 'last_used': datetime.utcnow()}}
+                    )
+                    return cleaned_name
             return existing['anonymous_name']
 
         # Generate anonymous name
@@ -69,8 +79,42 @@ class AnonymousIdentity:
             'last_used': datetime.utcnow()
         }
 
-        result = self.collection.insert_one(identity_data)
-        return anonymous_name
+        try:
+            result = self.collection.insert_one(identity_data)
+            return anonymous_name
+        except Exception as e:
+            # If duplicate key error, try to find and return existing
+            error_str = str(e)
+            if 'E11000' in error_str or 'duplicate key' in error_str.lower():
+                # Try to find existing identity (might have been created by another process)
+                existing = self.collection.find_one({
+                    'user_id': ObjectId(user_id),
+                    'topic_id': ObjectId(topic_id)
+                })
+                if existing:
+                    return existing['anonymous_name']
+                # If still not found, try with upsert approach
+                result = self.collection.update_one(
+                    {
+                        'user_id': ObjectId(user_id),
+                        'topic_id': ObjectId(topic_id)
+                    },
+                    {
+                        '$setOnInsert': {
+                            'user_id': ObjectId(user_id),
+                            'topic_id': ObjectId(topic_id),
+                            'created_at': datetime.utcnow()
+                        },
+                        '$set': {
+                            'anonymous_name': anonymous_name,
+                            'last_used': datetime.utcnow()
+                        }
+                    },
+                    upsert=True
+                )
+                return anonymous_name
+            else:
+                raise
 
     def get_anonymous_identity(self, user_id: str, topic_id: str) -> Optional[str]:
         """Get user's anonymous identity for a topic."""
@@ -98,20 +142,43 @@ class AnonymousIdentity:
         # Ensure uniqueness within the topic
         cleaned_name = self._ensure_unique_name(topic_id, cleaned_name, user_id)
 
-        result = self.collection.update_one(
-            {
-                'user_id': ObjectId(user_id),
-                'topic_id': ObjectId(topic_id)
-            },
-            {
-                '$set': {
-                    'anonymous_name': cleaned_name,
-                    'last_used': datetime.utcnow()
-                }
-            }
-        )
+        # First try to find existing identity
+        existing = self.collection.find_one({
+            'user_id': ObjectId(user_id),
+            'topic_id': ObjectId(topic_id)
+        })
 
-        return result.modified_count > 0
+        if existing:
+            # Update existing
+            result = self.collection.update_one(
+                {'_id': existing['_id']},
+                {
+                    '$set': {
+                        'anonymous_name': cleaned_name,
+                        'last_used': datetime.utcnow()
+                    }
+                }
+            )
+            return result.modified_count > 0
+        else:
+            # Create new using upsert to handle index issues
+            # Use replaceOne with upsert to avoid conflicts
+            identity_data = {
+                'user_id': ObjectId(user_id),
+                'topic_id': ObjectId(topic_id),
+                'anonymous_name': cleaned_name,
+                'created_at': datetime.utcnow(),
+                'last_used': datetime.utcnow()
+            }
+            result = self.collection.replace_one(
+                {
+                    'user_id': ObjectId(user_id),
+                    'topic_id': ObjectId(topic_id)
+                },
+                identity_data,
+                upsert=True
+            )
+            return result.modified_count > 0 or result.upserted_id is not None
 
     def regenerate_anonymous_identity(self, user_id: str, topic_id: str) -> str:
         """Generate a new anonymous identity for a user in a topic."""
@@ -195,9 +262,22 @@ class AnonymousIdentity:
 
         for identity in identities:
             identity['_id'] = str(identity['_id'])
+            identity['id'] = str(identity['_id'])  # Add id field for frontend compatibility
             identity['user_id'] = str(identity['user_id'])
             identity['topic_id'] = str(identity['topic_id'])
-
+            
+            # Add identity_name field for frontend compatibility (maps to anonymous_name)
+            if 'anonymous_name' in identity and identity['anonymous_name']:
+                identity['identity_name'] = identity['anonymous_name']
+            else:
+                identity['identity_name'] = 'Unknown'
+            
+            # Convert datetime to ISO string for JSON serialization
+            if 'created_at' in identity and isinstance(identity['created_at'], datetime):
+                identity['created_at'] = identity['created_at'].isoformat()
+            if 'last_used' in identity and isinstance(identity['last_used'], datetime):
+                identity['last_used'] = identity['last_used'].isoformat()
+            
             # Get topic details
             from .topic import Topic
             topic_model = Topic(self.db)
@@ -206,6 +286,16 @@ class AnonymousIdentity:
                 identity['topic_title'] = topic['title']
             else:
                 identity['topic_title'] = 'Deleted Topic'
+            
+            # Count messages for this identity
+            from .message import Message
+            message_model = Message(self.db)
+            message_count = message_model.db.messages.count_documents({
+                'topic_id': ObjectId(identity['topic_id']),
+                'user_id': ObjectId(user_id),
+                'anonymous_identity': identity['anonymous_name']
+            })
+            identity['message_count'] = message_count
 
         return identities
 

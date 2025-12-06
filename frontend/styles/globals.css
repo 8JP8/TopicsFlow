@@ -14,6 +14,8 @@
   --theme-text-muted: #999999;
   --theme-blue-primary: #1976d2;
   --theme-blue-secondary: #42a5f5;
+  --theme-purple-primary: #7b1fa2;
+  --theme-purple-secondary: #9c27b0;
   --theme-chat-own: #e3f2fd;
   --theme-chat-other: #f5f5f5;
 }
@@ -29,6 +31,8 @@
   --theme-text-muted: #808080;
   --theme-blue-primary: #1976d2;
   --theme-blue-secondary: #42a5f5;
+  --theme-purple-primary: #7b1fa2;
+  --theme-purple-secondary: #9c27b0;
   --theme-chat-own: #2d2d2d;
   --theme-chat-other: #404040;
 }
@@ -91,7 +95,7 @@ select {
   background-color: var(--theme-bg-secondary);
   color: var(--theme-text-primary);
   border: 1px solid var(--theme-border);
-  border-radius: 0.5rem;
+  border-radius: 0.5rem; /* Standardized: 8px */
   padding: 0.75rem 1rem;
   font-size: 1rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -110,18 +114,23 @@ textarea::placeholder {
   color: var(--theme-text-muted);
 }
 
-/* Button base styles */
+/* Button base styles - Matching login page theme */
 .btn {
-  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-primary {
   background-color: var(--theme-blue-primary);
   color: white;
+  border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
   background-color: var(--theme-blue-secondary);
+}
+
+.btn-primary:disabled {
+  background-color: #9ca3af;
 }
 
 .btn-secondary {
@@ -135,23 +144,31 @@ textarea::placeholder {
 }
 
 .btn-danger {
-  @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
 }
 
 .btn-ghost {
   background-color: transparent;
   color: var(--theme-text-primary);
+  border: 1px solid transparent;
 }
 
 .btn-ghost:hover:not(:disabled) {
   background-color: var(--theme-bg-secondary);
 }
 
-/* Card component */
+/* Card component - Matching login page theme */
 .card {
-  background-color: var(--theme-bg-primary);
+  background-color: var(--theme-bg-secondary);
   border: 1px solid var(--theme-border);
-  @apply rounded-xl shadow-sm p-6;
+  border-radius: 1rem; /* rounded-2xl: 16px - matching login page */
+  @apply shadow-xl p-6;
 }
 
 /* Loading spinner */
@@ -159,9 +176,34 @@ textarea::placeholder {
   @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin;
 }
 
-/* Toast notifications */
+/* Animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Icon colors - blue and purple gradient */
+.icon-gradient {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Toast notifications - Matching login page theme */
 .toast {
-  @apply fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out;
+  @apply fixed top-4 right-4 z-50 max-w-sm p-4 shadow-lg transform transition-all duration-300 ease-in-out;
+  border-radius: 0.5rem; /* rounded-lg: 8px */
 }
 
 .toast-success {
@@ -180,19 +222,22 @@ textarea::placeholder {
   @apply bg-yellow-500 text-white;
 }
 
-/* Modal styles */
+/* Modal styles - Matching login page theme */
 .modal-overlay {
   @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
 }
 
 .modal-content {
-  background-color: var(--theme-bg-primary);
-  @apply rounded-xl shadow-xl max-w-lg w-full max-h-screen overflow-y-auto;
+  background-color: var(--theme-bg-secondary);
+  border: 1px solid var(--theme-border);
+  border-radius: 1rem; /* rounded-2xl: 16px - matching login page */
+  @apply shadow-xl max-w-lg w-full max-h-screen overflow-y-auto;
 }
 
-/* Message bubble styles */
+/* Message bubble styles - Matching login page theme */
 .message-bubble {
-  @apply max-w-xs lg:max-w-md px-4 py-2 rounded-2xl;
+  @apply max-w-xs lg:max-w-md px-4 py-2;
+  border-radius: 0.5rem; /* rounded-lg: 8px */
 }
 
 .message-bubble-own {

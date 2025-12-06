@@ -184,7 +184,7 @@ const RecoveryPage: React.FC = () => {
       <Head>
         <title>{`${t('recovery.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('recovery.subtitle')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4">
@@ -193,7 +193,7 @@ const RecoveryPage: React.FC = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <img
-                src="https://i.postimg.cc/52jHqBD9/chat.png"
+                src="https://i.postimg.cc/FY5shL9w/chat.png"
                 alt="TopicsFlow Logo"
                 className="h-10 w-10"
               />

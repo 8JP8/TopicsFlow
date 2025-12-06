@@ -6,11 +6,17 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { toast } from 'react-hot-toast';
+import BlockedUsersModal from '@/components/Settings/BlockedUsersModal';
+import HiddenItemsModal from '@/components/Settings/HiddenItemsModal';
+import FollowedPublicationsModal from '@/components/Settings/FollowedPublicationsModal';
+import FollowedChatroomsModal from '@/components/Settings/FollowedChatroomsModal';
+import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
 
 interface UserPreferences {
   theme: 'light' | 'dark';
   language: 'en' | 'pt';
   notifications_enabled?: boolean;
+  browser_notifications_enabled?: boolean;
   sound_enabled?: boolean;
 }
 
@@ -24,10 +30,15 @@ const Settings: React.FC = () => {
     notifications_enabled: true,
     sound_enabled: true,
   });
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy'>('preferences');
-  const [blockedUsers, setBlockedUsers] = useState<Array<{id: string, username: string}>>([]);
-  const [loadingBlocked, setLoadingBlocked] = useState(false);
+  const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+  const [showHiddenItemsModal, setShowHiddenItemsModal] = useState(false);
+  const [showFollowedPublicationsModal, setShowFollowedPublicationsModal] = useState(false);
+  const [showFollowedChatroomsModal, setShowFollowedChatroomsModal] = useState(false);
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const [anonymousIdentities, setAnonymousIdentities] = useState<Array<{id: string, topic_id: string, topic_title: string, identity_name: string, created_at: string, message_count: number}>>([]);
+  const [loadingIdentities, setLoadingIdentities] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,56 +51,55 @@ const Settings: React.FC = () => {
         theme: user.preferences.theme || 'dark',
         language: user.preferences.language || 'en',
         notifications_enabled: user.preferences.notifications_enabled !== false,
+        browser_notifications_enabled: user.preferences.browser_notifications_enabled || false,
         sound_enabled: user.preferences.sound_enabled !== false,
       });
     }
 
-    if (user && activeTab === 'privacy') {
-      loadBlockedUsers();
+    // Check browser notification permission status
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = Notification.permission;
+      if (permission === 'granted' && !preferences.browser_notifications_enabled) {
+        setPreferences(prev => ({ ...prev, browser_notifications_enabled: true }));
+      }
     }
+
   }, [user, authLoading, router, activeTab]);
 
-  const loadBlockedUsers = async () => {
-    try {
-      setLoadingBlocked(true);
-      const response = await api.get(API_ENDPOINTS.BLOCKING.LIST_BLOCKED);
-
-      if (response.data.success) {
-        setBlockedUsers(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to load blocked users:', error);
-    } finally {
-      setLoadingBlocked(false);
-    }
-  };
-
-  const handleUnblockUser = async (userId: string) => {
-    try {
-      const response = await api.delete(API_ENDPOINTS.BLOCKING.UNBLOCK(userId));
-
-      if (response.data.success) {
-        toast.success(t('blocking.userUnblocked'));
-        await loadBlockedUsers();
-      } else {
-        toast.error(response.data.errors?.[0] || t('blocking.failedToUnblockUser'));
-      }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.[0] || t('blocking.failedToUnblockUser');
-      toast.error(errorMessage);
-    }
-  };
 
   const handlePreferenceChange = async (key: keyof UserPreferences, value: any) => {
     const newPreferences = { ...preferences, [key]: value };
     setPreferences(newPreferences);
 
-    // Apply theme immediately
+    // Apply theme immediately without showing toast
     if (key === 'theme') {
       document.documentElement.classList.toggle('dark', value === 'dark');
+      // Save to backend silently (no toast)
+      try {
+        const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, {
+          preferences: newPreferences,
+        });
+
+        if (response.data.success) {
+          // Update user context silently
+          if (user) {
+            updateUser({ 
+              ...user, 
+              preferences: { 
+                ...user.preferences, 
+                ...newPreferences 
+              } 
+            });
+          }
+        }
+      } catch (error) {
+        // Silently fail for theme changes
+        console.error('Failed to save theme preference:', error);
+      }
+      return;
     }
 
-    // Save to backend
+    // For other preferences, show toast when saved
     try {
       const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, {
         preferences: newPreferences,
@@ -125,22 +135,52 @@ const Settings: React.FC = () => {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  const loadAnonymousIdentities = async () => {
+    try {
+      setLoadingIdentities(true);
+      const response = await api.get(API_ENDPOINTS.USERS.ANONYMOUS_IDENTITIES);
+      if (response.data.success) {
+        setAnonymousIdentities(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load anonymous identities:', error);
+    } finally {
+      setLoadingIdentities(false);
+    }
+  };
 
-  if (!user) {
-    return null;
-  }
+  const handleDeleteIdentity = async (topicId: string) => {
+    if (!confirm(t('anonymousIdentities.deleteConfirm') || 'Are you sure you want to delete this anonymous identity?')) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(API_ENDPOINTS.USERS.DELETE_ANONYMOUS_IDENTITY(topicId));
+      if (response.data.success) {
+        toast.success(t('anonymousIdentities.deleteSuccess') || 'Anonymous identity deleted');
+        setAnonymousIdentities(prev => prev.filter(identity => identity.topic_id !== topicId));
+      } else {
+        toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+      }
+    } catch (error) {
+      console.error('Failed to delete identity:', error);
+      toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+    }
+  };
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="mb-8">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center text-sm theme-text-secondary hover:theme-text-primary mb-4 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            {t('settings.backToDashboard') || 'Back to Dashboard'}
+          </button>
           <h1 className="text-3xl font-bold theme-text-primary mb-2">{t('settings.title')}</h1>
           <p className="theme-text-secondary">{t('settings.subtitle')}</p>
         </div>
@@ -219,12 +259,73 @@ const Settings: React.FC = () => {
                     {t('settings.editProfile')}
                   </button>
                   <button
-                    onClick={() => router.push('/settings/anonymous-identities')}
+                    onClick={() => setShowBlockedUsersModal(true)}
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
+                  >
+                    {t('settings.blockedUsers') || 'Blocked Users'}
+                  </button>
+                  <button
+                    onClick={() => setShowHiddenItemsModal(true)}
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
+                  >
+                    {t('settings.hiddenItems') || 'Hidden Items'}
+                  </button>
+                  <button
+                    onClick={() => setShowFollowedPublicationsModal(true)}
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
+                  >
+                    {t('settings.followedPublications') || 'Followed Publications'}
+                  </button>
+                  <button
+                    onClick={() => setShowFollowedChatroomsModal(true)}
                     className="w-full sm:w-auto px-4 py-2 btn btn-ghost"
                   >
-                    {t('settings.manageAnonymousIdentities')}
+                    {t('settings.followedChatrooms') || 'Followed Chatrooms'}
                   </button>
                 </div>
+              </div>
+
+              {/* Anonymous Identities Section */}
+              <div className="pt-4 border-t theme-border">
+                <h3 className="text-lg font-medium theme-text-primary mb-4">{t('settings.anonymousIdentities') || 'Anonymous Identities'}</h3>
+                {loadingIdentities ? (
+                  <div className="flex items-center justify-center py-8">
+                    <LoadingSpinner size="sm" />
+                  </div>
+                ) : anonymousIdentities.length === 0 ? (
+                  <p className="text-sm theme-text-secondary mb-4">
+                    {t('settings.noAnonymousIdentities') || 'You have no anonymous identities.'}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {anonymousIdentities.map((identity) => (
+                      <div
+                        key={identity.topic_id}
+                        className="p-4 rounded-lg border theme-border theme-bg-tertiary"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium theme-text-primary mb-1">
+                              {identity.topic_title}
+                            </h4>
+                            <p className="text-xs theme-text-secondary mb-2">
+                              {t('settings.identityName') || 'Identity'}: {identity.identity_name}
+                            </p>
+                            <div className="flex items-center space-x-4 text-xs theme-text-muted">
+                              <span>{identity.message_count} {t('settings.messages') || 'messages'}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteIdentity(identity.topic_id)}
+                            className="px-3 py-1 text-xs btn btn-secondary ml-4"
+                          >
+                            {t('common.delete') || 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 border-t theme-border">
@@ -318,6 +419,48 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
+                      <h4 className="font-medium theme-text-primary">{t('settings.enableBrowserNotifications')}</h4>
+                      <p className="text-sm theme-text-secondary">{t('settings.enableBrowserNotificationsDesc')}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!preferences.browser_notifications_enabled) {
+                          // Check if browser supports notifications
+                          if (typeof window !== 'undefined' && 'Notification' in window) {
+                            const permission = Notification.permission;
+                            if (permission === 'default') {
+                              // Show permission dialog
+                              setShowNotificationDialog(true);
+                              return;
+                            } else if (permission === 'granted') {
+                              // Already granted, just enable
+                              handlePreferenceChange('browser_notifications_enabled', true);
+                            } else {
+                              // Permission denied, inform user
+                              toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
+                            }
+                          } else {
+                            toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
+                          }
+                        } else {
+                          // Disable browser notifications
+                          handlePreferenceChange('browser_notifications_enabled', false);
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
                       <h4 className="font-medium theme-text-primary">{t('settings.soundEffects')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.soundEffectsDesc')}</p>
                     </div>
@@ -356,18 +499,6 @@ const Settings: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-4 theme-bg-tertiary rounded-lg">
-                    <h4 className="font-medium theme-text-primary mb-2">{t('settings.anonymousPosting')}</h4>
-                    <p className="text-sm theme-text-secondary mb-3">
-                      {t('settings.anonymousPostingDesc')}
-                    </p>
-                    <button
-                      onClick={() => router.push('/settings/anonymous-identities')}
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {t('settings.viewAnonymousIdentities')}
-                    </button>
-                  </div>
 
                   <div className="p-4 theme-bg-tertiary rounded-lg">
                     <h4 className="font-medium theme-text-primary mb-2">{t('settings.dataPrivacy')}</h4>
@@ -376,38 +507,43 @@ const Settings: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Blocked Users */}
-                  <div className="p-4 theme-bg-tertiary rounded-lg">
-                    <h4 className="font-medium theme-text-primary mb-4">{t('blocking.blockedUsers')}</h4>
-                    {loadingBlocked ? (
-                      <LoadingSpinner size="sm" />
-                    ) : blockedUsers.length === 0 ? (
-                      <p className="text-sm theme-text-secondary">{t('blocking.noBlockedUsers')}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {blockedUsers.map(blockedUser => (
-                          <div
-                            key={blockedUser.id}
-                            className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                          >
-                            <span className="font-medium theme-text-primary">{blockedUser.username}</span>
-                            <button
-                              onClick={() => handleUnblockUser(blockedUser.id)}
-                              className="px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                            >
-                              {t('blocking.unblockUser')}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <BlockedUsersModal
+        isOpen={showBlockedUsersModal}
+        onClose={() => setShowBlockedUsersModal(false)}
+      />
+      <HiddenItemsModal
+        isOpen={showHiddenItemsModal}
+        onClose={() => setShowHiddenItemsModal(false)}
+      />
+      <FollowedPublicationsModal
+        isOpen={showFollowedPublicationsModal}
+        onClose={() => setShowFollowedPublicationsModal(false)}
+      />
+      <FollowedChatroomsModal
+        isOpen={showFollowedChatroomsModal}
+        onClose={() => setShowFollowedChatroomsModal(false)}
+      />
+      {showNotificationDialog && (
+        <NotificationPermissionDialog
+          onClose={() => {
+            setShowNotificationDialog(false);
+            // Check if permission was granted
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              if (Notification.permission === 'granted') {
+                handlePreferenceChange('browser_notifications_enabled', true);
+              }
+            }
+          }}
+        />
+      )}
     </Layout>
   );
 };

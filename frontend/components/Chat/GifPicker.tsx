@@ -23,6 +23,7 @@ interface Category {
 interface GifPickerProps {
   onSelectGif: (gifUrl: string) => void;
   onClose: () => void;
+  position?: 'left' | 'right'; // Position relative to parent container
 }
 
 // Common GIF tags for autocomplete
@@ -34,7 +35,7 @@ const COMMON_TAGS = [
   'food', 'drink', 'coffee', 'pizza', 'cat', 'dog', 'animal', 'nature'
 ];
 
-const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose }) => {
+const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose, position = 'right' }) => {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [gifs, setGifs] = useState<Gif[]>([]);
@@ -52,7 +53,6 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose }) => {
   const autocompleteHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [position, setPosition] = useState<'left' | 'right'>('right');
 
   // Load trending GIFs and categories on mount
   useEffect(() => {
@@ -289,36 +289,17 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose }) => {
   const displayGifs = showCategoryGifs ? categoryGifs : (showSearchResults ? gifs : trendingGifs);
   const isLoading = loading || (showSearchResults ? false : loadingTrending);
 
-  // Calculate position to avoid going off-screen
-  useEffect(() => {
-    const checkPosition = () => {
-      if (!containerRef.current) return;
-      
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      
-      // If positioned to the right and would go off-screen, switch to left
-      if (rect.right > viewportWidth - 10) {
-        setPosition('left');
-      } else if (rect.left < 10) {
-        setPosition('right');
-      }
-    };
-    
-    // Check position after a short delay to allow rendering
-    setTimeout(checkPosition, 0);
-  }, []);
-
   return (
     <div
       ref={containerRef}
-      className={`absolute bottom-full mb-2 w-96 theme-bg-secondary border theme-border rounded-lg shadow-xl z-50 flex flex-col ${
+      className={`absolute bottom-full mb-2 w-96 theme-bg-secondary border theme-border rounded-lg shadow-xl flex flex-col ${
         position === 'right' ? 'right-0' : 'left-0'
       }`}
-      style={{ 
+      style={{
         maxWidth: 'min(384px, calc(100vw - 2rem))',
         maxHeight: 'min(500px, calc(100vh - 10rem))',
         height: '500px',
+        zIndex: 9999,
       }}
       onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
     >
@@ -345,6 +326,8 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose }) => {
               onClose();
             }}
             className="p-2 theme-bg-tertiary rounded-lg hover:theme-bg-primary transition-colors"
+            title={t('common.close')}
+            aria-label={t('common.close')}
           >
             <svg className="w-4 h-4 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -353,7 +336,7 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelectGif, onClose }) => {
           
           {/* Autocomplete dropdown */}
           {showAutocomplete && autocompleteSuggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-10 mt-1 theme-bg-secondary border theme-border rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto">
+            <div className="absolute top-full left-0 right-10 mt-1 theme-bg-secondary border theme-border rounded-lg shadow-lg max-h-40 overflow-y-auto" style={{ zIndex: 10000 }}>
               {autocompleteSuggestions.map((tag, index) => (
                 <button
                   key={index}

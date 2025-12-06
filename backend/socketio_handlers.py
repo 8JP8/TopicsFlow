@@ -17,63 +17,116 @@ logger = logging.getLogger(__name__)
 # Store connected users (in production, use Redis)
 connected_users = {}
 user_rooms = {}  # Track which rooms each user is in
+# Store last disconnect timestamps for offline users
+user_last_disconnect = {}  # {user_id: datetime}
 
 
 def register_socketio_handlers(socketio):
     """Register all SocketIO event handlers."""
 
+    @socketio.on_error_default
+    def default_error_handler(e):
+        """Default error handler for SocketIO events."""
+        logger.error(f"SocketIO error: {str(e)}", exc_info=True)
+        return False
+
     @socketio.on('connect')
     def handle_connect():
         """Handle client connection."""
         try:
+            # Get session ID first (may not be available in all contexts)
+            try:
+                sid = request.sid
+            except (RuntimeError, AttributeError) as sid_error:
+                logger.error(f"Could not get session ID during connect: {sid_error}")
+                return False
+
             # Verify session
-            auth_service = AuthService(current_app.db)
-            if not auth_service.is_authenticated():
-                logger.warning(f"Unauthenticated connection attempt from {request.sid}")
-                # Don't disconnect here - let the connection fail naturally
-                # Returning without emitting will cause the connection to be rejected
-                return
+            try:
+                auth_service = AuthService(current_app.db)
+                if not auth_service.is_authenticated():
+                    logger.warning(f"Unauthenticated connection attempt from {sid}")
+                    return False
 
-            current_user_result = auth_service.get_current_user()
-            if not current_user_result['success']:
-                logger.warning(f"Invalid session for connection {request.sid}")
-                # Don't disconnect here - let the connection fail naturally
-                return
+                current_user_result = auth_service.get_current_user()
+                if not current_user_result or not current_user_result.get('success'):
+                    logger.warning(f"Invalid session for connection {sid}")
+                    return False
 
-            user = current_user_result['user']
-            user_id = user['id']
+                user = current_user_result.get('user')
+                if not user:
+                    logger.warning(f"No user data for connection {sid}")
+                    return False
+
+                user_id = user.get('id')
+                if not user_id:
+                    logger.warning(f"No user ID for connection {sid}")
+                    return False
+
+                username = user.get('username', 'Unknown')
+            except Exception as auth_error:
+                logger.error(f"Authentication error during connect: {auth_error}", exc_info=True)
+                return False
 
             # Store user connection
-            connected_users[user_id] = {
-                'sid': request.sid,
-                'username': user['username'],
-                'connected_at': datetime.utcnow(),
-                'is_online': True
-            }
+            try:
+                connected_users[user_id] = {
+                    'sid': sid,
+                    'username': username,
+                    'connected_at': datetime.utcnow(),
+                    'is_online': True
+                }
+                # Remove from disconnect tracking when user reconnects
+                if user_id in user_last_disconnect:
+                    del user_last_disconnect[user_id]
+            except Exception as store_error:
+                logger.error(f"Error storing user connection: {store_error}", exc_info=True)
+                return False
             
             # Join user's personal room for private messages
-            user_room = f"user_{user_id}"
-            join_room(user_room)
-            logger.info(f"User {user['username']} ({user_id}) joined their personal room: {user_room}")
+            try:
+                user_room = f"user_{user_id}"
+                join_room(user_room)
+                logger.info(f"User {username} ({user_id}) joined their personal room: {user_room}")
+            except Exception as room_error:
+                logger.error(f"Error joining user room: {room_error}", exc_info=True)
+                # Don't fail connection if room join fails, but log it
 
-            logger.info(f"User {user['username']} ({user_id}) connected")
+            logger.info(f"User {username} ({user_id}) connected successfully")
 
-            emit('connected', {
-                'user_id': user_id,
-                'username': user['username'],
-                'message': 'Successfully connected to chat server'
-            })
+            # Emit events - wrap each in try/except to prevent one failure from breaking others
+            try:
+                emit('connected', {
+                    'user_id': user_id,
+                    'username': username,
+                    'message': 'Successfully connected to chat server'
+                })
+            except Exception as emit_error:
+                logger.error(f"Error emitting connected event: {emit_error}", exc_info=True)
 
             # Broadcast user online status to friends (if implemented)
-            emit('user_online', {
-                'user_id': user_id,
-                'username': user['username']
-            }, broadcast=True, include_self=False)
+            try:
+                emit('user_online', {
+                    'user_id': user_id,
+                    'username': username
+                }, broadcast=True, include_self=False)
+            except Exception as emit_error:
+                logger.error(f"Error emitting user_online event: {emit_error}", exc_info=True)
+
+            # Broadcast updated online users count to all
+            try:
+                online_count = get_online_users_count()
+                emit('online_count_update', {'count': online_count}, broadcast=True)
+            except Exception as emit_error:
+                logger.error(f"Error emitting online_count_update event: {emit_error}", exc_info=True)
+
+            # Return True to accept the connection
+            return True
 
         except Exception as e:
-            logger.error(f"Connection error: {str(e)}", exc_info=True)
-            # Don't try to disconnect on error - just log it
-            # The connection will fail naturally
+            logger.error(f"Unexpected connection error: {str(e)}", exc_info=True)
+            # Return False to properly reject the connection on error
+            return False
 
     @socketio.on('disconnect')
     def handle_disconnect():
@@ -98,6 +151,21 @@ def register_socketio_handlers(socketio):
                     break
 
             if user_id:
+                # Store disconnect timestamp in database before removing from memory
+                try:
+                    from models.user import User
+                    user_model = User(current_app.db)
+                    user_model.update_last_online(user_id)
+                    # Also keep in memory for quick access
+                    user_last_disconnect[user_id] = datetime.utcnow()
+                except Exception as db_error:
+                    logger.warning(f"Failed to update last_online for user {user_id}: {db_error}")
+                    # Still try to store in memory as fallback
+                    try:
+                        user_last_disconnect[user_id] = datetime.utcnow()
+                    except Exception:
+                        pass
+                
                 # Remove from connected users
                 try:
                     if user_id in connected_users:
@@ -135,6 +203,10 @@ def register_socketio_handlers(socketio):
                         'user_id': user_id,
                         'username': username
                     }, broadcast=True, include_self=False, skip_sid=sid)
+
+                    # Broadcast updated online users count to all
+                    online_count = get_online_users_count()
+                    emit('online_count_update', {'count': online_count}, broadcast=True, skip_sid=sid)
                 except (RuntimeError, AttributeError):
                     # Server might be shutting down - this is okay
                     logger.debug("Could not broadcast user_offline - server may be shutting down")
@@ -542,16 +614,18 @@ def register_socketio_handlers(socketio):
             elif not isinstance(created_at_str, str):
                 created_at_str = str(created_at_str)
             
+            # Don't expose real user_id when anonymous
+            is_anonymous = bool(anonymous_name)
             broadcast_message = {
                 'id': str(new_message.get('id') or new_message.get('_id', '')),
                 'topic_id': str(new_message.get('topic_id', '')),
-                'user_id': str(new_message.get('user_id', '')),
+                'user_id': '' if is_anonymous else str(new_message.get('user_id', '')),  # Hide user_id for anonymous
                 'content': new_message.get('content', ''),
                 'message_type': new_message.get('message_type', 'text'),
                 'gif_url': new_message.get('gif_url'),
                 'created_at': created_at_str,
                 'display_name': anonymous_name if anonymous_name else user.get('username', 'Unknown'),
-                'is_anonymous': bool(anonymous_name),
+                'is_anonymous': is_anonymous,
                 'can_delete': new_message.get('can_delete', False)
             }
 
@@ -761,6 +835,63 @@ def register_socketio_handlers(socketio):
             except Exception as e:
                 logger.error(f"[PRIVATE_MSG] Failed to send to sender: {str(e)}")
 
+            # Create notification for recipient (if not muted and not self-message)
+            if not is_self_message:
+                try:
+                    from models.notification_settings import NotificationSettings
+                    from models.notification import Notification
+                    
+                    notification_settings = NotificationSettings(current_app.db)
+                    notification_model = Notification(current_app.db)
+                    
+                    # Check if private messages from this user are muted for the recipient
+                    if not notification_settings.is_private_message_muted(to_user_id, user_id):
+                        # Create preview of message
+                        preview = content[:50] + ('...' if len(content) > 50 else '')
+                        if message_type == 'gif' and gif_url:
+                            preview = '[GIF]'
+                        
+                        # Create notification
+                        notification_id = notification_model.create_notification(
+                            user_id=to_user_id,
+                            notification_type='message',
+                            title='New message',
+                            message=f'New message from {user["username"]}',
+                            data={
+                                'from_user_id': user_id,
+                                'from_username': user['username'],
+                                'message_id': message_id,
+                                'preview': preview
+                            },
+                            sender_id=user_id,
+                            context_id=to_user_id,
+                            context_type='private_message'
+                        )
+                        
+                        # Emit real-time notification via socket
+                        if notification_id:
+                            try:
+                                receiver_room = f"user_{to_user_id}"
+                                socketio.emit('new_notification', {
+                                    'id': notification_id,
+                                    'type': 'message',
+                                    'title': 'New message',
+                                    'message': f'New message from {user["username"]}',
+                                    'data': {
+                                        'from_user_id': user_id,
+                                        'from_username': user['username'],
+                                        'message_id': message_id,
+                                        'preview': preview
+                                    },
+                                    'sender_username': user['username'],
+                                    'timestamp': created_at
+                                }, room=receiver_room)
+                                logger.info(f"[PRIVATE_MSG] Notification created and emitted for user {to_user_id}")
+                            except Exception as e:
+                                logger.warning(f"[PRIVATE_MSG] Failed to emit notification socket event: {str(e)}")
+                except Exception as e:
+                    logger.warning(f"[PRIVATE_MSG] Failed to create notification: {str(e)}")
+
             # Handle self-message: emit as received message too
             if is_self_message:
                 logger.info(f"[PRIVATE_MSG] Self-message detected, emitting as received message")
@@ -893,61 +1024,60 @@ def register_socketio_handlers(socketio):
 
     # ========== NEW HANDLERS FOR THEMES, POSTS, COMMENTS, CHAT ROOMS ==========
     
-    @socketio.on('join_theme')
-    def handle_join_theme(data):
-        """Handle user joining a theme room."""
+    @socketio.on('join_topic')
+    def handle_join_topic(data):
+        """Handle user joining a topic room."""
         try:
-            theme_id = data.get('theme_id')
-            
-            if not theme_id:
-                emit('error', {'message': 'Theme ID is required'})
+            topic_id = data.get('topic_id')
+
+            if not topic_id:
+                emit('error', {'message': 'Topic ID is required'})
                 return
-            
-            theme_id = str(theme_id)
-            
+
+            topic_id = str(topic_id)
+
             # Verify user is authenticated
             auth_service = AuthService(current_app.db)
             current_user_result = auth_service.get_current_user()
             if not current_user_result['success']:
                 emit('error', {'message': 'Authentication required'})
                 return
-            
+
             user = current_user_result['user']
             user_id = user['id']
-            
-            # Verify theme exists
-            from models.theme import Theme
-            theme_model = Theme(current_app.db)
-            theme = theme_model.get_theme_by_id(theme_id)
-            
-            if not theme:
-                emit('error', {'message': 'Theme not found'})
+
+            # Verify topic exists
+            topic_model = Topic(current_app.db)
+            topic = topic_model.get_topic_by_id(topic_id)
+
+            if not topic:
+                emit('error', {'message': 'Topic not found'})
                 return
-            
+
             # Check if user is banned
-            if theme_model.is_user_banned_from_theme(theme_id, user_id):
-                emit('error', {'message': 'You are banned from this theme'})
+            if topic_model.is_user_banned_from_topic(topic_id, user_id):
+                emit('error', {'message': 'You are banned from this topic'})
                 return
-            
+
             # Join room
-            room_name = f"theme_{theme_id}"
+            room_name = f"topic_{topic_id}"
             join_room(room_name)
-            
+
             # Track user's rooms
             if user_id not in user_rooms:
                 user_rooms[user_id] = set()
-            user_rooms[user_id].add(f"theme_{theme_id}")
-            
-            emit('theme_joined', {
-                'theme_id': theme_id,
-                'theme_title': theme['title']
+            user_rooms[user_id].add(f"topic_{topic_id}")
+
+            emit('topic_joined', {
+                'topic_id': topic_id,
+                'topic_title': topic['title']
             })
-            
-            logger.info(f"User {user['username']} joined theme {theme_id}")
-            
+
+            logger.info(f"User {user['username']} joined topic {topic_id}")
+
         except Exception as e:
-            logger.error(f"Join theme error: {str(e)}", exc_info=True)
-            emit('error', {'message': 'Failed to join theme'})
+            logger.error(f"Join topic error: {str(e)}", exc_info=True)
+            emit('error', {'message': 'Failed to join topic'})
     
     @socketio.on('join_chat_room')
     def handle_join_chat_room(data):
@@ -1084,3 +1214,26 @@ def cleanup_disconnected_users():
         del connected_users[user_id]
         if user_id in user_rooms:
             del user_rooms[user_id]
+
+
+def emit_admin_notification(socketio_instance, notification_type, data):
+    """Emit notification to all connected admins"""
+    try:
+        from models.user import User
+        from flask import current_app
+        
+        # Get all admin users
+        admins = list(current_app.db.users.find({'is_admin': True}, {'_id': 1}))
+        
+        # Emit to each admin's personal room
+        for admin in admins:
+            admin_id = str(admin['_id'])
+            room_name = f"user_{admin_id}"
+            socketio_instance.emit('admin_notification', {
+                'type': notification_type,
+                'data': data,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=room_name)
+            logger.info(f"Emitted admin notification to {room_name}: {notification_type}")
+    except Exception as e:
+        logger.error(f"Failed to emit admin notification: {str(e)}")

@@ -13,7 +13,7 @@ const RegisterPage: React.FC = () => {
       <Head>
         <title>{`${t('registration.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('registration.metaDescription')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       {/* Fixed Header with Controls */}
@@ -21,7 +21,7 @@ const RegisterPage: React.FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <img
-              src="https://i.postimg.cc/52jHqBD9/chat.png"
+              src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"
               className="h-10 w-10"
             />

@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
-  const [totpCode, setTotpCode] = useState('');
+  const [_totpCode, setTotpCode] = useState('');
   const [backupCode, setBackupCode] = useState('');
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [useBackupCode, setUseBackupCode] = useState(false);
@@ -112,7 +112,7 @@ const LoginPage: React.FC = () => {
       const publicKeyOptions = {
         ...options,
         challenge: base64urlToArrayBuffer(options.challenge),
-        allowCredentials: options.allowCredentials?.map((cred: any) => ({
+        allowCredentials: options.allowCredentials?.map((cred: { id: string }) => ({
           ...cred,
           id: base64urlToArrayBuffer(cred.id),
         })) || [],
@@ -162,9 +162,9 @@ const LoginPage: React.FC = () => {
       } else {
         toast.error(verifyResult.error || t('errors.passkeyFailed'));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Passkey login error:', error);
-      if (error.name === 'NotAllowedError') {
+      if (error instanceof Error && error.name === 'NotAllowedError') {
         toast.error(t('errors.passkeyUserCancelled'));
       } else {
         toast.error(t('errors.passkeyFailed'));
@@ -202,7 +202,7 @@ const LoginPage: React.FC = () => {
       <Head>
         <title>{`${t('login.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('login.subtitle')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4">
@@ -211,7 +211,7 @@ const LoginPage: React.FC = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <img
-                src="https://i.postimg.cc/52jHqBD9/chat.png"
+                src="https://i.postimg.cc/FY5shL9w/chat.png"
                 alt="TopicsFlow Logo"
                 className="h-10 w-10"
               />

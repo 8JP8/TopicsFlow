@@ -1,0 +1,1517 @@
+{
+	"info": {
+		"_postman_id": "topicsflow-complete-api",
+		"name": "TopicsFlow API - Complete Collection",
+		"description": "Complete API collection for TopicsFlow with all endpoints: Authentication, Topics, Posts, Comments, Messages, Chat Rooms, Users, Friends, Reports, Tickets, Admin, GIFs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "topic_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "post_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "comment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "message_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "chat_room_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "report_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ticket_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "1.1 Register (Password)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"phone\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new user with password and TOTP setup."
+					}
+				},
+				{
+					"name": "1.2 Register Passwordless",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.user_id) {",
+									"        pm.collectionVariables.set('user_id', jsonData.user_id);",
+									"        console.log('User ID saved:', jsonData.user_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser123\",\n  \"email\": \"testuser123@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register-passwordless",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register-passwordless"]
+						},
+						"description": "Register a new user without password. Returns user_id and sends verification code to email."
+					}
+				},
+				{
+					"name": "1.3 Verify Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/verify-email",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "verify-email"]
+						},
+						"description": "Verify email with 6-digit code sent to email. Returns TOTP QR data for authenticator app setup."
+					}
+				},
+				{
+					"name": "1.4 Complete TOTP Setup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testuser123@example.com\",\n  \"totp_code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/complete-totp-setup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "complete-totp-setup"]
+						},
+						"description": "Complete TOTP setup by verifying a 6-digit code from authenticator app. Returns backup codes."
+					}
+				},
+				{
+					"name": "1.5 Login (Password)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"SecurePass123!\",\n  \"totp_code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with username, password, and TOTP code."
+					}
+				},
+				{
+					"name": "1.6 Login Passwordless (TOTP)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.user) {",
+									"        pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"        pm.collectionVariables.set('username', jsonData.user.username);",
+									"        console.log('Login successful:', jsonData.user.username);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"testuser123\",\n  \"totp_code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login-passwordless",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login-passwordless"]
+						},
+						"description": "Login with username/email and TOTP code from authenticator app. No password required."
+					}
+				},
+				{
+					"name": "1.7 Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Get currently authenticated user information."
+					}
+				},
+				{
+					"name": "1.8 Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "Logout user and clear session."
+					}
+				},
+				{
+					"name": "1.9 Passkey Register Options",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/passkey/register-options",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "passkey", "register-options"]
+						},
+						"description": "Generate passkey registration options for WebAuthn."
+					}
+				},
+				{
+					"name": "1.10 Passkey Auth Options",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"testuser123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/passkey/auth-options",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "passkey", "auth-options"]
+						},
+						"description": "Generate passkey authentication options for login."
+					}
+				}
+			],
+			"description": "Authentication endpoints for password and passwordless login with TOTP and WebAuthn"
+		},
+		{
+			"name": "2. Topics",
+			"item": [
+				{
+					"name": "2.1 Get All Topics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('topic_id', jsonData.data[0]._id);",
+									"        console.log('First topic ID saved:', jsonData.data[0]._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics?limit=20&offset=0&sort_by=last_activity",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "sort_by",
+									"value": "last_activity"
+								}
+							]
+						},
+						"description": "Get list of public topics with filtering and pagination."
+					}
+				},
+				{
+					"name": "2.2 Create Topic",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data._id) {",
+									"        pm.collectionVariables.set('topic_id', jsonData.data._id);",
+									"        console.log('Topic created:', jsonData.data.title);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Test Topic\",\n  \"description\": \"This is a test topic for API testing\",\n  \"tags\": [\"test\", \"api\"],\n  \"allow_anonymous\": true,\n  \"require_approval\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/topics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics"]
+						},
+						"description": "Create a new topic. Requires authentication."
+					}
+				},
+				{
+					"name": "2.3 Get Topic by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "{{topic_id}}"]
+						},
+						"description": "Get details of a specific topic."
+					}
+				},
+				{
+					"name": "2.4 Update Topic",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Topic Title\",\n  \"description\": \"Updated description\",\n  \"tags\": [\"updated\", \"test\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "{{topic_id}}"]
+						},
+						"description": "Update topic details (only owner can update)."
+					}
+				},
+				{
+					"name": "2.5 Join Topic",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics/{{topic_id}}/join",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "{{topic_id}}", "join"]
+						},
+						"description": "Join a topic. Requires authentication."
+					}
+				},
+				{
+					"name": "2.6 Leave Topic",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics/{{topic_id}}/leave",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "{{topic_id}}", "leave"]
+						},
+						"description": "Leave a topic. Requires authentication."
+					}
+				},
+				{
+					"name": "2.7 Get My Topics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics/my",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "my"]
+						},
+						"description": "Get topics that the current user is a member of."
+					}
+				},
+				{
+					"name": "2.8 Delete Topic",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/topics/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "topics", "{{topic_id}}"]
+						},
+						"description": "Delete a topic (only owner can delete)."
+					}
+				}
+			],
+			"description": "Topic management endpoints"
+		},
+		{
+			"name": "3. Posts",
+			"item": [
+				{
+					"name": "3.1 Get Topic Posts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('post_id', jsonData.data[0]._id);",
+									"        console.log('First post ID saved:', jsonData.data[0]._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/topics/{{topic_id}}/posts?sort_by=new&limit=50&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "topics", "{{topic_id}}", "posts"],
+							"query": [
+								{
+									"key": "sort_by",
+									"value": "new"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get posts for a topic with sorting and pagination."
+					}
+				},
+				{
+					"name": "3.2 Create Post",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data._id) {",
+									"        pm.collectionVariables.set('post_id', jsonData.data._id);",
+									"        console.log('Post created:', jsonData.data._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Test Post\",\n  \"content\": \"This is a test post\",\n  \"use_anonymous\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/posts/topics/{{topic_id}}/posts",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "topics", "{{topic_id}}", "posts"]
+						},
+						"description": "Create a new post in a topic. Requires authentication."
+					}
+				},
+				{
+					"name": "3.3 Get Post by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/{{post_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "{{post_id}}"]
+						},
+						"description": "Get a specific post by ID."
+					}
+				},
+				{
+					"name": "3.4 Upvote Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/{{post_id}}/upvote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "{{post_id}}", "upvote"]
+						},
+						"description": "Upvote a post. Requires authentication."
+					}
+				},
+				{
+					"name": "3.5 Downvote Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/{{post_id}}/downvote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "{{post_id}}", "downvote"]
+						},
+						"description": "Downvote a post. Requires authentication."
+					}
+				},
+				{
+					"name": "3.6 Delete Post",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/{{post_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "{{post_id}}"]
+						},
+						"description": "Delete a post (moderator, owner, or post author)."
+					}
+				},
+				{
+					"name": "3.7 Report Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Inappropriate content\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/posts/{{post_id}}/report",
+							"host": ["{{base_url}}"],
+							"path": ["api", "posts", "{{post_id}}", "report"]
+						},
+						"description": "Report a post for moderation. Requires authentication."
+					}
+				}
+			],
+			"description": "Post management endpoints"
+		},
+		{
+			"name": "4. Comments",
+			"item": [
+				{
+					"name": "4.1 Get Post Comments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('comment_id', jsonData.data[0]._id);",
+									"        console.log('First comment ID saved:', jsonData.data[0]._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/comments/posts/{{post_id}}/comments?sort_by=top&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "posts", "{{post_id}}", "comments"],
+							"query": [
+								{
+									"key": "sort_by",
+									"value": "top"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						},
+						"description": "Get all comments for a post, organized as a tree."
+					}
+				},
+				{
+					"name": "4.2 Create Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data._id) {",
+									"        pm.collectionVariables.set('comment_id', jsonData.data._id);",
+									"        console.log('Comment created:', jsonData.data._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"This is a test comment\",\n  \"use_anonymous\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/comments/posts/{{post_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "posts", "{{post_id}}", "comments"]
+						},
+						"description": "Create a new comment on a post. Requires authentication."
+					}
+				},
+				{
+					"name": "4.3 Reply to Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"This is a reply to a comment\",\n  \"use_anonymous\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}/reply",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}", "reply"]
+						},
+						"description": "Reply to a comment. Requires authentication."
+					}
+				},
+				{
+					"name": "4.4 Upvote Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}/upvote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}", "upvote"]
+						},
+						"description": "Upvote a comment. Requires authentication."
+					}
+				},
+				{
+					"name": "4.5 Downvote Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}/downvote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}", "downvote"]
+						},
+						"description": "Downvote a comment. Requires authentication."
+					}
+				},
+				{
+					"name": "4.6 Delete Comment",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}"]
+						},
+						"description": "Delete a comment (moderator, owner, or comment author)."
+					}
+				},
+				{
+					"name": "4.7 Report Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Inappropriate content\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}/report",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}", "report"]
+						},
+						"description": "Report a comment for moderation. Requires authentication."
+					}
+				}
+			],
+			"description": "Comment management endpoints"
+		},
+		{
+			"name": "5. Chat Rooms",
+			"item": [
+				{
+					"name": "5.1 Get Topic Chat Rooms",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('chat_room_id', jsonData.data[0]._id);",
+									"        console.log('First chat room ID saved:', jsonData.data[0]._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/topics/{{topic_id}}/conversations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "topics", "{{topic_id}}", "conversations"]
+						},
+						"description": "Get all chat rooms (conversations) for a topic."
+					}
+				},
+				{
+					"name": "5.2 Create Chat Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data._id) {",
+									"        pm.collectionVariables.set('chat_room_id', jsonData.data._id);",
+									"        console.log('Chat room created:', jsonData.data.name);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Chat Room\",\n  \"description\": \"This is a test chat room\",\n  \"is_public\": true,\n  \"tags\": [\"test\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/topics/{{topic_id}}/conversations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "topics", "{{topic_id}}", "conversations"]
+						},
+						"description": "Create a new chat room in a topic. Requires authentication."
+					}
+				},
+				{
+					"name": "5.3 Get Chat Room Messages",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/messages?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "{{chat_room_id}}", "messages"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get messages for a chat room with pagination."
+					}
+				},
+				{
+					"name": "5.4 Create Chat Room Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hello, this is a test message\",\n  \"message_type\": \"text\",\n  \"use_anonymous\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/messages",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "{{chat_room_id}}", "messages"]
+						},
+						"description": "Create a new message in a chat room. Requires authentication."
+					}
+				},
+				{
+					"name": "5.5 Join Chat Room",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/join",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "{{chat_room_id}}", "join"]
+						},
+						"description": "Join a chat room. Requires authentication."
+					}
+				},
+				{
+					"name": "5.6 Leave Chat Room",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/leave",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat-rooms", "{{chat_room_id}}", "leave"]
+						},
+						"description": "Leave a chat room. Requires authentication."
+					}
+				}
+			],
+			"description": "Chat room management endpoints"
+		},
+		{
+			"name": "6. Messages (Topic)",
+			"item": [
+				{
+					"name": "6.1 Get Topic Messages",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('message_id', jsonData.data[0]._id);",
+									"        console.log('First message ID saved:', jsonData.data[0]._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messages/topic/{{topic_id}}?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "topic", "{{topic_id}}"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get messages for a topic with pagination."
+					}
+				},
+				{
+					"name": "6.2 Create Topic Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"This is a test message from Postman\",\n  \"message_type\": \"text\",\n  \"use_anonymous\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messages/topic/{{topic_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "topic", "{{topic_id}}"]
+						},
+						"description": "Create a new message in a topic. Requires authentication."
+					}
+				},
+				{
+					"name": "6.3 Delete Message",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messages/{{message_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "{{message_id}}"]
+						},
+						"description": "Delete a message (moderator, owner, or message author)."
+					}
+				},
+				{
+					"name": "6.4 Report Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Inappropriate content\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messages/{{message_id}}/report",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "{{message_id}}", "report"]
+						},
+						"description": "Report a message for moderation. Requires authentication."
+					}
+				}
+			],
+			"description": "Topic message management endpoints"
+		},
+		{
+			"name": "7. Private Messages",
+			"item": [
+				{
+					"name": "7.1 Send Private Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to_user_id\": \"{{user_id}}\",\n  \"content\": \"Hello, this is a private message\",\n  \"message_type\": \"text\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messages/private",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "private"]
+						},
+						"description": "Send a private message to another user. Requires authentication."
+					}
+				},
+				{
+					"name": "7.2 Get Private Messages",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messages/private?other_user_id={{user_id}}&limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "private"],
+							"query": [
+								{
+									"key": "other_user_id",
+									"value": "{{user_id}}"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get private message conversation with another user. Requires authentication."
+					}
+				},
+				{
+					"name": "7.3 Get Private Conversations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messages/private/conversations?limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "messages", "private", "conversations"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get all private message conversations for current user. Requires authentication."
+					}
+				}
+			],
+			"description": "Private messaging endpoints"
+		},
+		{
+			"name": "8. Users",
+			"item": [
+				{
+					"name": "8.1 Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "profile"]
+						},
+						"description": "Get current user's profile. Requires authentication."
+					}
+				},
+				{
+					"name": "8.2 Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"newusername\",\n  \"profile_picture\": \"https://example.com/pic.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "profile"]
+						},
+						"description": "Update current user's profile. Requires authentication."
+					}
+				},
+				{
+					"name": "8.3 Search Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/search?q=test&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "test"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Search for users by username. Requires authentication."
+					}
+				},
+				{
+					"name": "8.4 Block User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}/block",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}", "block"]
+						},
+						"description": "Block a user. Requires authentication."
+					}
+				},
+				{
+					"name": "8.5 Unblock User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}/unblock",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}", "unblock"]
+						},
+						"description": "Unblock a user. Requires authentication."
+					}
+				}
+			],
+			"description": "User management endpoints"
+		},
+		{
+			"name": "9. Friends",
+			"item": [
+				{
+					"name": "9.1 Send Friend Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to_user_id\": \"{{user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/friends/requests/send",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friends", "requests", "send"]
+						},
+						"description": "Send a friend request to another user. Requires authentication."
+					}
+				},
+				{
+					"name": "9.2 Get Friends",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/friends",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friends"]
+						},
+						"description": "Get list of current user's friends. Requires authentication."
+					}
+				},
+				{
+					"name": "9.3 Get Pending Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/friends/requests/pending",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friends", "requests", "pending"]
+						},
+						"description": "Get pending friend requests received by current user. Requires authentication."
+					}
+				}
+			],
+			"description": "Friend management endpoints"
+		},
+		{
+			"name": "10. Reports",
+			"item": [
+				{
+					"name": "10.1 Create Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Inappropriate content\",\n  \"content_type\": \"message\",\n  \"content_id\": \"{{message_id}}\",\n  \"topic_id\": \"{{topic_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/reports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "reports"]
+						},
+						"description": "Create a new report for content or user. Requires authentication."
+					}
+				},
+				{
+					"name": "10.2 Get My Reports",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/reports/my",
+							"host": ["{{base_url}}"],
+							"path": ["api", "reports", "my"]
+						},
+						"description": "Get reports submitted by current user. Requires authentication."
+					}
+				}
+			],
+			"description": "Report management endpoints"
+		},
+		{
+			"name": "11. Tickets",
+			"item": [
+				{
+					"name": "11.1 Create Ticket",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data._id) {",
+									"        pm.collectionVariables.set('ticket_id', jsonData.data._id);",
+									"        console.log('Ticket created:', jsonData.data._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"bug\",\n  \"subject\": \"Test Ticket\",\n  \"description\": \"This is a test support ticket\",\n  \"priority\": \"medium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tickets",
+							"host": ["{{base_url}}"],
+							"path": ["api", "tickets"]
+						},
+						"description": "Create a new support ticket. Requires authentication."
+					}
+				},
+				{
+					"name": "11.2 Get My Tickets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tickets/my",
+							"host": ["{{base_url}}"],
+							"path": ["api", "tickets", "my"]
+						},
+						"description": "Get current user's support tickets. Requires authentication."
+					}
+				},
+				{
+					"name": "11.3 Get Ticket Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tickets/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "tickets", "categories"]
+						},
+						"description": "Get available ticket categories. Requires authentication."
+					}
+				}
+			],
+			"description": "Support ticket management endpoints"
+		},
+		{
+			"name": "12. Admin",
+			"item": [
+				{
+					"name": "12.1 Get All Reports (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/admin/reports?status=pending&limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "reports"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get all reports with filtering (admin only)."
+					}
+				},
+				{
+					"name": "12.2 Get Admin Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/admin/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "stats"]
+						},
+						"description": "Get admin dashboard statistics (admin only)."
+					}
+				},
+				{
+					"name": "12.3 Ban User (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Violation of community guidelines\",\n  \"duration_days\": 7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/{{user_id}}/ban",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users", "{{user_id}}", "ban"]
+						},
+						"description": "Ban a user (admin only)."
+					}
+				}
+			],
+			"description": "Admin management endpoints (admin only)"
+		},
+		{
+			"name": "13. GIFs",
+			"item": [
+				{
+					"name": "13.1 Search GIFs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/gifs/search?q=happy&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "gifs", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "happy"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Search for GIFs using Tenor API. Requires authentication."
+					}
+				},
+				{
+					"name": "13.2 Get Trending GIFs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/gifs/trending?limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "gifs", "trending"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get featured/trending GIFs from Tenor. Requires authentication."
+					}
+				}
+			],
+			"description": "GIF search endpoints (Tenor integration)"
+		},
+		{
+			"name": "14. Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the API is running."
+					}
+				}
+			],
+			"description": "Health check endpoint"
+		}
+	]
+}
+
+
