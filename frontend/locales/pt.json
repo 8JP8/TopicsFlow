@@ -1331,26 +1331,13 @@
   "tailwindcss": "Tailwindcss",
   "GIF": "Gif",
   "": {
-    "": ""
+    "": """securePrivateDesc": "Autenticação sem password, encriptação segura para mensagens privadas."
   },
-  "next": "Next",
-  "refresh_invitations": "Refresh invitations",
-  "a": "A",
-  "about": {
-    "about": {
-      "features": {
-        "realTimeChatDesc": "Mensagens instantâneas em salas baseadas em tópicos. Partilhe imagens, GIFs e ficheiros sem problemas.",
-        "anonymousMode": "Modo Anónimo",
-        "realTimeChat": "Chat em Tempo Real",
-        "securePrivate": "Seguro e Privado",
-        "anonymousModeDesc": "Participe em discussões sem revelar a sua identidade real. Perfis únicos por tópico.",
-        "securePrivateDesc": "Autenticação sem password, encriptação segura para mensagens privadas."
-      },
-      "title": "Sobre o TopicsFlow - O Futuro da Discussão",
-      "heroSubtitle": "Onde as conversas fluem naturalmente. Uma plataforma de comunidade em tempo real para discussões modernas.",
-      "metaDescription": "TopicsFlow é uma plataforma de discussão moderna estilo Reddit com salas de chat em tempo real.",
-      "allRightsReserved": "Todos os direitos reservados.",
-      "learnMore": "Saber Mais",
-      "goToDashboard": "Ir para o Dashboard"
-    }
-  }
+  "title": "Sobre o TopicsFlow - O Futuro da Discussão",
+  "heroSubtitle": "Onde as conversas fluem naturalmente. Uma plataforma de comunidade em tempo real para discussões modernas.",
+  "metaDescription": "TopicsFlow é uma plataforma de discussão moderna estilo Reddit com salas de chat em tempo real.",
+  "allRightsReserved": "Todos os direitos reservados.",
+  "learnMore": "Saber Mais",
+  "goToDashboard": "Ir para o Dashboard"
+}
+}
