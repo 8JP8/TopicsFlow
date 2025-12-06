@@ -66,6 +66,45 @@ const Settings: React.FC = () => {
 
   }, [user, authLoading, router, activeTab]);
 
+  // Load anonymous identities
+  useEffect(() => {
+    if (user && activeTab === 'account') {
+      loadAnonymousIdentities();
+    }
+  }, [user, activeTab]);
+
+  const loadAnonymousIdentities = async () => {
+    try {
+      setLoadingIdentities(true);
+      const response = await api.get(API_ENDPOINTS.USERS.ANONYMOUS_IDENTITIES);
+      if (response.data.success) {
+        setAnonymousIdentities(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load anonymous identities:', error);
+    } finally {
+      setLoadingIdentities(false);
+    }
+  };
+
+  const handleDeleteIdentity = async (topicId: string) => {
+    if (!confirm(t('anonymousIdentities.deleteConfirm') || 'Are you sure you want to delete this anonymous identity?')) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(API_ENDPOINTS.USERS.DELETE_ANONYMOUS_IDENTITY(topicId));
+      if (response.data.success) {
+        toast.success(t('anonymousIdentities.deleteSuccess') || 'Anonymous identity deleted');
+        setAnonymousIdentities(prev => prev.filter(identity => identity.topic_id !== topicId));
+      } else {
+        toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+      }
+    } catch (error) {
+      console.error('Failed to delete identity:', error);
+      toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+    }
+  };
 
   const handlePreferenceChange = async (key: keyof UserPreferences, value: any) => {
     const newPreferences = { ...preferences, [key]: value };
