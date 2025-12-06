@@ -728,8 +728,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newMessageFrom', { username }) || `New message from ${username}`;
           displayMessage = latest.data?.preview || latest.message || '';
         } else {
-          displayTitle = `${group.length} ${t('notifications.newMessagesFrom', { count: group.length, username }) || `new messages from ${username}`}`;
-          displayMessage = `${group.length} ${t('notifications.newMessagesFrom', { count: group.length, username }) || `new messages from ${username}`}`;
+          const messagesText = t('notifications.newMessagesFrom', { count: group.length, username }) || `new messages from ${username}`;
+          displayTitle = `${group.length} ${messagesText}`;
+          displayMessage = `${group.length} ${messagesText}`;
         }
       } else if (key.startsWith('chatroom-')) {
         // Chatroom messages: "4 new messages for 'SOME' chatroom"
@@ -738,8 +739,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newMessageInRoom', { roomName }) || `New message in "${roomName}"`;
           displayMessage = latest.message || '';
         } else {
-          displayTitle = `${group.length} ${t('notifications.newMessagesInRoom', { count: group.length, roomName }) || `new messages for "${roomName}"`}`;
-          displayMessage = `${group.length} ${t('notifications.newMessagesInRoom', { count: group.length, roomName }) || `new messages for "${roomName}"`}`;
+          const messagesText = t('notifications.newMessagesInRoom', { count: group.length, roomName }) || `new messages for "${roomName}"`;
+          displayTitle = `${group.length} ${messagesText}`;
+          displayMessage = `${group.length} ${messagesText}`;
         }
       } else if (key.startsWith('comment-')) {
         // Comments: "2 new comments on 'Hello' publication"
@@ -748,8 +750,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newCommentOnPost', { postTitle }) || `New comment on "${postTitle}"`;
           displayMessage = latest.message || '';
         } else {
-          displayTitle = `${group.length} ${t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || `new comments on "${postTitle}"`}`;
-          displayMessage = `${group.length} ${t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || `new comments on "${postTitle}"`}`;
+          const commentsText = t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || `new comments on "${postTitle}"`;
+          displayTitle = `${group.length} ${commentsText}`;
+          displayMessage = `${group.length} ${commentsText}`;
         }
       } else {
         displayMessage = latest.message;
