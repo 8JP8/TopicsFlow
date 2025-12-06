@@ -46,7 +46,13 @@
     "linkCopied": "Link copied to clipboard!",
     "uploading": "Uploading...",
     "saving": "Saving...",
-    "back": "Back"
+    "back": "Back",
+    "login": "Login",
+    "minutes": "Minutes",
+    "email": "Email",
+    "open": "Open",
+    "attachFile": "Attachfile",
+    "goBackHome": "[MISSING] Gobackhome"
   },
   "auth": {
     "login": "Login",
@@ -183,7 +189,10 @@
     "unblockFailed": "Failed to unblock user",
     "actionFailed": "Action failed",
     "userNotFound": "User not found",
-    "loadingFailed": "Failed to load user data"
+    "loadingFailed": "Failed to load user data",
+    "pageNotFound": "[MISSING] Pagenotfound",
+    "pageNotFoundDesc": "[MISSING] Pagenotfounddesc",
+    "whereAreWe": "[MISSING] Wherearewe"
   },
   "success": {
     "emailVerified": "Email verified successfully",
@@ -196,7 +205,9 @@
     "settingsSaved": "Settings saved successfully",
     "codesDownloaded": "Backup codes downloaded",
     "copiedToClipboard": "Copied to clipboard",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "userBlocked": "Userblocked",
+    "userUnblocked": "Userunblocked"
   },
   "home": {
     "title": "Welcome to TopicsFlow",
@@ -251,7 +262,8 @@
     "disabled": "Disabled",
     "profileUpdated": "Profile updated successfully",
     "usernameRequired": "Username is required",
-    "noChanges": "No changes to save"
+    "noChanges": "No changes to save",
+    "profilePictureDeleted": "Profilepicturedeleted"
   },
   "topics": {
     "title": "Topics",
@@ -292,7 +304,10 @@
     "anonymousName": "Anonymous Name",
     "enterAnonymousName": "Enter your anonymous name",
     "generateRandomName": "Generate Random Name",
-    "configureAnonymousMode": "Configure Anonymous Mode"
+    "configureAnonymousMode": "Configure Anonymous Mode",
+    "deletionRequested": "Deletionrequested",
+    "confirmDelete": "Confirmdelete",
+    "previousAnonymousName": "Previousanonymousname"
   },
   "chat": {
     "sendMessage": "Send a message...",
@@ -375,7 +390,11 @@
     "noMembers": "No members found",
     "failedToLoadMembers": "Failed to load members",
     "noUsersFound": "No users found",
-    "gif": "GIF"
+    "gif": "GIF",
+    "userAlreadyMember": "Useralreadymember",
+    "deletionRequested": "Deletionrequested",
+    "name": "Name",
+    "confirmDeleteChatroom": "Confirmdeletechatroom"
   },
   "gifPicker": {
     "searchPlaceholder": "Search GIFs...",
@@ -441,7 +460,22 @@
     "deleteForMe": "Delete for me",
     "removeForMe": "Remove for me",
     "messageRemoved": "Message removed for you",
-    "itemUnhidden": "Item unhidden"
+    "itemUnhidden": "Item unhidden",
+    "noAnonymousIdentities": "Noanonymousidentities",
+    "enableBrowserNotificationsDesc": "Enablebrowsernotificationsdesc",
+    "failedToLoadFollowedPosts": "Failedtoloadfollowedposts",
+    "noFollowedChatroomsDesc": "Nofollowedchatroomsdesc",
+    "noFollowedChatrooms": "Nofollowedchatrooms",
+    "identityName": "Identityname",
+    "anonymousIdentities": "Anonymousidentities",
+    "followPublicationsHint": "Followpublicationshint",
+    "followedSince": "Followedsince",
+    "messages": "Messages",
+    "followedPublications": "Followedpublications",
+    "followedChatrooms": "Followedchatrooms",
+    "backToDashboard": "Backtodashboard",
+    "enableBrowserNotifications": "Enablebrowsernotifications",
+    "noFollowedPublications": "Nofollowedpublications"
   },
   "anonymousIdentities": {
     "title": "Anonymous Identities",
@@ -516,7 +550,22 @@
     "failedToAccept": "Failed to accept invitation",
     "failedToDecline": "Failed to decline invitation",
     "accept": "Accept",
-    "decline": "Decline"
+    "decline": "Decline",
+    "deleteFailed": "Deletefailed",
+    "markAllRead": "Markallread",
+    "aPost": "Apost",
+    "loadMore": "Loadmore",
+    "allMarkedRead": "Allmarkedread",
+    "goToPost": "Gotopost",
+    "goToChatroom": "Gotochatroom",
+    "all": "All",
+    "deleted": "Deleted",
+    "goToMessages": "Gotomessages",
+    "loadFailed": "Loadfailed",
+    "delete": "Delete",
+    "unread": "Unread",
+    "general": "General",
+    "friendRequestReceived": "Friendrequestreceived"
   },
   "notificationDialog": {
     "title": "Enable Notifications",
@@ -594,7 +643,13 @@
     "minutesAgo": "minutes ago",
     "hoursAgo": "hours ago",
     "daysAgo": "days ago",
-    "attachment": "Attachment"
+    "attachment": "Attachment",
+    "failedToRejectFriendRequest": "Failedtorejectfriendrequest",
+    "failedToCancelFriendRequest": "Failedtocancelfriendrequest",
+    "failedToSendFriendRequest": "Failedtosendfriendrequest",
+    "failedToLoadFriendRequests": "Failedtoloadfriendrequests",
+    "noFriendRequestsDesc": "Nofriendrequestsdesc",
+    "failedToAcceptFriendRequest": "Failedtoacceptfriendrequest"
   },
   "qrCode": {
     "copy": "Copy"
@@ -629,7 +684,11 @@
     "failedToUpdateProfile": "Failed to update profile",
     "failedToUpdatePhoto": "Failed to update photo",
     "failedToRemovePhoto": "Failed to remove photo",
-    "failedToDeleteBanner": "Failed to delete banner"
+    "failedToDeleteBanner": "Failed to delete banner",
+    "failedToDeleteProfilePicture": "Failedtodeleteprofilepicture",
+    "failedToReadImage": "Failedtoreadimage",
+    "failedToRemoveBackground": "Failedtoremovebackground",
+    "failedToUpdateBackground": "Failedtoupdatebackground"
   },
   "pwa": {
     "installTitle": "Install TopicsFlow",
@@ -734,7 +793,15 @@
     "previousPost": "Previous Post",
     "nextPost": "Next Post",
     "confirmDelete": "Are you sure you want to delete this ticket?",
-    "deletionRequested": "Post deletion requested. It will be permanently deleted in 7 days pending admin approval."
+    "deletionRequested": "Post deletion requested. It will be permanently deleted in 7 days pending admin approval.",
+    "failedToUnfollow": "Failedtounfollow",
+    "unfollowed": "Unfollowed",
+    "failedToFollow": "Failedtofollow",
+    "followed": "Followed",
+    "tags": "Tags",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "tagsHint": "Tagshint"
   },
   "comments": {
     "title": "Comments",
@@ -806,7 +873,8 @@
     "declined": "Invitation declined",
     "failedToAccept": "Failed to accept invitation",
     "failedToDecline": "Failed to decline invitation",
-    "failedToLoad": "Failed to load invitations"
+    "failedToLoad": "Failed to load invitations",
+    "expand": "Expand"
   },
   "chats": {
     "selectBackground": "Select Background Picture",
@@ -850,7 +918,10 @@
     "blockConfirm": "Are you sure you want to block this user?",
     "blockConfirmMessage": "You will not receive messages from them and they won't be able to send you private messages.",
     "unblockConfirm": "Are you sure you want to unblock this user?",
-    "unblockConfirmMessage": "They will be able to send you private messages again."
+    "unblockConfirmMessage": "They will be able to send you private messages again.",
+    "confirmBlock": "Confirmblock",
+    "unblocked": "Unblocked",
+    "blocked": "Blocked"
   },
   "mentions": {
     "mentionedYou": "mentioned you",
@@ -1040,7 +1111,9 @@
     "failedToLoadStats": "Failed to load statistics",
     "noStatsAvailable": "No statistics available",
     "quickStats": "Quick Stats",
-    "refreshStats": "Refresh Statistics"
+    "refreshStats": "Refresh Statistics",
+    "moderators": "Moderators",
+    "admin": "Admin"
   },
   "tickets": {
     "createTicket": "Create Support Ticket",
@@ -1181,7 +1254,8 @@
     "sendMessage": "Send Message",
     "report": "Report",
     "block": "Block",
-    "reportProfileImage": "Report profile image"
+    "reportProfileImage": "Report profile image",
+    "anonymousUser": "Anonymoususer"
   },
   "contextMenu": {
     "report": "Report",
@@ -1212,7 +1286,11 @@
     "chatSilenced": "Chat silenced",
     "chatUnsilenced": "Chat unsilenced",
     "chatHidden": "Chat hidden",
-    "chatUnhidden": "Chat unhidden"
+    "chatUnhidden": "Chat unhidden",
+    "followChatroom": "Followchatroom",
+    "sendMessage": "Sendmessage",
+    "block": "Block",
+    "unfollowChatroom": "Unfollowchatroom"
   },
   "messages": {
     "deleteMessage": "Delete Message",
@@ -1252,6 +1330,41 @@
     "chatMuted": "Chat muted",
     "chatUnmuted": "Chat unmuted",
     "muteFailed": "Failed to mute",
-    "unmuteFailed": "Failed to unmute"
+    "unmuteFailed": "Failed to unmute",
+    "24hours": "24hours",
+    "title": "Title",
+    "8hours": "8hours",
+    "error": "Error",
+    "follow": "Follow",
+    "15minutes": "15minutes",
+    "unfollow": "Unfollow",
+    "1hour": "1hour",
+    "forever": "Forever",
+    "unmute": "Unmute"
+  },
+  "anonymousStateChanged": "Anonymousstatechanged",
+  "tailwindcss": "Tailwindcss",
+  "GIF": "Gif",
+  "": {
+    "": ""
+  },
+  "next": "Next",
+  "refresh_invitations": "Refresh invitations",
+  "a": "A",
+  "about": {
+    "features": {
+      "realTimeChatDesc": "Instant messaging in topic-based rooms. Share images, GIFs, and files seamlessly.",
+      "anonymousMode": "Anonymous Mode",
+      "realTimeChat": "Real-time Chat",
+      "securePrivate": "Secure & Private",
+      "anonymousModeDesc": "Participate in discussions without revealing your real identity. Unique profiles per topic.",
+      "securePrivateDesc": "Passwordless authentication, end-to-end like encryption for private messages."
+    },
+    "title": "About TopicsFlow - The Future of Discussion",
+    "heroSubtitle": "Where conversations flow naturally. A real-time community platform for modern discussions.",
+    "metaDescription": "TopicsFlow is a modern Reddit-style discussion platform with real-time chat rooms.",
+    "allRightsReserved": "All rights reserved.",
+    "learnMore": "Learn More",
+    "goToDashboard": "Go to Dashboard"
   }
 }

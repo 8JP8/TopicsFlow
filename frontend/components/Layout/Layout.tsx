@@ -31,10 +31,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Header */}
       <header className="h-16 border-b theme-border flex items-center justify-between px-6">
         <div className="flex items-center space-x-3">
-          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            <img 
-              src="https://i.postimg.cc/FY5shL9w/chat.png" 
-              alt="TopicsFlow Logo" 
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity no-underline text-decoration-none">
+            <img
+              src="https://i.postimg.cc/FY5shL9w/chat.png"
+              alt="TopicsFlow Logo"
               className="h-8 w-8"
             />
             <h1 className="text-xl font-bold theme-text-primary">TopicsFlow</h1>

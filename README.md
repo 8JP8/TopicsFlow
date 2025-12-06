@@ -618,7 +618,7 @@ http://localhost:3000
 #### Backend API Testing
 
 **Using Postman:**
-1. Import `TopicsFlow_API.postman_collection.json`
+1. Import `tests/TopicsFlow_API.postman_collection.json`
 2. Import environment file from `tests/postman/environments/`
 3. Run collection tests
 
