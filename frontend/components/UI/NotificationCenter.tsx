@@ -856,14 +856,100 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                             const notification = group.notifications[0];
                             const hasUnread = group.notifications.some(n => !n.read);
                             
+                            const renderNavigationButton = () => {
+                              if (notification.type === 'message' && notification.data?.from_user_id) {
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      group.notifications.forEach(n => markAsRead(n.id));
+                                      const event = new CustomEvent('openPrivateMessage', {
+                                        detail: {
+                                          userId: notification.data.from_user_id,
+                                          username: notification.data.from_username || notification.sender_username || 'User'
+                                        }
+                                      });
+                                      window.dispatchEvent(event);
+                                      setIsOpen(false);
+                                    }}
+                                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                                    title={t('notifications.goToMessages') || 'Go to messages'}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                  </button>
+                                );
+                              } else if (notification.type === 'chatroom_message' && (notification.data?.chat_room_id || notification.chat_room_id || notification.context_id)) {
+                                const chatRoomId = notification.data?.chat_room_id || notification.chat_room_id || notification.context_id;
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      group.notifications.forEach(n => markAsRead(n.id));
+                                      router.push(`/chat-room/${chatRoomId}`);
+                                      setIsOpen(false);
+                                    }}
+                                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                                    title={t('notifications.goToChatroom') || 'Go to chatroom'}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                  </button>
+                                );
+                              } else if (notification.type === 'comment' && (notification.data?.post_id || notification.post_id || notification.context_id)) {
+                                const postId = notification.data?.post_id || notification.post_id || notification.context_id;
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      group.notifications.forEach(n => markAsRead(n.id));
+                                      router.push(`/post/${postId}`);
+                                      setIsOpen(false);
+                                    }}
+                                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                                    title={t('notifications.goToPost') || 'Go to post'}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                  </button>
+                                );
+                              } else if (notification.type === 'invitation' && notification.data) {
+                                return (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAcceptInvitation(notification.data.invitation_id, notification.data.room_id);
+                                        group.notifications.forEach(n => markAsRead(n.id));
+                                      }}
+                                      className="px-2 py-1 text-xs btn btn-primary"
+                                    >
+                                      {t('notifications.accept') || 'Accept'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeclineInvitation(notification.data.invitation_id);
+                                        group.notifications.forEach(n => markAsRead(n.id));
+                                      }}
+                                      className="px-2 py-1 text-xs btn btn-secondary"
+                                    >
+                                      {t('notifications.decline') || 'Decline'}
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            };
+
                             return (
                               <div
                                 key={`aggregated-${idx}`}
-                                className={`px-4 py-3 border-b theme-border relative group ${
-                                  hasUnread ? 'theme-bg-primary' : ''
-                                }`}
+                                className={`px-4 py-3 border-b theme-border relative group${hasUnread ? ' theme-bg-primary' : ''}`}
                               >
-                                {/* X button to close/delete */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -876,8 +962,6 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                   </svg>
                                 </button>
-                                
-                                {/* Clickable area (except X and link icon) */}
                                 <div
                                   className="cursor-pointer hover:theme-bg-tertiary transition-colors -mx-4 -my-3 px-4 py-3"
                                   onClick={() => {
@@ -919,96 +1003,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                         <p className="text-xs theme-text-muted">
                                           {formatTimestamp(notification.timestamp)}
                                         </p>
-                                        {/* Navigation button - simple gray link icon */}
-                                        {(() => {
-                                          if (notification.type === 'message' && notification.data?.from_user_id) {
-                                            return (
-                                              <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                group.notifications.forEach(n => markAsRead(n.id));
-                                                // Dispatch event to open private messages
-                                                const event = new CustomEvent('openPrivateMessage', {
-                                                  detail: {
-                                                    userId: notification.data.from_user_id,
-                                                    username: notification.data.from_username || notification.sender_username || 'User'
-                                                  }
-                                                });
-                                                window.dispatchEvent(event);
-                                                setIsOpen(false);
-                                              }}
-                                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
-                                              title={t('notifications.goToMessages') || 'Go to messages'}
-                                            >
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                              </svg>
-                                              </button>
-                                            );
-                                          } else if (notification.type === 'chatroom_message' && (notification.data?.chat_room_id || notification.chat_room_id || notification.context_id)) {
-                                            const chatRoomId = notification.data?.chat_room_id || notification.chat_room_id || notification.context_id;
-                                            return (
-                                              <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                group.notifications.forEach(n => markAsRead(n.id));
-                                                router.push(`/chat-room/${chatRoomId}`);
-                                                setIsOpen(false);
-                                              }}
-                                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
-                                              title={t('notifications.goToChatroom') || 'Go to chatroom'}
-                                            >
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                              </svg>
-                                              </button>
-                                            );
-                                          } else if (notification.type === 'comment' && (notification.data?.post_id || notification.post_id || notification.context_id)) {
-                                            const postId = notification.data?.post_id || notification.post_id || notification.context_id;
-                                            return (
-                                              <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                group.notifications.forEach(n => markAsRead(n.id));
-                                                router.push(`/post/${postId}`);
-                                                setIsOpen(false);
-                                              }}
-                                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
-                                              title={t('notifications.goToPost') || 'Go to post'}
-                                            >
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                              </svg>
-                                              </button>
-                                            );
-                                          } else if (notification.type === 'invitation' && notification.data) {
-                                            return (
-                                              <div className="flex gap-2">
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleAcceptInvitation(notification.data.invitation_id, notification.data.room_id);
-                                                    group.notifications.forEach(n => markAsRead(n.id));
-                                                  }}
-                                                  className="px-2 py-1 text-xs btn btn-primary"
-                                                >
-                                                  {t('notifications.accept') || 'Accept'}
-                                                </button>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeclineInvitation(notification.data.invitation_id);
-                                                    group.notifications.forEach(n => markAsRead(n.id));
-                                                  }}
-                                                  className="px-2 py-1 text-xs btn btn-secondary"
-                                                >
-                                                  {t('notifications.decline') || 'Decline'}
-                                                </button>
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        })()}
+                                        {renderNavigationButton()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
