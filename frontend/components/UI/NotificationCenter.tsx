@@ -728,7 +728,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newMessageFrom', { username }) || `New message from ${username}`;
           displayMessage = latest.data?.preview || latest.message || '';
         } else {
-          const messagesText = t('notifications.newMessagesFrom', { count: group.length, username }) || `new messages from ${username}`;
+          const fallbackText = `new messages from ${username}`;
+          const messagesText = t('notifications.newMessagesFrom', { count: group.length, username }) || fallbackText;
           displayTitle = `${group.length} ${messagesText}`;
           displayMessage = `${group.length} ${messagesText}`;
         }
@@ -739,7 +740,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newMessageInRoom', { roomName }) || `New message in "${roomName}"`;
           displayMessage = latest.message || '';
         } else {
-          const messagesText = t('notifications.newMessagesInRoom', { count: group.length, roomName }) || `new messages for "${roomName}"`;
+          const fallbackText = `new messages for "${roomName}"`;
+          const messagesText = t('notifications.newMessagesInRoom', { count: group.length, roomName }) || fallbackText;
           displayTitle = `${group.length} ${messagesText}`;
           displayMessage = `${group.length} ${messagesText}`;
         }
@@ -750,7 +752,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           displayTitle = t('notifications.newCommentOnPost', { postTitle }) || `New comment on "${postTitle}"`;
           displayMessage = latest.message || '';
         } else {
-          const commentsText = t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || `new comments on "${postTitle}"`;
+          const fallbackText = `new comments on "${postTitle}"`;
+          const commentsText = t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || fallbackText;
           displayTitle = `${group.length} ${commentsText}`;
           displayMessage = `${group.length} ${commentsText}`;
         }
