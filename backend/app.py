@@ -38,7 +38,7 @@ def create_app(config_name=None):
     # Log environment mode clearly
     env_mode = "🌩️  AZURE CLOUD" if app.config.get('IS_AZURE') else "🏠 LOCAL"
     logger.info("="*60)
-    logger.info(f"  ChatApp Backend - Mode: {env_mode}")
+    logger.info(f"  TopicsFlow Backend - Mode: {env_mode}")
     logger.info(f"  Environment: {config_name}")
     logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
     logger.info("="*60)
@@ -103,39 +103,47 @@ def create_app(config_name=None):
 
     # Register blueprints
     from routes.auth import auth_bp
-    from routes.topics import topics_bp  # Legacy - keep for compatibility
-    from routes.themes import themes_bp  # New
-    from routes.posts import posts_bp  # New
-    from routes.comments import comments_bp  # New
-    from routes.chat_rooms import chat_rooms_bp  # New
+    from routes.topics import topics_bp
+    from routes.posts import posts_bp
+    from routes.comments import comments_bp
+    from routes.chat_rooms import chat_rooms_bp
     from routes.messages import messages_bp
     from routes.reports import reports_bp
     from routes.users import users_bp
     from routes.friends import friends_bp
     from routes.gifs import gifs_bp
+    from routes.admin import admin_bp
+    from routes.tickets import tickets_bp
+    from routes.content_settings import content_settings_bp
+    from routes.attachments import attachments_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(topics_bp, url_prefix='/api/topics')  # Legacy
-    app.register_blueprint(themes_bp, url_prefix='/api/themes')  # New
-    app.register_blueprint(posts_bp, url_prefix='/api/posts')  # New
-    app.register_blueprint(comments_bp, url_prefix='/api/comments')  # New
-    app.register_blueprint(chat_rooms_bp, url_prefix='/api/chat-rooms')  # New
+    app.register_blueprint(topics_bp, url_prefix='/api/topics')
+    app.register_blueprint(posts_bp, url_prefix='/api/posts')
+    app.register_blueprint(comments_bp, url_prefix='/api/comments')
+    app.register_blueprint(chat_rooms_bp, url_prefix='/api/chat-rooms')
     app.register_blueprint(messages_bp, url_prefix='/api/messages')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(friends_bp, url_prefix='/api/friends')
     app.register_blueprint(gifs_bp, url_prefix='/api/gifs')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(tickets_bp, url_prefix='/api/tickets')
+    app.register_blueprint(content_settings_bp, url_prefix='/api/content-settings')
+    app.register_blueprint(attachments_bp, url_prefix='/api/attachments')
 
-    # Register SocketIO handlers
+    # Health check endpoint (register before static routes)
+    @app.route('/health')
+    def health_check():
+        return {'status': 'healthy', 'service': 'topicsflow-backend'}
+
+    # Register SocketIO handlers BEFORE static routes to ensure Socket.IO routes are processed first
+    # Flask-SocketIO needs to handle /socket.io/ routes before the catch-all route
     from socketio_handlers import register_socketio_handlers
     register_socketio_handlers(socketio)
 
-    # Health check endpoint
-    @app.route('/health')
-    def health_check():
-        return {'status': 'healthy', 'service': 'chatapp-backend'}
-
     # Serve static frontend files (for Azure deployment)
+    # IMPORTANT: Register static routes AFTER SocketIO handlers to ensure Socket.IO routes are processed first
     static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
     if os.path.exists(static_folder):
@@ -145,9 +153,29 @@ def create_app(config_name=None):
         @app.route('/<path:path>')
         def serve_frontend(path):
             """Serve static frontend files."""
-            # If it's an API route, skip static file serving
-            if path.startswith('api/') or path.startswith('socket.io/'):
-                return {'error': 'Not found'}, 404
+            # Flask-SocketIO automatically handles /socket.io/ routes before this function is called
+            # If we somehow get here for a socket.io route, Flask-SocketIO didn't handle it
+            # In that case, we should not process it to avoid WSGI conflicts
+            if 'socket.io' in path or path.startswith('socket.io/') or path == 'socket.io':
+                # Don't process socket.io routes - Flask-SocketIO should handle them
+                # Return an empty response with 200 status to avoid WSGI write() before start_response error
+                from flask import Response
+                return Response('', status=200, mimetype='text/plain')
+            
+            # Skip API routes - let blueprints handle them
+            if path.startswith('api/'):
+                from flask import abort
+                abort(404)
+            
+            # Skip .well-known routes (for PWA, Chrome DevTools, etc.)
+            if path.startswith('.well-known/'):
+                from flask import abort
+                abort(404)
+            
+            # Skip icons routes if they don't exist
+            if path.startswith('icons/'):
+                from flask import abort
+                abort(404)
 
             # Serve static files
             if path != "" and os.path.exists(os.path.join(static_folder, path)):
@@ -158,13 +186,14 @@ def create_app(config_name=None):
             if os.path.exists(index_path):
                 return send_file(index_path)
 
-            return {'error': 'Frontend not found'}, 404
+            from flask import abort
+            abort(404)
     else:
         logger.info("No static frontend folder - API only mode")
 
         @app.route('/')
         def index():
-            return {'message': 'ChatApp Backend API', 'version': '1.0.0'}
+            return {'message': 'TopicsFlow Backend API', 'version': '1.0.0'}
 
     return app
 
@@ -178,19 +207,10 @@ def create_db_indexes(app):
         db.users.create_index("email", unique=True)
         db.users.create_index("ip_addresses")
         db.users.create_index("blocked_users")
-
-        # Themes collection indexes (new - within Topics)
-        db.themes.create_index("topic_id")  # Themes belong to Topics
-        db.themes.create_index([("topic_id", 1), ("last_activity", -1)])
-        db.themes.create_index([("topic_id", 1), ("post_count", -1)])
-        db.themes.create_index("created_at")
-        db.themes.create_index([("member_count", -1)])
-        db.themes.create_index([("last_activity", -1)])
-        db.themes.create_index([("post_count", -1)])
-        db.themes.create_index("tags")
-        db.themes.create_index("owner_id")
-        db.themes.create_index("members")
-        db.themes.create_index("banned_users")
+        db.users.create_index("is_admin")
+        db.users.create_index("is_banned")
+        db.users.create_index("banned_at")
+        db.users.create_index("created_at")
 
         # Topics collection indexes (main containers)
         db.topics.create_index("created_at")
@@ -203,11 +223,10 @@ def create_db_indexes(app):
         db.topics.create_index("members")
         db.topics.create_index("banned_users")
 
-        # Posts collection indexes (updated - now within Topics)
-        db.posts.create_index([("topic_id", 1), ("created_at", -1)])  # New: posts belong to topics
-        db.posts.create_index([("topic_id", 1), ("score", -1)])  # New: sort by score
+        # Posts collection indexes (within Topics)
+        db.posts.create_index([("topic_id", 1), ("created_at", -1)])  # Posts belong to topics
+        db.posts.create_index([("topic_id", 1), ("score", -1)])  # Sort by score
         db.posts.create_index([("topic_id", 1), ("score", -1), ("created_at", -1)])  # For hot sorting
-        db.posts.create_index([("theme_id", 1), ("created_at", -1)])  # Legacy support
         db.posts.create_index("user_id")
         db.posts.create_index("created_at")
         db.posts.create_index([("score", -1)])  # New: score = upvotes - downvotes
@@ -227,12 +246,10 @@ def create_db_indexes(app):
         db.comments.create_index("depth")
         db.comments.create_index("is_deleted")
 
-        # Chat rooms (Conversations) collection indexes (updated - within Topics)
+        # Chat rooms (Conversations) collection indexes (within Topics)
         db.chat_rooms.create_index("topic_id")  # Conversations belong to Topics
         db.chat_rooms.create_index([("topic_id", 1), ("last_activity", -1)])
-        db.chat_rooms.create_index([("topic_id", 1), ("tags", 1)])  # New: filter by tags
-        db.chat_rooms.create_index([("theme_id", 1), ("last_activity", -1)])  # Legacy support
-        db.chat_rooms.create_index("theme_id")  # Legacy support
+        db.chat_rooms.create_index([("topic_id", 1), ("tags", 1)])  # Filter by tags
         db.chat_rooms.create_index("owner_id")
         db.chat_rooms.create_index("moderators")  # New: moderators
         db.chat_rooms.create_index("members")
@@ -251,13 +268,31 @@ def create_db_indexes(app):
         db.messages.create_index("mentions")
         db.messages.create_index("is_deleted")
 
-        # Reports collection indexes (updated)
-        db.reports.create_index([("theme_id", 1), ("status", 1)])  # Updated
-        db.reports.create_index([("reported_content_id", 1), ("content_type", 1)])  # New
-        db.reports.create_index("content_type")  # New
+        # Reports collection indexes
+        db.reports.create_index([("reported_content_id", 1), ("content_type", 1)])
+        db.reports.create_index("content_type")
+        db.reports.create_index("report_type")
+        db.reports.create_index("reported_user_id")
+        db.reports.create_index("reported_by")
         db.reports.create_index("created_at")
         db.reports.create_index("status")
-        db.reports.create_index([("topic_id", 1), ("status", 1)])  # Legacy
+        db.reports.create_index([("topic_id", 1), ("status", 1)])
+        db.reports.create_index([("status", 1), ("created_at", -1)])
+
+        # Tickets collection indexes
+        db.tickets.create_index("user_id")
+        db.tickets.create_index("status")
+        db.tickets.create_index("category")
+        db.tickets.create_index("priority")
+        db.tickets.create_index([("status", 1), ("priority", -1), ("created_at", -1)])
+        db.tickets.create_index("created_at")
+        db.tickets.create_index("reviewed_by")
+
+        # Conversation settings collection indexes
+        db.conversation_settings.create_index([("user_id", 1), ("other_user_id", 1)], unique=True)
+        db.conversation_settings.create_index([("user_id", 1), ("topic_id", 1), ("type", 1)], unique=True, sparse=True)
+        db.conversation_settings.create_index([("user_id", 1), ("chat_room_id", 1), ("type", 1)], unique=True, sparse=True)
+        db.conversation_settings.create_index("type")
 
         # Private messages collection indexes
         db.private_messages.create_index([("from_user_id", 1), ("to_user_id", 1)])
@@ -265,8 +300,7 @@ def create_db_indexes(app):
         db.private_messages.create_index("created_at")
 
         # Anonymous identities collection indexes
-        db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)  # Legacy
-        db.anonymous_identities.create_index([("user_id", 1), ("theme_id", 1)], unique=True)  # New
+        db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)
 
         logger.info("Database indexes created successfully")
 

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.comment import Comment
 from models.post import Post
-from models.theme import Theme
+from models.topic import Topic
 from models.anonymous_identity import AnonymousIdentity
 from utils.validators import validate_message_content
 from utils.decorators import require_auth, require_json, log_requests
@@ -85,17 +85,19 @@ def create_comment(post_id):
         if not post:
             return jsonify({'success': False, 'errors': ['Post not found']}), 404
 
-        # Check if user is banned from theme
-        theme_model = Theme(current_app.db)
-        if theme_model.is_user_banned_from_theme(post['theme_id'], user_id):
-            return jsonify({'success': False, 'errors': ['You are banned from this theme']}), 403
+        # Check if user is banned from topic
+        topic_model = Topic(current_app.db)
+        topic_id = post.get('topic_id')
+        if topic_id and topic_model.is_user_banned_from_topic(topic_id, user_id):
+            return jsonify({'success': False, 'errors': ['You are banned from this topic']}), 403
 
         # Handle anonymous identity
         anonymous_identity = None
-        theme = theme_model.get_theme_by_id(post['theme_id'])
-        if use_anonymous and theme and theme.get('settings', {}).get('allow_anonymous', True):
-            anon_model = AnonymousIdentity(current_app.db)
-            anonymous_identity = anon_model.get_anonymous_identity(user_id, post['theme_id'])
+        if topic_id:
+            topic = topic_model.get_topic_by_id(topic_id)
+            if use_anonymous and topic and topic.get('settings', {}).get('allow_anonymous', True):
+                anon_model = AnonymousIdentity(current_app.db)
+                anonymous_identity = anon_model.get_anonymous_identity(user_id, topic_id)
 
         # Create comment
         comment_model = Comment(current_app.db)
@@ -174,17 +176,19 @@ def reply_to_comment(comment_id):
         if not post:
             return jsonify({'success': False, 'errors': ['Post not found']}), 404
 
-        # Check if user is banned from theme
-        theme_model = Theme(current_app.db)
-        if theme_model.is_user_banned_from_theme(post['theme_id'], user_id):
-            return jsonify({'success': False, 'errors': ['You are banned from this theme']}), 403
+        # Check if user is banned from topic
+        topic_model = Topic(current_app.db)
+        topic_id = post.get('topic_id')
+        if topic_id and topic_model.is_user_banned_from_topic(topic_id, user_id):
+            return jsonify({'success': False, 'errors': ['You are banned from this topic']}), 403
 
         # Handle anonymous identity
         anonymous_identity = None
-        theme = theme_model.get_theme_by_id(post['theme_id'])
-        if use_anonymous and theme and theme.get('settings', {}).get('allow_anonymous', True):
-            anon_model = AnonymousIdentity(current_app.db)
-            anonymous_identity = anon_model.get_anonymous_identity(user_id, post['theme_id'])
+        if topic_id:
+            topic = topic_model.get_topic_by_id(topic_id)
+            if use_anonymous and topic and topic.get('settings', {}).get('allow_anonymous', True):
+                anon_model = AnonymousIdentity(current_app.db)
+                anonymous_identity = anon_model.get_anonymous_identity(user_id, topic_id)
 
         # Create reply
         reply_id = comment_model.create_comment(
@@ -259,8 +263,8 @@ def upvote_comment(comment_id):
         success = comment_model.upvote_comment(comment_id, user_id)
 
         if success:
-            # Get updated comment
-            updated_comment = comment_model.get_comment_by_id(comment_id)
+            # Get updated comment with user vote status
+            updated_comment = comment_model.get_comment_by_id(comment_id, user_id)
             
             # Emit socket event
             try:
@@ -317,6 +321,52 @@ def delete_comment(comment_id):
         return jsonify({'success': False, 'errors': [f'Failed to delete comment: {str(e)}']}), 500
 
 
+@comments_bp.route('/<comment_id>/downvote', methods=['POST'])
+@require_auth()
+@log_requests
+def downvote_comment(comment_id):
+    """Downvote or remove downvote from a comment."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        comment_model = Comment(current_app.db)
+        success = comment_model.downvote_comment(comment_id, user_id)
+
+        if success:
+            # Get updated comment with user vote status
+            updated_comment = comment_model.get_comment_by_id(comment_id, user_id)
+
+            # Emit socket event
+            try:
+                from app import socketio
+                if socketio and updated_comment:
+                    room_name = f"post_{updated_comment['post_id']}"
+                    socketio.emit('comment_downvoted', {
+                        'comment_id': comment_id,
+                        'user_id': user_id,
+                        'downvote_count': updated_comment.get('downvote_count', 0),
+                        'user_has_downvoted': updated_comment.get('user_has_downvoted', False)
+                    }, room=room_name)
+            except Exception as e:
+                logger.warning(f"Failed to emit socket event: {str(e)}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Comment downvoted successfully',
+                'data': updated_comment
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to downvote comment']}), 400
+
+    except Exception as e:
+        logger.error(f"Downvote comment error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to downvote comment: {str(e)}']}), 500
+
+
 @comments_bp.route('/<comment_id>/report', methods=['POST'])
 @require_json
 @require_auth()
@@ -357,5 +407,8 @@ def report_comment(comment_id):
     except Exception as e:
         logger.error(f"Report comment error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to report comment: {str(e)}']}), 500
+
+
+
 
 

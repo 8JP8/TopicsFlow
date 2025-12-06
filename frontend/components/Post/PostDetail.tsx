@@ -4,24 +4,25 @@ import { translate } from '@/utils/translations';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/router';
-import UpvoteButton from '../Upvote/UpvoteButton';
+import VoteButtons from '../Vote/VoteButtons';
 import CommentTree from '../Comment/CommentTree';
 import LoadingSpinner from '../UI/LoadingSpinner';
-// Using simple date formatting instead of date-fns
-import Link from 'next/link';
 
 interface Post {
   id: string;
   title: string;
   content: string;
-  theme_id: string;
+  topic_id: string;
   user_id: string;
   author_username?: string;
   display_name?: string;
   is_anonymous?: boolean;
   upvote_count: number;
+  downvote_count?: number;
+  score?: number;
   comment_count: number;
   user_has_upvoted?: boolean;
+  user_has_downvoted?: boolean;
   created_at: string;
   gif_url?: string;
 }
@@ -35,6 +36,9 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
   const router = useRouter();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [followedPosts, setFollowedPosts] = useState<Set<string>>(new Set(
+    JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('followedPosts') || '[]' : '[]')
+  ));
 
   useEffect(() => {
     if (postId) {
@@ -69,7 +73,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
       
-      if (minutes < 1) return t('chat.online');
+      if (minutes < 1) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
       if (days < 7) return `${days} ${t('posts.days')} ${t('posts.ago')}`;
@@ -79,9 +83,16 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
     }
   };
 
-  const handleUpvoteChange = (upvoted: boolean, newCount: number) => {
+  const handleVoteChange = (upvoted: boolean, downvoted: boolean, upCount: number, downCount: number, score: number) => {
     if (post) {
-      setPost({ ...post, upvote_count: newCount, user_has_upvoted: upvoted });
+      setPost({
+        ...post,
+        upvote_count: upCount,
+        downvote_count: downCount,
+        score: score,
+        user_has_upvoted: upvoted,
+        user_has_downvoted: downvoted
+      });
     }
   };
 
@@ -104,24 +115,30 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Back Button */}
-      <Link
-        href={`/theme/${post.theme_id}`}
-        className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+      <button
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
       >
-        ← {t('common.back')}
-      </Link>
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        {t('common.back')}
+      </button>
 
       {/* Post */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
         <div className="flex gap-4">
-          {/* Upvote Section */}
-          <div className="flex flex-col items-center">
-            <UpvoteButton
+          {/* Vote Section */}
+          <div className="flex flex-col items-center pt-1">
+            <VoteButtons
               contentId={post.id}
               contentType="post"
               initialUpvoteCount={post.upvote_count}
+              initialDownvoteCount={post.downvote_count || 0}
+              initialScore={post.score !== undefined ? post.score : post.upvote_count - (post.downvote_count || 0)}
               userHasUpvoted={post.user_has_upvoted || false}
-              onUpvoteChange={handleUpvoteChange}
+              userHasDownvoted={post.user_has_downvoted || false}
+              onVoteChange={handleVoteChange}
               size="lg"
               showCount={true}
             />
@@ -149,17 +166,50 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
               </div>
             )}
 
-            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <span>
-                {t('posts.postedBy')}{' '}
-                <span className="font-medium">
-                  {post.is_anonymous ? post.display_name : post.author_username || 'Unknown'}
+            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-4">
+                <span>
+                  {t('posts.postedBy')}{' '}
+                  <span className="font-medium">
+                    {post.is_anonymous ? post.display_name : post.author_username || 'Unknown'}
+                  </span>
                 </span>
-              </span>
-              <span>{formatTimeAgo(post.created_at)}</span>
-              <span>
-                {post.comment_count} {post.comment_count === 1 ? t('comments.comment') : t('comments.comments')}
-              </span>
+                <span>{formatTimeAgo(post.created_at)}</span>
+                <span>
+                  {post.comment_count} {post.comment_count === 1 ? t('comments.comment') : t('comments.comments')}
+                </span>
+              </div>
+              <button
+                onClick={async () => {
+                  const isFollowed = followedPosts.has(post.id);
+                  const newFollowedPosts = new Set(followedPosts);
+                  if (isFollowed) {
+                    newFollowedPosts.delete(post.id);
+                    toast.success(t('posts.disableCommentNotifications') || 'Comment notifications disabled');
+                  } else {
+                    newFollowedPosts.add(post.id);
+                    toast.success(t('posts.enableCommentNotifications') || 'Comment notifications enabled');
+                  }
+                  setFollowedPosts(newFollowedPosts);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('followedPosts', JSON.stringify(Array.from(newFollowedPosts)));
+                  }
+                  // TODO: Replace with backend API call
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  followedPosts.has(post.id)
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                title={followedPosts.has(post.id) ? t('posts.disableCommentNotifications') : t('posts.enableCommentNotifications')}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span className="text-sm font-medium">
+                  {followedPosts.has(post.id) ? t('posts.disableCommentNotifications') : t('posts.enableCommentNotifications')}
+                </span>
+              </button>
             </div>
           </div>
         </div>

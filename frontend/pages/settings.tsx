@@ -6,11 +6,15 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { toast } from 'react-hot-toast';
+import BlockedUsersModal from '@/components/Settings/BlockedUsersModal';
+import HiddenItemsModal from '@/components/Settings/HiddenItemsModal';
+import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
 
 interface UserPreferences {
   theme: 'light' | 'dark';
   language: 'en' | 'pt';
   notifications_enabled?: boolean;
+  browser_notifications_enabled?: boolean;
   sound_enabled?: boolean;
 }
 
@@ -26,8 +30,9 @@ const Settings: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy'>('preferences');
-  const [blockedUsers, setBlockedUsers] = useState<Array<{id: string, username: string}>>([]);
-  const [loadingBlocked, setLoadingBlocked] = useState(false);
+  const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+  const [showHiddenItemsModal, setShowHiddenItemsModal] = useState(false);
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,56 +45,55 @@ const Settings: React.FC = () => {
         theme: user.preferences.theme || 'dark',
         language: user.preferences.language || 'en',
         notifications_enabled: user.preferences.notifications_enabled !== false,
+        browser_notifications_enabled: user.preferences.browser_notifications_enabled || false,
         sound_enabled: user.preferences.sound_enabled !== false,
       });
     }
 
-    if (user && activeTab === 'privacy') {
-      loadBlockedUsers();
+    // Check browser notification permission status
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = Notification.permission;
+      if (permission === 'granted' && !preferences.browser_notifications_enabled) {
+        setPreferences(prev => ({ ...prev, browser_notifications_enabled: true }));
+      }
     }
+
   }, [user, authLoading, router, activeTab]);
 
-  const loadBlockedUsers = async () => {
-    try {
-      setLoadingBlocked(true);
-      const response = await api.get(API_ENDPOINTS.BLOCKING.LIST_BLOCKED);
-
-      if (response.data.success) {
-        setBlockedUsers(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to load blocked users:', error);
-    } finally {
-      setLoadingBlocked(false);
-    }
-  };
-
-  const handleUnblockUser = async (userId: string) => {
-    try {
-      const response = await api.delete(API_ENDPOINTS.BLOCKING.UNBLOCK(userId));
-
-      if (response.data.success) {
-        toast.success(t('blocking.userUnblocked'));
-        await loadBlockedUsers();
-      } else {
-        toast.error(response.data.errors?.[0] || t('blocking.failedToUnblockUser'));
-      }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.[0] || t('blocking.failedToUnblockUser');
-      toast.error(errorMessage);
-    }
-  };
 
   const handlePreferenceChange = async (key: keyof UserPreferences, value: any) => {
     const newPreferences = { ...preferences, [key]: value };
     setPreferences(newPreferences);
 
-    // Apply theme immediately
+    // Apply theme immediately without showing toast
     if (key === 'theme') {
       document.documentElement.classList.toggle('dark', value === 'dark');
+      // Save to backend silently (no toast)
+      try {
+        const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, {
+          preferences: newPreferences,
+        });
+
+        if (response.data.success) {
+          // Update user context silently
+          if (user) {
+            updateUser({ 
+              ...user, 
+              preferences: { 
+                ...user.preferences, 
+                ...newPreferences 
+              } 
+            });
+          }
+        }
+      } catch (error) {
+        // Silently fail for theme changes
+        console.error('Failed to save theme preference:', error);
+      }
+      return;
     }
 
-    // Save to backend
+    // For other preferences, show toast when saved
     try {
       const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, {
         preferences: newPreferences,
@@ -220,9 +224,21 @@ const Settings: React.FC = () => {
                   </button>
                   <button
                     onClick={() => router.push('/settings/anonymous-identities')}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost"
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
                   >
                     {t('settings.manageAnonymousIdentities')}
+                  </button>
+                  <button
+                    onClick={() => setShowBlockedUsersModal(true)}
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
+                  >
+                    {t('settings.blockedUsers') || 'Blocked Users'}
+                  </button>
+                  <button
+                    onClick={() => setShowHiddenItemsModal(true)}
+                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost"
+                  >
+                    {t('settings.hiddenItems') || 'Hidden Items'}
                   </button>
                 </div>
               </div>
@@ -318,6 +334,48 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
+                      <h4 className="font-medium theme-text-primary">{t('settings.enableBrowserNotifications')}</h4>
+                      <p className="text-sm theme-text-secondary">{t('settings.enableBrowserNotificationsDesc')}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!preferences.browser_notifications_enabled) {
+                          // Check if browser supports notifications
+                          if (typeof window !== 'undefined' && 'Notification' in window) {
+                            const permission = Notification.permission;
+                            if (permission === 'default') {
+                              // Show permission dialog
+                              setShowNotificationDialog(true);
+                              return;
+                            } else if (permission === 'granted') {
+                              // Already granted, just enable
+                              handlePreferenceChange('browser_notifications_enabled', true);
+                            } else {
+                              // Permission denied, inform user
+                              toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
+                            }
+                          } else {
+                            toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
+                          }
+                        } else {
+                          // Disable browser notifications
+                          handlePreferenceChange('browser_notifications_enabled', false);
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
                       <h4 className="font-medium theme-text-primary">{t('settings.soundEffects')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.soundEffectsDesc')}</p>
                     </div>
@@ -376,38 +434,35 @@ const Settings: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Blocked Users */}
-                  <div className="p-4 theme-bg-tertiary rounded-lg">
-                    <h4 className="font-medium theme-text-primary mb-4">{t('blocking.blockedUsers')}</h4>
-                    {loadingBlocked ? (
-                      <LoadingSpinner size="sm" />
-                    ) : blockedUsers.length === 0 ? (
-                      <p className="text-sm theme-text-secondary">{t('blocking.noBlockedUsers')}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {blockedUsers.map(blockedUser => (
-                          <div
-                            key={blockedUser.id}
-                            className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                          >
-                            <span className="font-medium theme-text-primary">{blockedUser.username}</span>
-                            <button
-                              onClick={() => handleUnblockUser(blockedUser.id)}
-                              className="px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                            >
-                              {t('blocking.unblockUser')}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <BlockedUsersModal
+        isOpen={showBlockedUsersModal}
+        onClose={() => setShowBlockedUsersModal(false)}
+      />
+      <HiddenItemsModal
+        isOpen={showHiddenItemsModal}
+        onClose={() => setShowHiddenItemsModal(false)}
+      />
+      {showNotificationDialog && (
+        <NotificationPermissionDialog
+          onClose={() => {
+            setShowNotificationDialog(false);
+            // Check if permission was granted
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              if (Notification.permission === 'granted') {
+                handlePreferenceChange('browser_notifications_enabled', true);
+              }
+            }
+          }}
+        />
+      )}
     </Layout>
   );
 };

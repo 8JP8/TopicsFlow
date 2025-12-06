@@ -1,6 +1,6 @@
 # Frontend Tests
 
-This directory contains frontend tests for the ChatHub application.
+This directory contains frontend tests for the TopicsFlow application.
 
 ## Test Files
 

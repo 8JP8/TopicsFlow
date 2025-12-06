@@ -104,7 +104,22 @@ class AuthService:
 
             # Check if user is banned
             if self.user_model.is_user_banned(str(user['_id'])):
-                return {'success': False, 'errors': ['Account is banned']}
+                # Get ban details
+                ban_info = self.user_model.get_ban_info(str(user['_id']))
+                error_msg = 'Account is banned'
+                if ban_info:
+                    error_msg = f"Account is banned. Reason: {ban_info.get('reason', 'No reason provided')}"
+                    if ban_info.get('expiry'):
+                        from datetime import datetime
+                        expiry_date = ban_info['expiry']
+                        if isinstance(expiry_date, datetime):
+                            expiry_str = expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')
+                        else:
+                            expiry_str = str(expiry_date)
+                        error_msg += f". Ban expires: {expiry_str}"
+                    else:
+                        error_msg += ". This is a permanent ban."
+                return {'success': False, 'errors': [error_msg], 'ban_info': ban_info}
 
             # Check if TOTP is enabled
             if not user.get('totp_enabled', False):
@@ -131,7 +146,8 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'preferences': user.get('preferences', {}),
-                    'totp_enabled': user.get('totp_enabled', False)
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
                 }
             }
 
@@ -159,7 +175,22 @@ class AuthService:
 
             # Check if user is banned
             if self.user_model.is_user_banned(str(user['_id'])):
-                return {'success': False, 'errors': ['Account is banned']}
+                # Get ban details
+                ban_info = self.user_model.get_ban_info(str(user['_id']))
+                error_msg = 'Account is banned'
+                if ban_info:
+                    error_msg = f"Account is banned. Reason: {ban_info.get('reason', 'No reason provided')}"
+                    if ban_info.get('expiry'):
+                        from datetime import datetime
+                        expiry_date = ban_info['expiry']
+                        if isinstance(expiry_date, datetime):
+                            expiry_str = expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')
+                        else:
+                            expiry_str = str(expiry_date)
+                        error_msg += f". Ban expires: {expiry_str}"
+                    else:
+                        error_msg += ". This is a permanent ban."
+                return {'success': False, 'errors': [error_msg], 'ban_info': ban_info}
 
             # Verify backup code
             if not self.user_model.verify_backup_code(str(user['_id']), backup_code):
@@ -182,7 +213,8 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'preferences': user.get('preferences', {}),
-                    'totp_enabled': user.get('totp_enabled', False)
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
                 },
                 'warning': 'Backup code used. Consider regenerating backup codes.'
             }
@@ -222,10 +254,14 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'phone': user.get('phone'),
+                    'profile_picture': user.get('profile_picture'),
+                    'banner': user.get('banner'),
                     'preferences': user.get('preferences', {}),
                     'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False),
                     'created_at': user['created_at'],
-                    'last_login': user.get('last_login')
+                    'last_login': user.get('last_login'),
+                    'active_warning': user.get('active_warning')
                 }
             }
 
@@ -348,6 +384,27 @@ class AuthService:
             return {'success': False, 'errors': validation_errors}
 
         try:
+            # Check if user with this email already exists
+            existing_user = self.user_model.get_user_by_email(email.lower().strip())
+
+            if existing_user:
+                # If TOTP is not enabled, allow re-registration (incomplete registration)
+                if not existing_user.get('totp_enabled', False):
+                    # Delete the incomplete registration
+                    from bson import ObjectId
+                    self.db.users.delete_one({'_id': ObjectId(existing_user['_id'])})
+                else:
+                    # Account is fully set up, don't allow re-registration
+                    return {'success': False, 'errors': ['Email already registered. Please login or use account recovery.']}
+
+            # Check if username is taken by a different user
+            existing_username = self.user_model.get_user_by_username(username.strip())
+            if existing_username:
+                existing_username_email = existing_username.get('email', '').lower()
+                # Only error if it's a different user's username
+                if existing_username_email != email.lower().strip():
+                    return {'success': False, 'errors': ['Username already taken']}
+
             # Create user without password
             user_id = self.user_model.create_user(
                 username=username.strip(),
@@ -520,7 +577,8 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'preferences': user.get('preferences', {}),
-                    'totp_enabled': user.get('totp_enabled', False)
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
                 }
             }
 
@@ -572,7 +630,8 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'preferences': user.get('preferences', {}),
-                    'totp_enabled': user.get('totp_enabled', False)
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
                 }
             }
 
@@ -877,7 +936,8 @@ class AuthService:
                     'username': user['username'],
                     'email': user['email'],
                     'preferences': user.get('preferences', {}),
-                    'totp_enabled': user.get('totp_enabled', False)
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
                 }
             }
 

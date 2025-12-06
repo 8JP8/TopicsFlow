@@ -184,9 +184,12 @@ const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose }) =>
           <div className="w-16 h-16 rounded-full overflow-hidden theme-bg-tertiary flex items-center justify-center">
             {userInfo.profile_picture ? (
               <img
-                src={userInfo.profile_picture}
+                src={userInfo.profile_picture.startsWith('data:') ? userInfo.profile_picture : `data:image/jpeg;base64,${userInfo.profile_picture}`}
                 alt={userInfo.username}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             ) : (
               <span className="text-2xl font-semibold theme-text-primary">

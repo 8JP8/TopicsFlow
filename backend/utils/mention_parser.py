@@ -83,7 +83,7 @@ def notify_mentioned_users(db, content_id: str, content_type: str,
         content_type: Type of content ('message', 'post', 'comment', 'chat_room_message')
         mentioned_user_ids: List of user ObjectIds mentioned
         sender_id: ID of the user who created the content
-        context: Optional context dict with additional info (theme_id, post_id, etc.)
+        context: Optional context dict with additional info (topic_id, post_id, etc.)
     """
     if not mentioned_user_ids:
         return
@@ -96,7 +96,8 @@ def notify_mentioned_users(db, content_id: str, content_type: str,
     # For now, we can emit Socket.IO events for real-time notifications
     
     try:
-        from app import socketio
+        from flask import current_app
+        socketio = current_app.extensions.get('socketio')
         if socketio:
             # Emit notification to each mentioned user
             for mentioned_user_id in mentioned_user_ids:
@@ -143,5 +144,11 @@ def process_mentions_in_content(db, content: str, content_id: str,
         notify_mentioned_users(db, content_id, content_type, mentioned_user_ids, sender_id, context)
     
     return mentioned_user_ids
+
+
+
+
+
+
 
 

@@ -9,21 +9,65 @@ class Friend:
     def __init__(self, db):
         self.db = db
         self.collection = db.friends
+        
+        # Create indexes for friends collection
+        try:
+            # Create unique index for friend relationships (all statuses)
+            # Note: This allows multiple statuses between same users (pending -> accepted)
+            self.collection.create_index(
+                [('from_user_id', 1), ('to_user_id', 1)],
+                unique=True,
+                name='from_user_id_1_to_user_id_1'
+            )
+            # Create index on status for filtering
+            self.collection.create_index([('status', 1)])
+            # Create index for querying by from_user_id
+            self.collection.create_index([('from_user_id', 1)])
+            # Create index for querying by to_user_id
+            self.collection.create_index([('to_user_id', 1)])
+        except Exception:
+            # Index might already exist, that's ok
+            pass
 
     def send_friend_request(self, from_user_id: str, to_user_id: str) -> Dict[str, Any]:
         """Send a friend request."""
-        if str(from_user_id) == str(to_user_id):
+        # Validate input - check for None, empty string, or 'None'/'null' strings
+        if not from_user_id or from_user_id in [None, 'None', 'null', '']:
+            raise ValueError(f"from_user_id is required (received: {from_user_id})")
+        
+        if not to_user_id or to_user_id in [None, 'None', 'null', '']:
+            raise ValueError(f"to_user_id is required (received: {to_user_id})")
+        
+        # Ensure IDs are strings and valid ObjectId format
+        try:
+            from_user_id = str(from_user_id).strip()
+            to_user_id = str(to_user_id).strip()
+            
+            # Check again after string conversion
+            if not from_user_id or from_user_id in ['None', 'null']:
+                raise ValueError(f"from_user_id is invalid after conversion: {from_user_id}")
+            
+            if not to_user_id or to_user_id in ['None', 'null']:
+                raise ValueError(f"to_user_id is invalid after conversion: {to_user_id}")
+            
+            # Validate ObjectId format
+            from_obj_id = ObjectId(from_user_id)
+            to_obj_id = ObjectId(to_user_id)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid user ID format: from_user_id={from_user_id}, to_user_id={to_user_id}, error={str(e)}")
+        
+        if from_user_id == to_user_id:
             raise ValueError("Cannot send friend request to yourself")
 
         # Check if already friends
         if self.are_friends(from_user_id, to_user_id):
             raise ValueError("Users are already friends")
 
-        # Check if request already exists
+        # Check if request already exists - use the ObjectIds already created above
         existing = self.collection.find_one({
             '$or': [
-                {'from_user_id': ObjectId(from_user_id), 'to_user_id': ObjectId(to_user_id)},
-                {'from_user_id': ObjectId(to_user_id), 'to_user_id': ObjectId(from_user_id)}
+                {'from_user_id': from_obj_id, 'to_user_id': to_obj_id},
+                {'from_user_id': to_obj_id, 'to_user_id': from_obj_id}
             ]
         })
 
@@ -37,14 +81,23 @@ class Friend:
             elif existing.get('status') == 'accepted':
                 raise ValueError("Users are already friends")
 
-        # Create new friend request
+        # Create new friend request - use the ObjectIds already validated above
+        # They were already created in the validation block, so reuse them
         friend_data = {
-            'from_user_id': ObjectId(from_user_id),
-            'to_user_id': ObjectId(to_user_id),
+            'from_user_id': from_obj_id,
+            'to_user_id': to_obj_id,
             'status': 'pending',
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
+
+        # Final validation - ensure ObjectIds are not None before insertion
+        if friend_data.get('from_user_id') is None or friend_data.get('to_user_id') is None:
+            raise ValueError(f"Friend data contains None values: from_user_id={friend_data.get('from_user_id')}, to_user_id={friend_data.get('to_user_id')}")
+        
+        # Additional check - verify ObjectIds are actually ObjectId instances
+        if not isinstance(friend_data['from_user_id'], ObjectId) or not isinstance(friend_data['to_user_id'], ObjectId):
+            raise ValueError(f"Invalid ObjectId instances: from_user_id type={type(friend_data['from_user_id'])}, to_user_id type={type(friend_data['to_user_id'])}")
 
         result = self.collection.insert_one(friend_data)
         return {

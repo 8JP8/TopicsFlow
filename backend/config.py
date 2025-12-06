@@ -87,7 +87,14 @@ class Config:
     MESSAGE_RATE_LIMIT = os.getenv('MESSAGE_RATE_LIMIT', '30/minute')
 
     # File Upload Config
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25MB
+    
+    # File Storage Config
+    USE_AZURE_STORAGE = os.getenv('USE_AZURE_STORAGE', 'false').lower() == 'true'
+    AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    AZURE_STORAGE_CONTAINER = os.getenv('AZURE_STORAGE_CONTAINER', 'attachments')
+    UPLOADS_DIR = os.getenv('UPLOADS_DIR', os.path.join(os.path.dirname(__file__), 'uploads'))
+    FILE_ENCRYPTION_KEY = os.getenv('FILE_ENCRYPTION_KEY', SECRET_KEY)  # Use SECRET_KEY as default
 
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,6 +15,7 @@ interface VoteButtonsProps {
   size?: 'sm' | 'md' | 'lg';
   showCount?: boolean;
   disabled?: boolean;
+  horizontal?: boolean; // Display buttons horizontally instead of vertically
 }
 
 const VoteButtons: React.FC<VoteButtonsProps> = ({
@@ -22,21 +23,35 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
   contentType,
   initialUpvoteCount,
   initialDownvoteCount = 0,
-  initialScore = 0,
+  initialScore,
   userHasUpvoted: initialUserHasUpvoted,
   userHasDownvoted: initialUserHasDownvoted = false,
   onVoteChange,
   size = 'md',
   showCount = true,
   disabled = false,
+  horizontal = false,
 }) => {
   const { t } = useLanguage();
   const [upvoteCount, setUpvoteCount] = useState(initialUpvoteCount);
   const [downvoteCount, setDownvoteCount] = useState(initialDownvoteCount);
-  const [score, setScore] = useState(initialScore !== undefined ? initialScore : initialUpvoteCount - initialDownvoteCount);
+  // Calculate initial score if not provided
+  const calculatedInitialScore = initialScore !== undefined ? initialScore : initialUpvoteCount - initialDownvoteCount;
+  const [score, setScore] = useState(calculatedInitialScore);
   const [userHasUpvoted, setUserHasUpvoted] = useState(initialUserHasUpvoted);
   const [userHasDownvoted, setUserHasDownvoted] = useState(initialUserHasDownvoted);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Update state when props change (but don't override if user just voted)
+  useEffect(() => {
+    // Only update if the values actually changed significantly (to avoid overriding user actions)
+    const newScore = initialScore !== undefined ? initialScore : initialUpvoteCount - initialDownvoteCount;
+    setUpvoteCount(initialUpvoteCount);
+    setDownvoteCount(initialDownvoteCount);
+    setScore(newScore);
+    setUserHasUpvoted(initialUserHasUpvoted);
+    setUserHasDownvoted(initialUserHasDownvoted || false);
+  }, [initialUpvoteCount, initialDownvoteCount, initialScore, initialUserHasUpvoted, initialUserHasDownvoted]);
 
   const handleUpvote = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -136,6 +151,73 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
     lg: 'w-6 h-6',
   };
 
+  // Horizontal layout (for comments at bottom, Reddit style)
+  if (horizontal) {
+    return (
+      <div className="flex items-center gap-1">
+        {/* Upvote Button */}
+        <button
+          onClick={handleUpvote}
+          disabled={disabled || isLoading}
+          className={`
+            flex items-center justify-center rounded transition-colors
+            ${userHasUpvoted
+              ? 'text-orange-600 dark:text-orange-400'
+              : 'text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400'
+            }
+            ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            ${size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6'}
+          `}
+          title={userHasUpvoted ? 'Remove upvote' : 'Upvote'}
+        >
+          <svg
+            className={size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'}
+            fill={userHasUpvoted ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+
+        {/* Score */}
+        {showCount && (
+          <span className={`text-xs font-medium ${score > 0 ? 'text-orange-600 dark:text-orange-400' : score < 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
+            {score}
+          </span>
+        )}
+
+        {/* Downvote Button */}
+        <button
+          onClick={handleDownvote}
+          disabled={disabled || isLoading}
+          className={`
+            flex items-center justify-center rounded transition-colors
+            ${userHasDownvoted
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+            }
+            ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            ${size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6'}
+          `}
+          title={userHasDownvoted ? 'Remove downvote' : 'Downvote'}
+        >
+          <svg
+            className={size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'}
+            fill={userHasDownvoted ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  // Vertical layout (default, for posts)
   return (
     <div className="flex flex-col items-center gap-1">
       {/* Upvote Button */}
@@ -201,5 +283,8 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
 };
 
 export default VoteButtons;
+
+
+
 
 

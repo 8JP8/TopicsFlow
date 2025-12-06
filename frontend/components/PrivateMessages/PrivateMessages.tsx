@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
+import Avatar from '@/components/UI/Avatar';
+import { useLanguage } from '@/contexts/LanguageContext';
+import toast from 'react-hot-toast';
 
 interface Conversation {
   id: string;
@@ -26,6 +29,7 @@ interface Message {
 }
 
 const PrivateMessages: React.FC = () => {
+  const { t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,21 +40,105 @@ const PrivateMessages: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{id: string, username: string, email: string}>>([]);
   const [searching, setSearching] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{messageId: string, x: number, y: number} | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
+  const [areFriends, setAreFriends] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(false);
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
+  const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
+  const [conversationStatuses, setConversationStatuses] = useState<Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>>(new Map());
+  const [friends, setFriends] = useState<Array<{id: string, username: string, email: string, profile_picture?: string}>>([]);
+  
   useEffect(() => {
     loadConversations();
+    loadFriends();
   }, []);
+
+  const loadFriends = async () => {
+    try {
+      const friendsResponse = await api.get(API_ENDPOINTS.USERS.FRIENDS);
+      if (friendsResponse.data.success) {
+        const friendsList = friendsResponse.data.data || [];
+        setFriends(friendsList);
+        
+        // Update areFriends for selected conversation
+        if (selectedConversation) {
+          const isFriend = friendsList.some((friend: any) => friend.id === selectedConversation);
+          setAreFriends(isFriend);
+        }
+        
+        // Update conversation statuses with friendship info
+        setConversationStatuses(prev => {
+          const newMap = new Map(prev);
+          conversations.forEach((conv: Conversation) => {
+            const isFriend = friendsList.some((friend: any) => friend.id === conv.user_id);
+            const existingStatus = newMap.get(conv.user_id);
+            if (existingStatus) {
+              newMap.set(conv.user_id, { ...existingStatus, areFriends: isFriend });
+            } else {
+              newMap.set(conv.user_id, { isOnline: false, lastLogin: null, areFriends: isFriend });
+            }
+          });
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load friends:', error);
+    }
+  };
+
+  // Helper function to check if a user is in the friends list
+  const isUserFriend = (userId: string): boolean => {
+    return friends.some(friend => friend.id === userId);
+  };
 
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation);
+      // Check friendship from loaded friends list
+      const isFriend = isUserFriend(selectedConversation);
+      setAreFriends(isFriend);
+      
+      // Load user info and online status
+      const loadUserData = async () => {
+        const [userInfo, onlineUsersSet] = await Promise.all([
+          loadUserInfo(selectedConversation),
+          loadOnlineUsers(),
+        ]);
+        // Use onlineUsersSet as primary source, but also check userInfo.isOnline from backend
+        const userIsOnline = onlineUsersSet.has(selectedConversation) || userInfo.isOnline;
+        setIsOnline(userIsOnline);
+        // Only set lastLogin if user is offline (if online, lastLogin should be null)
+        setLastLogin(userIsOnline ? null : userInfo.lastLogin);
+      };
+      loadUserData();
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, friends]);
+
+  // Load online users periodically and on mount
+  useEffect(() => {
+    loadOnlineUsers();
+    const interval = setInterval(() => {
+      loadOnlineUsers();
+    }, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu(null);
+    };
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [contextMenu]);
 
   const loadConversations = async () => {
     try {
@@ -59,12 +147,153 @@ const PrivateMessages: React.FC = () => {
       });
 
       if (response.data.success) {
-        setConversations(response.data.data || []);
+        const conversationsData = response.data.data || [];
+        setConversations(conversationsData);
+        
+        // Load status for all conversations
+        const onlineUsersSet = await loadOnlineUsers();
+        const statusMap = new Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>();
+        
+        // Create a Set of friend IDs for faster lookup
+        const friendIdsSet = new Set(friends.map(f => f.id));
+        
+        await Promise.all(conversationsData.map(async (conv: Conversation) => {
+          try {
+            const userInfo = await loadUserInfo(conv.user_id);
+            // Check friendship from loaded friends list instead of API call
+            const areFriendsResult = friendIdsSet.has(conv.user_id);
+            const convIsOnline = onlineUsersSet.has(conv.user_id) || userInfo.isOnline;
+            statusMap.set(conv.user_id, {
+              isOnline: convIsOnline,
+              // Only set lastLogin if user is offline (if online, lastLogin should be null)
+              lastLogin: convIsOnline ? null : userInfo.lastLogin,
+              areFriends: areFriendsResult,
+            });
+          } catch (error) {
+            console.error(`Failed to load status for user ${conv.user_id}:`, error);
+          }
+        }));
+        
+        setConversationStatuses(statusMap);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkFriendship = async (userId: string) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.CHECK_FRIENDSHIP(userId));
+      if (response.data.success) {
+        return response.data.are_friends || false;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to check friendship:', error);
+      return false;
+    }
+  };
+
+  const loadOnlineUsers = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.ONLINE_USERS);
+      if (response.data.success) {
+        const onlineUserIds = new Set<string>((response.data.data || []).map((u: any) => String(u.id || u.user_id)));
+        setOnlineUsersList(onlineUserIds);
+        return onlineUserIds;
+      }
+      return new Set<string>();
+    } catch (error) {
+      console.error('Failed to load online users:', error);
+      return new Set<string>();
+    }
+  };
+
+  const loadUserInfo = async (userId: string) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
+      if (response.data.success) {
+        // Use last_seen (WebSocket disconnect time) if available, fallback to last_login
+        return {
+          lastLogin: response.data.data?.last_seen || response.data.data?.last_login || null,
+          isOnline: response.data.data?.is_online || false,
+        };
+      }
+      return { lastLogin: null, isOnline: false };
+    } catch (error) {
+      console.error('Failed to load user info:', error);
+      return { lastLogin: null, isOnline: false };
+    }
+  };
+
+  const formatLastSeen = (lastLogin: string | null) => {
+    if (!lastLogin) return null;
+    try {
+      const date = new Date(lastLogin);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (seconds < 60) return t('privateMessages.justNow') || 'Just now';
+      // Show minutes for anything less than 60 minutes, then switch to hours
+      if (minutes < 60) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${minutes} ${t('privateMessages.minutesAgo') || 'minutes ago'}`;
+      if (hours < 24) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${hours} ${t('privateMessages.hoursAgo') || 'hours ago'}`;
+      if (days < 7) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${days} ${t('privateMessages.daysAgo') || 'days ago'}`;
+      return `${t('privateMessages.lastSeen') || 'Last seen'} ${date.toLocaleDateString()}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleSendFriendRequest = async (userId: string, username?: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
+        to_user_id: userId,
+      });
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRequestSent') || (username ? `Friend request sent to ${username}` : 'Friend request sent'));
+        // Refresh friendship status
+        if (selectedConversation === userId) {
+          const isFriend = await checkFriendship(userId);
+          setAreFriends(isFriend);
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
+      toast.error(errorMessage || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+    }
+  };
+
+  const handleRemoveFriend = async (userId: string, username?: string) => {
+    try {
+      const response = await api.delete(API_ENDPOINTS.USERS.REMOVE_FRIEND(userId));
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRemoved') || (username ? `Removed ${username} from friends` : 'Friend removed'));
+        // Refresh friendship status
+        if (selectedConversation === userId) {
+          const isFriend = await checkFriendship(userId);
+          setAreFriends(isFriend);
+        }
+        // Update conversation statuses
+        setConversationStatuses(prev => {
+          const newMap = new Map(prev);
+          const status = newMap.get(userId);
+          if (status) {
+            newMap.set(userId, { ...status, areFriends: false });
+          }
+          return newMap;
+        });
+        // Reload conversations to update status
+        loadConversations();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
+      toast.error(errorMessage || t('privateMessages.failedToRemoveFriend') || 'Failed to remove friend');
     }
   };
 
@@ -77,6 +306,24 @@ const PrivateMessages: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
+    }
+  };
+
+  const handleDeleteForMe = async (messageId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.DELETE_MESSAGE_FOR_ME(messageId));
+      if (response.data.success) {
+        toast.success(t('settings.messageRemoved') || 'Message removed for you');
+        if (selectedConversation) {
+          loadMessages(selectedConversation);
+        }
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    } finally {
+      setContextMenu(null);
     }
   };
 
@@ -102,9 +349,9 @@ const PrivateMessages: React.FC = () => {
           id: response.data.data.id,
           content: messageInput.trim(),
           message_type: 'text',
-          created_at: new Date().toISOString(),
+          created_at: response.data.data.created_at || new Date().toISOString(),
           is_from_me: true,
-          sender_username: 'You',
+          sender_username: t('common.you') || 'You',
         };
 
         setMessages(prev => [...prev, newMessage]);
@@ -112,9 +359,14 @@ const PrivateMessages: React.FC = () => {
 
         // Update conversation list
         loadConversations();
+      } else {
+        const errorMessage = response.data.errors?.[0] || t('toast.failedToSendMessage') || 'Failed to send message';
+        toast.error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.message || t('toast.failedToSendMessage') || 'Failed to send message';
+      toast.error(errorMessage);
     } finally {
       setSendingMessage(false);
     }
@@ -210,7 +462,7 @@ const PrivateMessages: React.FC = () => {
             <button
               onClick={() => setShowAddFriendModal(true)}
               className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
-              title="Start new conversation"
+              title={t('privateMessages.startNewConversation') || 'Start new conversation'}
             >
               <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -246,24 +498,52 @@ const PrivateMessages: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium theme-text-primary truncate">
-                      {conversation.username}
-                    </h4>
-                    <span className="text-xs theme-text-muted">
-                      {formatTimestamp(conversation.last_message.created_at)}
-                    </span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <h4 className="font-medium theme-text-primary truncate">
+                        {conversation.username}
+                      </h4>
+                      {(() => {
+                        const status = conversationStatuses.get(conversation.user_id);
+                        if (!status) return null;
+                        const { isOnline, lastLogin, areFriends } = status;
+                        if (!areFriends) return null;
+                        if (isOnline) {
+                          return (
+                            <span className="text-xs text-green-500 flex items-center gap-1 flex-shrink-0">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              {t('privateMessages.online') || 'Online'}
+                            </span>
+                          );
+                        }
+                        if (lastLogin && formatLastSeen(lastLogin)) {
+                          return (
+                            <span className="text-xs theme-text-muted flex-shrink-0">
+                              {formatLastSeen(lastLogin)}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm theme-text-secondary truncate">
-                      {conversation.last_message.is_from_me ? 'You: ' : ''}
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <p className="text-sm theme-text-secondary truncate flex-1 min-w-0">
+                      {conversation.last_message.is_from_me ? `${t('common.you') || 'You'}: ` : ''}
                       {conversation.last_message.content}
                     </p>
-                    {conversation.unread_count > 0 && (
-                      <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs rounded-full">
-                        {conversation.unread_count}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {conversation.last_message.created_at && (
+                        <span className="text-xs theme-text-muted whitespace-nowrap">
+                          {formatTimestamp(conversation.last_message.created_at)}
+                        </span>
+                      )}
+                      {conversation.unread_count > 0 && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs rounded-full">
+                          {conversation.unread_count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -284,11 +564,38 @@ const PrivateMessages: React.FC = () => {
                     {conversations.find(c => c.user_id === selectedConversation)?.username.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <div>
-                  <h3 className="font-medium theme-text-primary">
-                    {conversations.find(c => c.user_id === selectedConversation)?.username}
-                  </h3>
-                  <p className="text-sm theme-text-secondary">Private conversation</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium theme-text-primary">
+                      {conversations.find(c => c.user_id === selectedConversation)?.username}
+                    </h3>
+                    {areFriends && (
+                      <>
+                        {isOnline ? (
+                          <span className="text-xs text-green-500 flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            {t('privateMessages.online') || 'Online'}
+                          </span>
+                        ) : lastLogin && formatLastSeen(lastLogin) ? (
+                          <span className="text-xs theme-text-muted">
+                            {formatLastSeen(lastLogin)}
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                    {!areFriends && selectedConversation && (
+                      <button
+                        onClick={() => handleSendFriendRequest(selectedConversation, conversations.find(c => c.user_id === selectedConversation)?.username)}
+                        className="p-1 rounded-md theme-bg-tertiary theme-text-secondary hover:theme-bg-hover transition-colors"
+                        title={t('privateMessages.sendFriendRequest') || 'Send friend request'}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm theme-text-secondary">{t('privateMessages.privateConversation') || 'Private conversation'}</p>
                 </div>
               </div>
             </div>
@@ -297,7 +604,7 @@ const PrivateMessages: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="theme-text-secondary">No messages yet. Start the conversation!</p>
+                  <p className="theme-text-secondary">{t('privateMessages.noMessages') || 'No messages yet. Start the conversation!'}</p>
                 </div>
               ) : (
                 <>
@@ -307,13 +614,21 @@ const PrivateMessages: React.FC = () => {
                       className={`flex items-start space-x-3 ${
                         message.is_from_me ? 'justify-end' : ''
                       }`}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({
+                          messageId: message.id,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
                     >
                       {!message.is_from_me && (
-                        <div className="w-8 h-8 rounded-full theme-bg-tertiary flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-medium theme-text-primary">
-                            {message.sender_username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
+                        <Avatar
+                          userId={message.user_id}
+                          username={message.sender_username}
+                          size="sm"
+                        />
                       )}
                       <div className={`max-w-xs lg:max-w-md ${
                         message.is_from_me ? 'order-first' : ''
@@ -331,7 +646,7 @@ const PrivateMessages: React.FC = () => {
                       </div>
                       {message.is_from_me && (
                         <div className="w-8 h-8 rounded-full theme-blue-primary flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-sm font-semibold">You</span>
+                          <span className="text-white text-sm font-semibold">{t('common.you') || 'You'}</span>
                         </div>
                       )}
                     </div>
@@ -350,7 +665,7 @@ const PrivateMessages: React.FC = () => {
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}
-                    placeholder="Type a message..."
+                    placeholder={t('privateMessages.typeMessage') || 'Type a message...'}
                     className="w-full px-4 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
                     disabled={sendingMessage}
                   />
@@ -361,7 +676,7 @@ const PrivateMessages: React.FC = () => {
                   disabled={!messageInput.trim() || sendingMessage}
                   className="px-4 py-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {sendingMessage ? <LoadingSpinner size="sm" /> : 'Send'}
+                  {sendingMessage ? <LoadingSpinner size="sm" /> : t('common.send') || 'Send'}
                 </button>
               </form>
             </div>
@@ -374,10 +689,10 @@ const PrivateMessages: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <h3 className="text-lg font-medium theme-text-primary mb-2">
-                Select a conversation
+                {t('privateMessages.selectConversation') || 'Select a conversation'}
               </h3>
               <p className="theme-text-secondary">
-                Choose a conversation from the list to start messaging
+                {t('privateMessages.chooseConversation') || 'Choose a conversation from the list to start messaging'}
               </p>
             </div>
           </div>

@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
-  const [totpCode, setTotpCode] = useState('');
+  const [_totpCode, setTotpCode] = useState('');
   const [backupCode, setBackupCode] = useState('');
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [useBackupCode, setUseBackupCode] = useState(false);
@@ -112,7 +112,7 @@ const LoginPage: React.FC = () => {
       const publicKeyOptions = {
         ...options,
         challenge: base64urlToArrayBuffer(options.challenge),
-        allowCredentials: options.allowCredentials?.map((cred: any) => ({
+        allowCredentials: options.allowCredentials?.map((cred: { id: string }) => ({
           ...cred,
           id: base64urlToArrayBuffer(cred.id),
         })) || [],
@@ -162,9 +162,9 @@ const LoginPage: React.FC = () => {
       } else {
         toast.error(verifyResult.error || t('errors.passkeyFailed'));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Passkey login error:', error);
-      if (error.name === 'NotAllowedError') {
+      if (error instanceof Error && error.name === 'NotAllowedError') {
         toast.error(t('errors.passkeyUserCancelled'));
       } else {
         toast.error(t('errors.passkeyFailed'));

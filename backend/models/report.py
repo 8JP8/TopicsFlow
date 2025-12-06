@@ -10,20 +10,67 @@ class Report:
         self.db = db
         self.collection = db.reports
 
-    def create_report(self, content_id: str, reporter_id: str, reason: str, theme_id: str, content_type: str = 'message') -> str:
-        """Create a new report for a message, post, or comment with context."""
-        # Get context messages (previous 3-4 messages from same topic/theme) if it's a message
-        context_messages = []
-        if content_type == 'message':
-            context_messages = self._get_context_messages(content_id, theme_id)
+    def create_report(self, reporter_id: str, reason: str, description: str = '',
+                     content_type: str = 'message',
+                     content_id: Optional[str] = None, reported_user_id: Optional[str] = None,
+                     topic_id: Optional[str] = None,
+                     attach_current_message: bool = False,
+                     attach_message_history: bool = False,
+                     current_message_id: Optional[str] = None,
+                     chat_room_id: Optional[str] = None,
+                     report_type: Optional[str] = None,
+                     related_message_id: Optional[str] = None,
+                     owner_id: Optional[str] = None,
+                     owner_username: Optional[str] = None,
+                     moderators: Optional[List[Dict[str, str]]] = None) -> str:
+        """Create a new report for content (message, post, comment) or a user.
+
+        Args:
+            reporter_id: ID of user creating the report
+            reason: Reason for the report
+            description: Detailed description of the issue
+            content_type: Type of report ('message', 'post', 'comment', 'user')
+            content_id: ID of content being reported (for content reports)
+            reported_user_id: ID of user being reported (for user reports)
+            topic_id: Optional topic context
+            attach_current_message: Whether to attach the current message
+            attach_message_history: Whether to attach entire message history
+            current_message_id: ID of the current message to attach
+            chat_room_id: ID of chat room for message history
+
+        Returns:
+            Report ID as string
+        """
+        # Validate that either content_id or reported_user_id is provided
+        if not content_id and not reported_user_id:
+            raise ValueError('Either content_id or reported_user_id must be provided')
+
+        # Get attached messages based on options
+        attached_messages = []
+        if attach_current_message and current_message_id:
+            attached_messages.append(ObjectId(current_message_id))
+        
+        if attach_message_history and reported_user_id:
+            # Get all messages between reporter and reported user
+            history_messages = self._get_message_history(reporter_id, reported_user_id, chat_room_id)
+            attached_messages.extend([ObjectId(msg_id) for msg_id in history_messages])
+        
+        # Remove duplicates
+        attached_messages = list(set(attached_messages))
 
         report_data = {
-            'reported_content_id': ObjectId(content_id),
-            'content_type': content_type,  # 'message', 'post', 'comment'
-            'theme_id': ObjectId(theme_id),
+            'reported_content_id': ObjectId(content_id) if content_id else None,
+            'reported_user_id': ObjectId(reported_user_id) if reported_user_id else None,
+            'content_type': content_type,  # 'message', 'post', 'comment', 'user', 'chat_background'
+            'report_type': report_type or ('user' if reported_user_id and not content_id else 'content'),
+            'topic_id': ObjectId(topic_id) if topic_id else None,
             'reported_by': ObjectId(reporter_id),
             'reason': reason,
-            'context_messages': [ObjectId(msg_id) for msg_id in context_messages],
+            'description': description,
+            'attached_messages': attached_messages,
+            'owner_id': ObjectId(owner_id) if owner_id else None,
+            'owner_username': owner_username,
+            'moderators': moderators or [],  # List of {id, username} dicts
             'status': 'pending',  # 'pending', 'reviewed', 'resolved', 'dismissed'
             'reviewed_by': None,
             'reviewed_at': None,
@@ -35,7 +82,7 @@ class Report:
         result = self.collection.insert_one(report_data)
         return str(result.inserted_id)
 
-    def _get_context_messages(self, message_id: str, theme_id: str, count: int = 4) -> List[str]:
+    def _get_context_messages(self, message_id: str, topic_id: str, count: int = 4) -> List[str]:
         """Get previous messages for context."""
         from .message import Message
         message_model = Message(self.db)
@@ -45,12 +92,12 @@ class Report:
         if not reported_message:
             return []
 
-        # Get previous messages from same topic/theme (support both old and new format)
+        # Get previous messages from same topic
         context_query = {
             'is_deleted': False,
             '$or': [
-                {'topic_id': ObjectId(theme_id)},
-                {'chat_room_id': {'$exists': True}}  # For chat room messages, we'd need theme_id lookup
+                {'topic_id': ObjectId(topic_id)},
+                {'chat_room_id': {'$exists': True}}  # For chat room messages
             ],
             'created_at': {'$lt': reported_message['created_at']}
         }
@@ -60,6 +107,37 @@ class Report:
                               .limit(count))
 
         return [str(msg['_id']) for msg in context_messages]
+
+    def _get_message_history(self, reporter_id: str, reported_user_id: str, chat_room_id: Optional[str] = None, limit: int = 100) -> List[str]:
+        """Get message history between two users."""
+        from bson import ObjectId
+        
+        query: Dict[str, Any] = {
+            'is_deleted': False,
+            '$or': [
+                {
+                    'user_id': ObjectId(reporter_id),
+                    'recipient_id': ObjectId(reported_user_id)
+                },
+                {
+                    'user_id': ObjectId(reported_user_id),
+                    'recipient_id': ObjectId(reporter_id)
+                }
+            ]
+        }
+        
+        # If chat_room_id is provided, also include chat room messages
+        if chat_room_id:
+            query['$or'].append({
+                'chat_room_id': ObjectId(chat_room_id),
+                'user_id': {'$in': [ObjectId(reporter_id), ObjectId(reported_user_id)]}
+            })
+        
+        messages = list(self.db.messages.find(query)
+                       .sort([('created_at', -1)])
+                       .limit(limit))
+        
+        return [str(msg['_id']) for msg in messages]
 
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific report by ID."""
@@ -105,16 +183,51 @@ class Report:
 
     def _enrich_report_with_details(self, report: Dict[str, Any]) -> None:
         """Enrich report with message and user details."""
-        # Get reported message details
         from .message import Message
+        from .user import User
+        
         message_model = Message(self.db)
-        reported_message = message_model.get_message_by_id(report['reported_message_id'])
-        if reported_message:
-            report['reported_message'] = reported_message
+        user_model = User(self.db)
+        
+        # Get reported content details (message, post, or comment)
+        if report.get('reported_content_id'):
+            content_id = str(report['reported_content_id'])
+            if report.get('content_type') == 'message':
+                reported_message = message_model.get_message_by_id(content_id)
+                if reported_message:
+                    report['reported_content'] = reported_message
+            # TODO: Add support for posts and comments
+        
+        # Get reported user details
+        if report.get('reported_user_id'):
+            reported_user = user_model.get_user_by_id(str(report['reported_user_id']))
+            if reported_user:
+                original_username = reported_user['username']
+                
+                # Check if reported content is anonymous
+                anonymous_name = None
+                if report.get('reported_content'):
+                    content = report['reported_content']
+                    if content.get('is_anonymous') or content.get('anonymous_identity'):
+                        anonymous_name = content.get('display_name') or content.get('sender_username') or content.get('author_username') or content.get('anonymous_identity')
+                
+                # Format username for admins: show anonymous name with original in parentheses
+                if anonymous_name:
+                    report['reported_user'] = {
+                        'id': str(reported_user['_id']),
+                        'username': f"{anonymous_name} ({original_username})",
+                        'username_display': anonymous_name,
+                        'username_original': original_username
+                    }
+                else:
+                    report['reported_user'] = {
+                        'id': str(reported_user['_id']),
+                        'username': original_username,
+                        'username_display': original_username,
+                        'username_original': original_username
+                    }
 
         # Get reporter details
-        from .user import User
-        user_model = User(self.db)
         reporter = user_model.get_user_by_id(report['reported_by'])
         if reporter:
             report['reporter'] = {
@@ -122,13 +235,21 @@ class Report:
                 'username': reporter['username']
             }
 
-        # Get context messages
-        context_messages = []
-        for msg_id in report.get('context_messages', []):
+        # Get attached messages details (including attachments)
+        attached_messages_details = []
+        for msg_id in report.get('attached_messages', []):
             context_msg = message_model.get_message_by_id(str(msg_id))
             if context_msg:
-                context_messages.append(context_msg)
-        report['context_messages_details'] = context_messages
+                # Ensure attachments are included
+                if 'attachments' not in context_msg:
+                    context_msg['attachments'] = []
+                attached_messages_details.append(context_msg)
+        report['attached_messages_details'] = attached_messages_details
+        
+        # Also include attachments in the reported content if it's a message
+        if report.get('reported_content') and report.get('content_type') == 'message':
+            if 'attachments' not in report['reported_content']:
+                report['reported_content']['attachments'] = []
 
         # Get reviewer details if reviewed
         if report.get('reviewed_by'):
@@ -142,21 +263,63 @@ class Report:
     def review_report(self, report_id: str, reviewer_id: str, action_taken: str,
                      moderator_notes: str = '') -> bool:
         """Review and resolve a report."""
-        valid_actions = ['deleted', 'user_banned', 'user_warned', 'dismissed', 'escalated']
+        valid_actions = ['deleted', 'user_banned', 'user_warned', 'dismissed', 'escalated', 'resolved']
         if action_taken not in valid_actions:
             return False
+
+        # Determine status based on action
+        if action_taken == 'dismissed':
+            status = 'dismissed'
+        elif action_taken == 'resolved':
+            status = 'resolved'
+        else:
+            status = 'reviewed'
 
         result = self.collection.update_one(
             {'_id': ObjectId(report_id)},
             {
                 '$set': {
-                    'status': 'reviewed',
+                    'status': status,
                     'reviewed_by': ObjectId(reviewer_id),
                     'reviewed_at': datetime.utcnow(),
                     'action_taken': action_taken,
                     'moderator_notes': moderator_notes
                 }
             }
+        )
+
+        return result.modified_count > 0
+
+    def reopen_report(self, report_id: str, admin_id: str, reason: Optional[str] = None) -> bool:
+        """Reopen a dismissed or resolved report.
+
+        Args:
+            report_id: Report ID to reopen
+            admin_id: ID of admin reopening the report
+            reason: Optional reason for reopening
+
+        Returns:
+            True if reopen successful, False otherwise
+        """
+        report = self.collection.find_one({'_id': ObjectId(report_id)})
+        if not report:
+            return False
+
+        # Only allow reopening dismissed or resolved reports
+        if report.get('status') not in ['dismissed', 'resolved', 'reviewed']:
+            return False
+
+        update_data = {
+            'status': 'pending',
+            'reviewed_by': None,
+            'reviewed_at': None,
+            'action_taken': None,
+            'moderator_notes': reason if reason else ''
+        }
+
+        result = self.collection.update_one(
+            {'_id': ObjectId(report_id)},
+            {'$set': update_data}
         )
 
         return result.modified_count > 0
@@ -173,22 +336,24 @@ class Report:
         """Get reports by status."""
         query = {'status': status}
         if topic_id:
-            # Filter by topic
-            from .message import Message
-            message_model = Message(self.db)
-            topic_message_ids = [ObjectId(msg['_id']) for msg in
-                                self.db.messages.find({'topic_id': ObjectId(topic_id)}, {'_id': 1})]
-            query['reported_message_id'] = {'$in': topic_message_ids}
+            query['topic_id'] = ObjectId(topic_id)
 
         reports = list(self.collection.find(query)
                       .sort([('created_at', -1)]))
 
         for report in reports:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_content_id' in report and report['reported_content_id']:
+                report['reported_content_id'] = str(report['reported_content_id'])
+            if 'reported_user_id' in report and report['reported_user_id']:
+                report['reported_user_id'] = str(report['reported_user_id'])
+            if 'topic_id' in report and report['topic_id']:
+                report['topic_id'] = str(report['topic_id'])
             report['reported_by'] = str(report['reported_by'])
-            if report['reviewed_by']:
+            if report.get('reviewed_by'):
                 report['reviewed_by'] = str(report['reviewed_by'])
+            if 'attached_messages' in report and report['attached_messages']:
+                report['attached_messages'] = [str(msg_id) for msg_id in report['attached_messages']]
 
             self._enrich_report_with_details(report)
 
@@ -224,12 +389,7 @@ class Report:
         """Get report statistics for moderation dashboard."""
         match_stage = {}
         if topic_id:
-            # Filter by topic
-            from .message import Message
-            message_model = Message(self.db)
-            topic_message_ids = [ObjectId(msg['_id']) for msg in
-                                self.db.messages.find({'topic_id': ObjectId(topic_id)}, {'_id': 1})]
-            match_stage = {'reported_message_id': {'$in': topic_message_ids}}
+            match_stage = {'topic_id': ObjectId(topic_id)}
 
         pipeline = [
             {'$match': match_stage},

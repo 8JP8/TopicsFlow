@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
-import { translate } from '@/utils/translations';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PostCard from './PostCard';
@@ -24,6 +23,7 @@ interface Post {
   user_has_downvoted?: boolean;
   created_at: string;
   gif_url?: string;
+  tags?: string[];
 }
 
 interface PostListProps {
@@ -39,6 +39,9 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [hiddenPosts, setHiddenPosts] = useState<Set<string>>(new Set());
   const limit = 20;
 
   const loadPosts = async (reset: boolean = false) => {
@@ -55,7 +58,22 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
       });
 
       if (response.data.success) {
-        const newPosts = response.data.data || [];
+        let newPosts = response.data.data || [];
+        
+        // Filter by search query
+        if (searchQuery) {
+          newPosts = newPosts.filter((post: Post) =>
+            post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            post.content.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+        
+        // Filter by tags
+        if (selectedTags.length > 0) {
+          newPosts = newPosts.filter((post: Post) =>
+            post.tags && selectedTags.every(tag => post.tags!.includes(tag))
+          );
+        }
         
         if (reset) {
           setPosts(newPosts);
@@ -66,11 +84,16 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
         }
 
         setHasMore(newPosts.length === limit);
+        
+        // Notify parent component of posts loaded (for navigation)
+        if (onPostSelect && newPosts.length > 0) {
+          // This will be used by parent to track available posts
+        }
       } else {
-        toast.error(response.data.errors?.[0] || translate('posts.failedToCreatePost'));
+        toast.error(response.data.errors?.[0] || t('posts.failedToCreatePost') || 'Failed to load posts');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.[0] || translate('posts.failedToCreatePost');
+      const errorMessage = error.response?.data?.errors?.[0] || t('posts.failedToCreatePost') || 'Failed to load posts';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -81,7 +104,7 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
     if (topicId) {
       loadPosts(true);
     }
-  }, [topicId, sortBy]);
+  }, [topicId, sortBy, searchQuery, selectedTags]);
 
   const handleVoteChange = (postId: string, upvoted: boolean, downvoted: boolean, upCount: number, downCount: number, score: number) => {
     setPosts(prev =>
@@ -121,16 +144,62 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
     setOffset(0);
   };
 
+  // Get unique tags from posts
+  const allTags = Array.from(new Set(posts.flatMap(post => post.tags || []))).sort();
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
   return (
     <div className="h-full flex flex-col p-4">
-      {/* Create Post Button */}
-      <div className="mb-4">
-        <button
-          onClick={() => setShowCreatePost(true)}
-          className="w-full btn btn-primary"
-        >
-          {t('posts.createPost') || 'Create Post'}
-        </button>
+      {/* Search and Filters */}
+      <div className="mb-4 space-y-3">
+        {/* Search with Create Button */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCreatePost(true)}
+            className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0"
+            title={t('posts.createPost') || 'Create Post'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <input
+            type="text"
+            placeholder={t('common.search') || 'Search posts...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-4 py-2 border theme-border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Tags Filter */}
+        {allTags.length > 0 && (
+          <div>
+            <p className="text-xs font-medium theme-text-secondary mb-2">{t('home.filterByTags') || 'Filter by tags'}</p>
+            <div className="flex flex-wrap gap-1">
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                    selectedTags.includes(tag)
+                      ? 'theme-blue-primary text-white'
+                      : 'theme-bg-tertiary theme-text-secondary hover:theme-text-primary'
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Post Form */}
@@ -170,13 +239,20 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
         ) : (
           <>
             <div className="space-y-4 p-4">
-            {posts.map(post => (
+            {posts.filter(post => !hiddenPosts.has(post.id)).map(post => (
               <PostCard
                 key={post.id}
                 post={post}
+                onPostSelect={onPostSelect}
                 onVoteChange={(upvoted, downvoted, upCount, downCount, score) =>
                   handleVoteChange(post.id, upvoted, downvoted, upCount, downCount, score)
                 }
+                onPostHidden={(postId) => {
+                  setHiddenPosts(prev => new Set(prev).add(postId));
+                }}
+                onPostDeleted={(postId) => {
+                  setPosts(prev => prev.filter(p => p.id !== postId));
+                }}
               />
             ))}
           </div>

@@ -1,6 +1,6 @@
 # Environment Setup Guide
 
-This guide explains how to set up your environment variables for the ChatHub application using the automated setup scripts.
+This guide explains how to set up your environment variables for the TopicsFlow application using the automated setup scripts.
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ The setup scripts will:
 1. **Set environment variables for the current session:**
    - `RESEND_API_KEY` - Your Resend email API key
    - `FROM_EMAIL` - Sender email address (chat@taskflow.pt)
-   - `APP_NAME` - Application name (ChatHub)
+   - `APP_NAME` - Application name (TopicsFlow)
    - `FRONTEND_URL` - Frontend URL (http://localhost:3000)
    - `DATABASE_URL` - MongoDB connection string
    - `CORS_ALLOW_ALL` - Enable CORS for development
@@ -270,7 +270,7 @@ cd backend
 (
 echo RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 echo FROM_EMAIL=chat@taskflow.pt
-echo APP_NAME=ChatHub
+echo APP_NAME=TopicsFlow
 echo FRONTEND_URL=http://localhost:3000
 echo DATABASE_URL=mongodb://localhost:27017/chatapp
 echo CORS_ALLOW_ALL=true
@@ -285,7 +285,7 @@ cd backend
 @"
 RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 FROM_EMAIL=chat@taskflow.pt
-APP_NAME=ChatHub
+APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/chatapp
 CORS_ALLOW_ALL=true
@@ -300,7 +300,7 @@ cd backend
 cat > .env << 'EOF'
 RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 FROM_EMAIL=chat@taskflow.pt
-APP_NAME=ChatHub
+APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/chatapp
 CORS_ALLOW_ALL=true
@@ -346,7 +346,7 @@ If you suspect your API key has been exposed:
 |----------|-------------|---------|----------|
 | `RESEND_API_KEY` | Resend email API key | - | ✅ Yes |
 | `FROM_EMAIL` | Sender email address | chat@taskflow.pt | ✅ Yes |
-| `APP_NAME` | Application name | ChatHub | ✅ Yes |
+| `APP_NAME` | Application name | TopicsFlow | ✅ Yes |
 | `FRONTEND_URL` | Frontend URL | http://localhost:3000 | ✅ Yes |
 | `DATABASE_URL` | MongoDB connection string | mongodb://localhost:27017/chatapp | ✅ Yes |
 | `CORS_ALLOW_ALL` | Enable CORS for dev | true | ✅ Yes |
@@ -355,7 +355,7 @@ If you suspect your API key has been exposed:
 | `SESSION_TYPE` | Session storage type | filesystem | No |
 | `REDIS_URL` | Redis connection string | redis://localhost:6379/0 | No |
 | `LOG_LEVEL` | Logging level | INFO | No |
-| `TOTP_ISSUER` | 2FA issuer name | ChatHub | No |
+| `TOTP_ISSUER` | 2FA issuer name | TopicsFlow | No |
 
 ---
 

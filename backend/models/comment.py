@@ -27,7 +27,10 @@ class Comment:
             'anonymous_identity': anonymous_identity,
             'gif_url': gif_url,
             'upvotes': [],  # Array of user_ids who upvoted
+            'downvotes': [],  # Array of user_ids who downvoted
             'upvote_count': 0,
+            'downvote_count': 0,
+            'score': 0,  # upvote_count - downvote_count
             'reply_count': 0,
             'depth': 0,  # Depth in comment tree (0 = top-level comment)
             'is_deleted': False,
@@ -82,7 +85,7 @@ class Comment:
 
         return comment_id
 
-    def get_comment_by_id(self, comment_id: str) -> Optional[Dict[str, Any]]:
+    def get_comment_by_id(self, comment_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific comment by ID."""
         comment = self.collection.find_one({'_id': ObjectId(comment_id)})
         if comment:
@@ -94,10 +97,38 @@ class Comment:
             if comment.get('parent_comment_id'):
                 comment['parent_comment_id'] = str(comment['parent_comment_id'])
             
-            # Convert upvotes list ObjectIds to strings
+            # Convert upvotes and downvotes list ObjectIds to strings
             if 'upvotes' in comment and comment['upvotes']:
                 comment['upvotes'] = [str(user_id) for user_id in comment['upvotes']]
+            if 'downvotes' in comment and comment['downvotes']:
+                comment['downvotes'] = [str(user_id) for user_id in comment['downvotes']]
+
+            # Calculate score if not present
+            if 'score' not in comment:
+                up_count = comment.get('upvote_count', 0)
+                down_count = comment.get('downvote_count', 0)
+                comment['score'] = up_count - down_count
             
+            # Check if user has upvoted or downvoted (if user_id provided)
+            # Note: user_id parameter is passed to this method
+            if user_id:
+                user_obj_id = ObjectId(user_id)
+                # Need to check against original ObjectId lists before conversion
+                original_upvotes = comment.get('upvotes', [])
+                original_downvotes = comment.get('downvotes', [])
+                # If already converted, check against string list
+                if original_upvotes and isinstance(original_upvotes[0], str):
+                    comment['user_has_upvoted'] = user_id in original_upvotes
+                else:
+                    comment['user_has_upvoted'] = user_obj_id in original_upvotes
+                if original_downvotes and isinstance(original_downvotes[0], str):
+                    comment['user_has_downvoted'] = user_id in original_downvotes
+                else:
+                    comment['user_has_downvoted'] = user_obj_id in original_downvotes
+            else:
+                comment['user_has_upvoted'] = False
+                comment['user_has_downvoted'] = False
+
             # Convert datetime to ISO string
             if 'created_at' in comment and isinstance(comment['created_at'], datetime):
                 comment['created_at'] = comment['created_at'].isoformat()
@@ -109,6 +140,10 @@ class Comment:
                 comment['display_name'] = comment['anonymous_identity']
                 comment['is_anonymous'] = True
                 comment['author_username'] = comment['anonymous_identity']
+                comment['profile_picture'] = None
+                comment['is_admin'] = False
+                comment['is_owner'] = False
+                comment['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -116,9 +151,30 @@ class Comment:
                 if user:
                     comment['display_name'] = user['username']
                     comment['author_username'] = user['username']
+                    comment['profile_picture'] = user.get('profile_picture')
+                    comment['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator of the post's topic
+                    comment['is_owner'] = False
+                    comment['is_moderator'] = False
+                    if comment.get('post_id'):
+                        from .post import Post
+                        post_model = Post(self.db)
+                        post = post_model.get_post_by_id(str(comment['post_id']))
+                        if post and post.get('topic_id'):
+                            from .topic import Topic
+                            topic_model = Topic(self.db)
+                            topic = topic_model.get_topic_by_id(str(post['topic_id']))
+                            if topic:
+                                comment['is_owner'] = str(topic.get('owner_id')) == str(comment['user_id'])
+                                comment['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(comment['user_id']))
                 else:
                     comment['display_name'] = 'Deleted User'
                     comment['author_username'] = 'Deleted User'
+                    comment['profile_picture'] = None
+                    comment['is_admin'] = False
+                    comment['is_owner'] = False
+                    comment['is_moderator'] = False
                 comment['is_anonymous'] = False
 
         return comment
@@ -156,15 +212,26 @@ class Comment:
             if comment.get('parent_comment_id'):
                 comment['parent_comment_id'] = str(comment['parent_comment_id'])
             
-            # Convert upvotes list ObjectIds to strings
-            if 'upvotes' in comment and comment['upvotes']:
-                comment['upvotes'] = [str(user_id) for user_id in comment['upvotes']]
-            
-            # Check if user has upvoted
+            # Check if user has upvoted or downvoted BEFORE converting ObjectIds to strings
             if user_id:
-                comment['user_has_upvoted'] = ObjectId(user_id) in comment.get('upvotes', [])
+                user_obj_id = ObjectId(user_id)
+                comment['user_has_upvoted'] = user_obj_id in comment.get('upvotes', [])
+                comment['user_has_downvoted'] = user_obj_id in comment.get('downvotes', [])
             else:
                 comment['user_has_upvoted'] = False
+                comment['user_has_downvoted'] = False
+            
+            # Convert upvotes and downvotes list ObjectIds to strings
+            if 'upvotes' in comment and comment['upvotes']:
+                comment['upvotes'] = [str(user_id) for user_id in comment['upvotes']]
+            if 'downvotes' in comment and comment['downvotes']:
+                comment['downvotes'] = [str(user_id) for user_id in comment['downvotes']]
+            
+            # Calculate score if not present
+            if 'score' not in comment:
+                up_count = comment.get('upvote_count', 0)
+                down_count = comment.get('downvote_count', 0)
+                comment['score'] = up_count - down_count
             
             # Convert datetime to ISO string
             if 'created_at' in comment and isinstance(comment['created_at'], datetime):
@@ -177,6 +244,10 @@ class Comment:
                 comment['display_name'] = comment['anonymous_identity']
                 comment['is_anonymous'] = True
                 comment['author_username'] = comment['anonymous_identity']
+                comment['profile_picture'] = None
+                comment['is_admin'] = False
+                comment['is_owner'] = False
+                comment['is_moderator'] = False
             else:
                 from .user import User
                 user_model = User(self.db)
@@ -184,56 +255,139 @@ class Comment:
                 if user:
                     comment['display_name'] = user['username']
                     comment['author_username'] = user['username']
+                    comment['profile_picture'] = user.get('profile_picture')
+                    comment['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator of the post's topic
+                    comment['is_owner'] = False
+                    comment['is_moderator'] = False
+                    if comment.get('post_id'):
+                        from .post import Post
+                        post_model = Post(self.db)
+                        post = post_model.get_post_by_id(str(comment['post_id']))
+                        if post and post.get('topic_id'):
+                            from .topic import Topic
+                            topic_model = Topic(self.db)
+                            topic = topic_model.get_topic_by_id(str(post['topic_id']))
+                            if topic:
+                                comment['is_owner'] = str(topic.get('owner_id')) == str(comment['user_id'])
+                                comment['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(comment['user_id']))
                 else:
                     comment['display_name'] = 'Deleted User'
                     comment['author_username'] = 'Deleted User'
+                    comment['profile_picture'] = None
+                    comment['is_admin'] = False
+                    comment['is_owner'] = False
+                    comment['is_moderator'] = False
                 comment['is_anonymous'] = False
 
             # Initialize replies list
             comment['replies'] = []
             comments_dict[comment['id']] = comment
 
-        # Build tree structure
+        # Build nested tree structure (Reddit-style)
         for comment_id, comment in comments_dict.items():
             if comment.get('parent_comment_id') and comment['parent_comment_id'] in comments_dict:
-                # This is a reply, add it to parent's replies
+                # This is a reply, add it to direct parent's replies
                 parent = comments_dict[comment['parent_comment_id']]
+                # Don't store parent info for mentions - comments are independent
                 parent['replies'].append(comment)
             else:
                 # This is a root comment
                 root_comments.append(comment)
+        
+        # Sort replies recursively by creation time (oldest first)
+        def sort_replies_recursive(comment_list):
+            for comment in comment_list:
+                if comment.get('replies'):
+                    comment['replies'].sort(key=lambda x: x.get('created_at', ''))
+                    sort_replies_recursive(comment['replies'])
+        
+        sort_replies_recursive(root_comments)
 
         return root_comments
 
     def upvote_comment(self, comment_id: str, user_id: str) -> bool:
-        """Upvote a comment (toggle - if already upvoted, remove upvote)."""
+        """Upvote a comment (toggle - if already upvoted, remove upvote). If downvoted, remove downvote and add upvote."""
         comment = self.collection.find_one({'_id': ObjectId(comment_id)})
         if not comment:
             return False
 
         user_object_id = ObjectId(user_id)
         upvotes = comment.get('upvotes', [])
-        
+        downvotes = comment.get('downvotes', [])
+
         if user_object_id in upvotes:
             # Remove upvote
             result = self.collection.update_one(
                 {'_id': ObjectId(comment_id)},
                 {
                     '$pull': {'upvotes': user_object_id},
-                    '$inc': {'upvote_count': -1},
+                    '$inc': {'upvote_count': -1, 'score': -1},
                     '$set': {'updated_at': datetime.utcnow()}
                 }
             )
             return result.modified_count > 0
         else:
-            # Add upvote
+            # Remove from downvotes if present, then add upvote
+            update_op = {
+                '$addToSet': {'upvotes': user_object_id},
+                '$inc': {'upvote_count': 1, 'score': 1},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+
+            if user_object_id in downvotes:
+                update_op['$pull'] = {'downvotes': user_object_id}
+                if 'downvote_count' not in update_op['$inc']:
+                    update_op['$inc']['downvote_count'] = -1
+                # Score increases by 2: +1 for upvote, +1 for removing downvote
+                update_op['$inc']['score'] = 2
+
+            result = self.collection.update_one(
+                {'_id': ObjectId(comment_id)},
+                update_op
+            )
+            return result.modified_count > 0
+
+    def downvote_comment(self, comment_id: str, user_id: str) -> bool:
+        """Downvote a comment (toggle - if already downvoted, remove downvote). If upvoted, remove upvote and add downvote."""
+        comment = self.collection.find_one({'_id': ObjectId(comment_id)})
+        if not comment:
+            return False
+
+        user_object_id = ObjectId(user_id)
+        upvotes = comment.get('upvotes', [])
+        downvotes = comment.get('downvotes', [])
+
+        if user_object_id in downvotes:
+            # Remove downvote
             result = self.collection.update_one(
                 {'_id': ObjectId(comment_id)},
                 {
-                    '$addToSet': {'upvotes': user_object_id},
-                    '$inc': {'upvote_count': 1},
+                    '$pull': {'downvotes': user_object_id},
+                    '$inc': {'downvote_count': -1, 'score': 1},
                     '$set': {'updated_at': datetime.utcnow()}
                 }
+            )
+            return result.modified_count > 0
+        else:
+            # Remove from upvotes if present, then add downvote
+            update_op = {
+                '$addToSet': {'downvotes': user_object_id},
+                '$inc': {'downvote_count': 1, 'score': -1},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+
+            if user_object_id in upvotes:
+                update_op['$pull'] = {'upvotes': user_object_id}
+                if 'upvote_count' not in update_op['$inc']:
+                    update_op['$inc']['upvote_count'] = -1
+                # Score decreases by 2: -1 for downvote, -1 for removing upvote
+                update_op['$inc']['score'] = -2
+
+            result = self.collection.update_one(
+                {'_id': ObjectId(comment_id)},
+                update_op
             )
             return result.modified_count > 0
 
@@ -248,21 +402,18 @@ class Comment:
         from .topic import Topic
         post_model = Post(self.db)
         post = post_model.get_post_by_id(comment['post_id'])
-        
+
         if not post:
             return False
 
-        # Use Topic instead of Theme for permissions
+        # Check topic permissions
         topic_model = Topic(self.db)
         topic_id = post.get('topic_id')
-        if not topic_id:
-            # Legacy support: try theme_id
-            topic_id = post.get('theme_id')
-        
+
         if topic_id:
             permission_level = topic_model.get_user_permission_level(topic_id, deleted_by)
         else:
-            permission_level = 0
+            return False  # No topic_id means invalid post
 
         # Owner and moderators can delete any comment, users can delete their own
         if permission_level < 2 and comment['user_id'] != deleted_by:
@@ -325,10 +476,10 @@ class Comment:
             from .report import Report
             post_model = Post(self.db)
             post = post_model.get_post_by_id(comment['post_id'])
-            
-            if post:
+
+            if post and post.get('topic_id'):
                 report_model = Report(self.db)
-                report_model.create_report(comment_id, reporter_id, reason, post['theme_id'], 'comment')
+                report_model.create_report(comment_id, reporter_id, reason, post['topic_id'], 'comment')
 
         return result.modified_count > 0
 

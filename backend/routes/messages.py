@@ -142,17 +142,19 @@ def create_message(topic_id):
                 elif not isinstance(created_at_str, str):
                     created_at_str = str(created_at_str)
                 
+                # Don't expose real user_id when anonymous
+                is_anonymous = new_message.get('is_anonymous', False)
                 broadcast_message = {
                     'id': str(new_message.get('id') or new_message.get('_id', '')),
                     'topic_id': str(new_message.get('topic_id', '')),
-                    'user_id': str(new_message.get('user_id', '')),
+                    'user_id': '' if is_anonymous else str(new_message.get('user_id', '')),  # Hide user_id for anonymous
                     'content': new_message.get('content', ''),
                     'message_type': new_message.get('message_type', 'text'),
                     'gif_url': new_message.get('gif_url'),
                     'created_at': created_at_str,
                     'display_name': new_message.get('display_name', user.get('username', 'Unknown') if user else 'Unknown'),
                     'sender_username': new_message.get('sender_username', user.get('username', 'Unknown') if user else 'Unknown'),
-                    'is_anonymous': new_message.get('is_anonymous', False),
+                    'is_anonymous': is_anonymous,
                     'can_delete': new_message.get('can_delete', False)
                 }
                 
@@ -197,10 +199,11 @@ def get_message(message_id):
 
 
 @messages_bp.route('/<message_id>', methods=['DELETE'])
+@require_json
 @require_auth()
 @log_requests
 def delete_message(message_id):
-    """Delete a message (moderator, owner, or message author)."""
+    """Delete a message (moderator, owner, or message author). Supports deletion with reason for chat owners."""
     try:
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()
@@ -208,10 +211,47 @@ def delete_message(message_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
+        data = request.get_json() or {}
+        deletion_reason = data.get('deletion_reason')  # Optional reason for owner deletions
+
         message_model = Message(current_app.db)
-        success = message_model.delete_message(message_id, user_id)
+        message = message_model.get_message_by_id(message_id)
+        
+        if not message:
+            return jsonify({'success': False, 'errors': ['Message not found']}), 404
+
+        # Check if user is owner (requires reason) or can delete without reason
+        is_owner_deletion = False
+        if message.get('chat_room_id'):
+            from models.chat_room import ChatRoom
+            chat_room_model = ChatRoom(current_app.db)
+            permission_level = chat_room_model.get_user_permission_level(
+                str(message['chat_room_id']), 
+                user_id
+            )
+            is_owner_deletion = permission_level == 3 and str(message.get('user_id')) != user_id
+        
+        # If owner deleting someone else's message, require reason
+        if is_owner_deletion and not deletion_reason:
+            return jsonify({'success': False, 'errors': ['Deletion reason is required for owner deletions']}), 400
+
+        success = message_model.delete_message(message_id, user_id, deletion_reason)
 
         if success:
+            # If owner deleted with reason, create a report for admin
+            if is_owner_deletion and deletion_reason:
+                from models.report import Report
+                report_model = Report(current_app.db)
+                report_model.create_report(
+                    reporter_id=user_id,
+                    reported_user_id=str(message.get('user_id')),
+                    reason=deletion_reason,
+                    description=f"Message deleted by chat owner. Message ID: {message_id}",
+                    content_type='message',
+                    report_type='message_deleted',
+                    related_message_id=message_id
+                )
+            
             return jsonify({
                 'success': True,
                 'message': 'Message deleted successfully'
@@ -466,6 +506,7 @@ def send_private_message():
         content = data.get('content', '').strip()
         message_type = data.get('message_type', 'text')
         gif_url = data.get('gif_url')
+        attachments = data.get('attachments', [])
 
         if not to_user_id:
             return jsonify({'success': False, 'errors': ['Recipient is required']}), 400
@@ -474,14 +515,18 @@ def send_private_message():
         if message_type == 'gif' and gif_url:
             # Allow empty content for GIF messages
             if not content:
-                content = ''  # Ensure it's an empty string
+                content = '[GIF]'  # Set default content for GIF messages
+        elif attachments and len(attachments) > 0:
+            # For attachment messages, content can be empty
+            if not content:
+                content = '[Attachment]'  # Set default content for attachment messages
         else:
-            # For non-GIF messages, content is required
+            # For non-GIF, non-attachment messages, content is required
             if not content:
                 return jsonify({'success': False, 'errors': ['Message content is required']}), 400
 
-        # Validate message content (skip validation for GIF messages with empty content)
-        if message_type != 'gif' or content:
+        # Validate message content (skip validation for GIF/attachment messages with default content)
+        if message_type != 'gif' and content and content != '[GIF]' and content != '[Attachment]':
             validation_result = validate_message_content(content)
             if not validation_result['valid']:
                 return jsonify({'success': False, 'errors': validation_result['errors']}), 400
@@ -492,17 +537,48 @@ def send_private_message():
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
+        # Process attachments: convert base64 to files and store them
+        if attachments:
+            from services.file_storage import FileStorageService
+            from utils.file_helpers import process_attachments
+            
+            use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+            file_storage = FileStorageService(
+                uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                use_azure=use_azure
+            )
+            
+            # Get secret key for encryption
+            secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+            
+            processed_attachments, errors = process_attachments(
+                attachments,
+                file_storage,
+                user_id=user_id,
+                secret_key=secret_key
+            )
+            
+            if errors:
+                logger.warning(f"Errors processing attachments: {errors}")
+            
+            attachments = processed_attachments
+
         from models.private_message import PrivateMessage
         pm_model = PrivateMessage(current_app.db)
 
         # Send message
-        message_id = pm_model.send_message(
-            from_user_id=user_id,
-            to_user_id=to_user_id,
-            content=content,
-            message_type=message_type,
-            gif_url=gif_url
-        )
+        try:
+            message_id = pm_model.send_message(
+                from_user_id=user_id,
+                to_user_id=to_user_id,
+                content=content,
+                message_type=message_type,
+                gif_url=gif_url,
+                attachments=attachments if attachments else None
+            )
+        except ValueError as e:
+            # Handle specific error messages from send_message
+            return jsonify({'success': False, 'errors': [str(e)]}), 400
 
         # Get created message
         new_message = pm_model.get_message_by_id(message_id)

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.topic import Topic
 from models.anonymous_identity import AnonymousIdentity
+from models.conversation_settings import ConversationSettings
 from utils.validators import validate_topic_title, validate_topic_description, validate_tags, validate_pagination_params
 from utils.decorators import require_auth, require_json, log_requests
 import logging
@@ -37,6 +38,17 @@ def get_topics():
 
         topic_model = Topic(current_app.db)
 
+        # Get current user if authenticated
+        user_id = None
+        try:
+            auth_service = AuthService(current_app.db)
+            if auth_service.is_authenticated():
+                current_user_result = auth_service.get_current_user()
+                if current_user_result.get('success'):
+                    user_id = current_user_result['user']['id']
+        except:
+            pass
+
         # Get topics
         topics = topic_model.get_public_topics(
             sort_by=sort_by,
@@ -45,6 +57,20 @@ def get_topics():
             tags=tags if tags else None,
             search=search if search else None
         )
+
+        # Add user_permission_level for each topic if user is authenticated
+        if user_id:
+            for topic in topics:
+                topic_id = topic.get('id') or topic.get('_id')
+                if topic_id:
+                    permission_level = topic_model.get_user_permission_level(topic_id, user_id)
+                    topic['user_permission_level'] = permission_level
+                else:
+                    topic['user_permission_level'] = 0
+        else:
+            # Set permission level to 0 for unauthenticated users
+            for topic in topics:
+                topic['user_permission_level'] = 0
 
         # Get total count for pagination (more efficient - use count_documents)
         try:
@@ -154,6 +180,19 @@ def create_topic():
             return jsonify({'success': False, 'errors': ['Topic created but could not be retrieved']}), 500
 
         logger.info(f"[CREATE_TOPIC] Successfully created topic: {created_topic.get('title')}")
+        
+        # Emit socket event for topic creation
+        try:
+            from app import socketio
+            if socketio:
+                socketio.emit('topic_created', {
+                    'topic_id': str(topic_id),
+                    'topic': created_topic
+                })
+                logger.info(f"[CREATE_TOPIC] Emitted topic_created event for topic {topic_id}")
+        except Exception as e:
+            logger.warning(f"[CREATE_TOPIC] Failed to emit socket event: {str(e)}")
+        
         response = jsonify({
             'success': True,
             'message': 'Topic created successfully',
@@ -254,6 +293,19 @@ def update_topic(topic_id):
 
         if success:
             updated_topic = topic_model.get_topic_by_id(topic_id)
+            
+            # Emit socket event for topic update
+            try:
+                from app import socketio
+                if socketio:
+                    socketio.emit('topic_updated', {
+                        'topic_id': str(topic_id),
+                        'topic': updated_topic
+                    })
+                    logger.info(f"[UPDATE_TOPIC] Emitted topic_updated event for topic {topic_id}")
+            except Exception as e:
+                logger.warning(f"[UPDATE_TOPIC] Failed to emit socket event: {str(e)}")
+            
             return jsonify({
                 'success': True,
                 'message': 'Topic updated successfully',
@@ -285,7 +337,7 @@ def delete_topic(topic_id):
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Topic deleted successfully'
+                'message': 'Topic deletion requested. It will be permanently deleted in 7 days pending admin approval.'
             }), 200
         else:
             return jsonify({'success': False, 'errors': ['Permission denied or topic not found']}), 403
@@ -600,18 +652,19 @@ def get_anonymous_identity(topic_id):
         return jsonify({'success': False, 'errors': [f'Failed to get anonymous identity: {str(e)}']}), 500
 
 
-@topics_bp.route('/<topic_id>/anonymous-identity', methods=['PUT'])
+@topics_bp.route('/<topic_id>/anonymous-identity', methods=['PUT', 'POST'])
 @require_json
 @require_auth()
 @log_requests
 def update_anonymous_identity(topic_id):
-    """Update user's anonymous identity for a topic."""
+    """Create or update user's anonymous identity for a topic."""
     try:
         data = request.get_json()
         new_name = data.get('new_name', '').strip()
+        custom_name = data.get('custom_anonymous_name', '').strip() or new_name
 
-        if not new_name:
-            return jsonify({'success': False, 'errors': ['New name is required']}), 400
+        if not custom_name:
+            return jsonify({'success': False, 'errors': ['Anonymous name is required']}), 400
 
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()
@@ -620,20 +673,196 @@ def update_anonymous_identity(topic_id):
         user_id = current_user_result['user']['id']
 
         anon_model = AnonymousIdentity(current_app.db)
-        success = anon_model.update_anonymous_identity(user_id, topic_id, new_name)
-
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Anonymous identity updated successfully',
-                'data': {
-                    'anonymous_name': new_name,
-                    'topic_id': topic_id
-                }
-            }), 200
+        
+        # Check if identity exists
+        existing_identity = anon_model.get_anonymous_identity(user_id, topic_id)
+        
+        if existing_identity:
+            # Update existing identity
+            success = anon_model.update_anonymous_identity(user_id, topic_id, custom_name)
+            if not success:
+                return jsonify({'success': False, 'errors': ['Failed to update anonymous identity. Name may be invalid.']}), 400
         else:
-            return jsonify({'success': False, 'errors': ['Failed to update anonymous identity']}), 400
+            # Try to create new identity, but if it fails due to duplicate key, try to update instead
+            try:
+                anonymous_name = anon_model.create_anonymous_identity(user_id, topic_id, custom_name)
+                if not anonymous_name:
+                    return jsonify({'success': False, 'errors': ['Failed to create anonymous identity. Name may be invalid.']}), 400
+            except Exception as create_error:
+                error_str = str(create_error)
+                # If it's a duplicate key error, try to update instead
+                if 'E11000' in error_str or 'duplicate key' in error_str.lower():
+                    logger.warning(f"Duplicate key error when creating identity, attempting update instead: {error_str}")
+                    # Try to update - this will work if the identity exists but get_anonymous_identity didn't find it
+                    # (possibly due to index mismatch)
+                    success = anon_model.update_anonymous_identity(user_id, topic_id, custom_name)
+                    if not success:
+                        # If update also fails, try using upsert approach
+                        try:
+                            # Use regenerate_anonymous_identity which uses upsert
+                            anon_model.regenerate_anonymous_identity(user_id, topic_id)
+                            # Then update with the custom name
+                            success = anon_model.update_anonymous_identity(user_id, topic_id, custom_name)
+                            if not success:
+                                return jsonify({'success': False, 'errors': ['Failed to update anonymous identity. Name may be invalid.']}), 400
+                        except Exception as upsert_error:
+                            logger.error(f"Failed to upsert anonymous identity: {str(upsert_error)}")
+                            return jsonify({'success': False, 'errors': [f'Failed to create or update anonymous identity: {str(upsert_error)}']}), 400
+                else:
+                    logger.error(f"Failed to create anonymous identity: {error_str}")
+                    return jsonify({'success': False, 'errors': [f'Failed to create anonymous identity: {error_str}']}), 400
+
+        # Get the final identity name
+        final_name = anon_model.get_anonymous_identity(user_id, topic_id)
+        return jsonify({
+            'success': True,
+            'message': 'Anonymous identity set successfully',
+            'data': {
+                'anonymous_name': final_name or custom_name,
+                'topic_id': topic_id
+            }
+        }), 200
 
     except Exception as e:
         logger.error(f"Update anonymous identity error: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'errors': [f'Failed to update anonymous identity: {str(e)}']}), 500
+        return jsonify({'success': False, 'errors': [f'Failed to set anonymous identity: {str(e)}']}), 500
+
+
+@topics_bp.route('/<topic_id>/mute', methods=['POST'])
+@require_json
+@require_auth()
+@log_requests
+def mute_topic(topic_id):
+    """Mute a topic for a specified duration."""
+    try:
+        data = request.get_json()
+        minutes = int(data.get('minutes', 0))
+        
+        if minutes < -1:
+            return jsonify({'success': False, 'errors': ['Invalid mute duration']}), 400
+        
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+        
+        settings_model = ConversationSettings(current_app.db)
+        success = settings_model.mute_topic(user_id, topic_id, minutes)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Topic muted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'errors': ['Failed to mute topic']
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Mute topic error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to mute topic: {str(e)}']}), 500
+
+
+@topics_bp.route('/<topic_id>/unmute', methods=['POST'])
+@require_auth()
+@log_requests
+def unmute_topic(topic_id):
+    """Unmute a topic."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+        
+        settings_model = ConversationSettings(current_app.db)
+        success = settings_model.unmute_topic(user_id, topic_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Topic unmuted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'errors': ['Failed to unmute topic']
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Unmute topic error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unmute topic: {str(e)}']}), 500
+
+
+@topics_bp.route('/<topic_id>/invite', methods=['POST'])
+@require_auth()
+@require_json
+@log_requests
+def invite_user_to_topic(topic_id):
+    """Invite a user to an invite-only topic."""
+    try:
+        data = request.get_json()
+        invited_user_id = data.get('user_id')
+
+        if not invited_user_id:
+            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        topic_model = Topic(current_app.db)
+        
+        # Verify topic exists
+        topic = topic_model.get_topic_by_id(topic_id)
+        if not topic:
+            return jsonify({'success': False, 'errors': ['Topic not found']}), 404
+
+        # Check if topic requires approval (invite-only)
+        if not topic.get('settings', {}).get('require_approval', False):
+            return jsonify({'success': False, 'errors': ['This topic is public and does not require invitations']}), 400
+
+        result = topic_model.invite_user(topic_id, invited_user_id, user_id)
+
+        if result == "is_owner":
+            return jsonify({'success': False, 'errors': ['Cannot invite the owner of the topic.']}), 400
+        elif result == "already_member":
+            return jsonify({'success': False, 'errors': ['User is already a member of this topic.']}), 400
+        elif result == "already_invited":
+            return jsonify({'success': False, 'errors': ['User has already been invited to this topic.']}), 400
+        elif result == "is_banned":
+            return jsonify({'success': False, 'errors': ['User is banned from this topic.']}), 400
+        elif result:  # result is invitation_id (string)
+            # Get topic and inviter details for WebSocket event
+            from models.user import User
+            user_model = User(current_app.db)
+            inviter = user_model.get_user_by_id(user_id)
+            
+            # Emit WebSocket event for invitation
+            from app import socketio
+            if socketio:
+                socketio.emit('topic_invitation', {
+                    'invitation_id': result,
+                    'topic_id': topic_id,
+                    'invited_user_id': invited_user_id,
+                    'invited_by': user_id,
+                    'invited_by_username': inviter.get('username') if inviter else 'Unknown',
+                    'topic_title': topic.get('title') if topic else 'Unknown',
+                    'topic_description': topic.get('description') if topic else None
+                }, room=f"user_{invited_user_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'User invited successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to invite user. User may already be invited or you may not have permission.']}), 400
+
+    except Exception as e:
+        logger.error(f"Invite user to topic error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to invite user: {str(e)}']}), 500

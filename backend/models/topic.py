@@ -80,7 +80,10 @@ class Topic:
                          tags: Optional[List[str]] = None,
                          search: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get public topics with sorting and filtering."""
-        query = {'is_public': True}
+        query = {
+            'is_public': True,
+            'is_deleted': {'$ne': True}  # Exclude deleted topics
+        }
 
         if tags:
             query['tags'] = {'$in': tags}
@@ -162,6 +165,60 @@ class Topic:
             return result.modified_count > 0
 
         return False
+
+    def invite_user(self, topic_id: str, invited_user_id: str, invited_by: str) -> Optional[str]:
+        """Invite a user to an invite-only topic.
+        Returns: invitation_id on success, None on failure, or specific error strings.
+        """
+        topic = self.collection.find_one({'_id': ObjectId(topic_id)})
+        if not topic:
+            return None
+
+        # Check if topic requires approval (invite-only)
+        if not topic.get('settings', {}).get('require_approval', False):
+            return None  # Public topics don't need invitations
+
+        # Check permissions - only owner, moderator, or member can invite
+        permission_level = self.get_user_permission_level(topic_id, invited_by)
+        if permission_level < 1:  # Must be at least a member
+            return None
+
+        # Check if user is the owner (owner cannot be invited)
+        if topic.get('owner_id') == ObjectId(invited_user_id):
+            return "is_owner"
+
+        # Check if user is already a member
+        if ObjectId(invited_user_id) in topic.get('members', []):
+            return "already_member"
+
+        # Check if user is banned
+        if ObjectId(invited_user_id) in topic.get('banned_users', []):
+            return "is_banned"
+
+        # Create invitation in topic_invitations collection
+        if not hasattr(self.db, 'topic_invitations'):
+            self.db.topic_invitations = self.db.topic_invitations
+
+        invitation = {
+            'topic_id': ObjectId(topic_id),
+            'invited_user_id': ObjectId(invited_user_id),
+            'invited_by': ObjectId(invited_by),
+            'status': 'pending',
+            'created_at': datetime.utcnow()
+        }
+
+        # Check if invitation already exists
+        existing = self.db.topic_invitations.find_one({
+            'topic_id': ObjectId(topic_id),
+            'invited_user_id': ObjectId(invited_user_id),
+            'status': 'pending'
+        })
+
+        if existing:
+            return "already_invited"  # Invitation already exists
+
+        result = self.db.topic_invitations.insert_one(invitation)
+        return str(result.inserted_id)  # Return invitation ID
 
     def add_member(self, topic_id: str, user_id: str) -> bool:
         """Add a user to topic members."""
@@ -403,6 +460,16 @@ class Topic:
 
         return topics
 
+    def add_tags_to_topic(self, topic_id: str, tags: List[str]) -> bool:
+        """Add tags to a topic (non-duplicate)."""
+        if not tags:
+            return False
+        result = self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {'$addToSet': {'tags': {'$each': tags}}}
+        )
+        return result.modified_count > 0
+
     def increment_post_count(self, topic_id: str) -> None:
         """Increment the post count for a topic."""
         self.collection.update_one(
@@ -432,9 +499,135 @@ class Topic:
         )
 
     def delete_topic(self, topic_id: str, user_id: str) -> bool:
-        """Delete a topic (only owner can delete)."""
-        result = self.collection.delete_one({
+        """Soft delete a topic (only owner can delete). Requires admin approval."""
+        from datetime import timedelta
+        
+        topic = self.collection.find_one({
             '_id': ObjectId(topic_id),
             'owner_id': ObjectId(user_id)
         })
-        return result.deleted_count > 0
+        
+        if not topic:
+            return False
+        
+        # Soft delete with pending admin approval
+        permanent_delete_at = datetime.utcnow() + timedelta(days=7)
+        result = self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {
+                '$set': {
+                    'is_deleted': True,
+                    'deleted_by': ObjectId(user_id),
+                    'deleted_at': datetime.utcnow(),
+                    'permanent_delete_at': permanent_delete_at,
+                    'deletion_status': 'pending',  # pending, approved, rejected
+                    'is_public': False  # Hide from public view while pending
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    def approve_topic_deletion(self, topic_id: str) -> bool:
+        """Approve topic deletion (admin only)."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {
+                '$set': {
+                    'deletion_status': 'approved'
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    def reject_topic_deletion(self, topic_id: str) -> bool:
+        """Reject topic deletion and restore it (admin only)."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(topic_id)},
+            {
+                '$set': {
+                    'is_deleted': False,
+                    'deleted_by': None,
+                    'deleted_at': None,
+                    'permanent_delete_at': None,
+                    'deletion_status': 'rejected',
+                    'is_public': True
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    def get_pending_deletions(self) -> List[Dict[str, Any]]:
+        """Get all topics pending deletion approval."""
+        # First, update any deleted topics without deletion_status to 'pending' (backward compatibility)
+        self.collection.update_many(
+            {
+                'is_deleted': True,
+                'deletion_status': {'$exists': False}
+            },
+            {
+                '$set': {
+                    'deletion_status': 'pending'
+                }
+            }
+        )
+        
+        # Find topics that are deleted and have deletion_status='pending'
+        topics = list(self.collection.find({
+            'is_deleted': True,
+            'deletion_status': 'pending'
+        }).sort([('deleted_at', -1)]))
+        
+        for topic in topics:
+            # Convert all ObjectIds to strings
+            topic['_id'] = str(topic['_id'])
+            topic['id'] = str(topic['_id'])
+            topic['owner_id'] = str(topic['owner_id'])
+            
+            deleted_by = topic.get('deleted_by')
+            if deleted_by:
+                topic['deleted_by'] = str(deleted_by) if isinstance(deleted_by, ObjectId) else str(deleted_by)
+            else:
+                topic['deleted_by'] = ''
+            
+            # Convert members list
+            if 'members' in topic and topic['members']:
+                topic['members'] = [str(m) if isinstance(m, ObjectId) else m for m in topic['members']]
+            
+            # Convert moderators list
+            if 'moderators' in topic and topic['moderators']:
+                for mod in topic['moderators']:
+                    if isinstance(mod, dict):
+                        if 'user_id' in mod:
+                            mod['user_id'] = str(mod['user_id']) if isinstance(mod['user_id'], ObjectId) else str(mod['user_id'])
+                        if 'added_by' in mod:
+                            mod['added_by'] = str(mod['added_by']) if isinstance(mod['added_by'], ObjectId) else str(mod['added_by'])
+                    elif isinstance(mod, ObjectId):
+                        # If it's just an ObjectId, convert it
+                        idx = topic['moderators'].index(mod)
+                        topic['moderators'][idx] = str(mod)
+            
+            # Convert banned_users list
+            if 'banned_users' in topic and topic['banned_users']:
+                topic['banned_users'] = [str(b) if isinstance(b, ObjectId) else b for b in topic['banned_users']]
+            
+            # Convert datetime fields to ISO strings
+            if 'created_at' in topic and isinstance(topic['created_at'], datetime):
+                topic['created_at'] = topic['created_at'].isoformat()
+            if 'last_activity' in topic and isinstance(topic['last_activity'], datetime):
+                topic['last_activity'] = topic['last_activity'].isoformat()
+            if 'deleted_at' in topic and isinstance(topic.get('deleted_at'), datetime):
+                topic['deleted_at'] = topic['deleted_at'].isoformat()
+            if 'permanent_delete_at' in topic and isinstance(topic.get('permanent_delete_at'), datetime):
+                topic['permanent_delete_at'] = topic['permanent_delete_at'].isoformat()
+            
+            # Get owner details
+            from .user import User
+            user_model = User(self.db)
+            owner = user_model.get_user_by_id(topic['owner_id'])
+            if owner:
+                topic['owner'] = {
+                    'id': str(owner['_id']),
+                    'username': owner['username']
+                }
+        
+        return topics

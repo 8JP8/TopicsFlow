@@ -5,7 +5,47 @@ export default function Document() {
     <Html lang="en" suppressHydrationWarning>
       <Head>
         <link rel="icon" type="image/png" href="https://i.postimg.cc/52jHqBD9/chat.png" />
+        <link rel="apple-touch-icon" href="https://i.postimg.cc/52jHqBD9/chat.png" />
+        <link rel="apple-touch-icon" href="/logo.svg" />
         <meta name="description" content="TopicsFlow - Reddit-style discussion platform with chat rooms and passwordless authentication" />
+        <meta name="keywords" content="chat, discussion, forum, topics, reddit, social, community" />
+        <meta name="author" content="TopicsFlow" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://topicsflow.com/" />
+        <meta property="og:title" content="TopicsFlow - Reddit-style Discussion Platform" />
+        <meta property="og:description" content="Join TopicsFlow for Reddit-style discussions, chat rooms, and passwordless authentication" />
+        <meta property="og:image" content="https://topicsflow.com/logo.svg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="TopicsFlow Logo" />
+        <meta property="og:site_name" content="TopicsFlow" />
+        <meta property="og:locale" content="en_US" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://topicsflow.com/" />
+        <meta name="twitter:title" content="TopicsFlow - Reddit-style Discussion Platform" />
+        <meta name="twitter:description" content="Join TopicsFlow for Reddit-style discussions, chat rooms, and passwordless authentication" />
+        <meta name="twitter:image" content="https://topicsflow.com/logo.svg" />
+        <meta name="twitter:image:alt" content="TopicsFlow Logo" />
+        
+        {/* WhatsApp */}
+        <meta property="og:image:type" content="image/svg+xml" />
+        
+        {/* Discord */}
+        <meta name="theme-color" content="#1976d2" />
+        <meta name="msapplication-TileColor" content="#1976d2" />
+        
+        {/* PWA */}
+        <meta name="application-name" content="TopicsFlow" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="TopicsFlow" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        <link rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

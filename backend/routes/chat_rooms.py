@@ -3,8 +3,10 @@ from services.auth_service import AuthService
 from models.chat_room import ChatRoom
 from models.message import Message
 from models.anonymous_identity import AnonymousIdentity
+from models.conversation_settings import ConversationSettings
 from utils.validators import validate_message_content, validate_pagination_params
 from utils.decorators import require_auth, require_json, log_requests
+from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
@@ -109,6 +111,10 @@ def create_conversation(topic_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
+        # Get picture and background picture if provided
+        picture = data.get('picture')
+        background_picture = data.get('background_picture')
+        
         # Create conversation (chat room)
         chat_room_model = ChatRoom(current_app.db)
         room_id = chat_room_model.create_chat_room(
@@ -117,7 +123,9 @@ def create_conversation(topic_id):
             description=description,
             owner_id=user_id,
             is_public=is_public,
-            tags=tags
+            tags=tags,
+            picture=picture,
+            background_picture=background_picture
         )
 
         # Get created chat room
@@ -275,22 +283,27 @@ def get_chat_room_messages(room_id):
         # Reverse to get chronological order and convert ObjectIds
         messages.reverse()
         for message in messages:
-            message['_id'] = str(message['_id'])
-            message['id'] = str(message['_id'])
+            # Convert all ObjectId fields to strings
+            msg_id = str(message['_id'])
+            message['_id'] = msg_id
+            message['id'] = msg_id
             message['chat_room_id'] = str(message['chat_room_id'])
             message['user_id'] = str(message['user_id'])
-            
-            # Convert datetime to ISO string
-            if 'created_at' in message and isinstance(message['created_at'], datetime):
-                message['created_at'] = message['created_at'].isoformat()
-            if 'updated_at' in message and isinstance(message['updated_at'], datetime):
-                message['updated_at'] = message['updated_at'].isoformat()
 
-            # Get user details (or anonymous identity)
+            # Convert topic_id if present
+            if 'topic_id' in message and message['topic_id'] is not None:
+                if isinstance(message['topic_id'], ObjectId):
+                    message['topic_id'] = str(message['topic_id'])
+
+            # Get user details (or anonymous identity) - same as Message model
             if message.get('anonymous_identity'):
                 message['display_name'] = message['anonymous_identity']
                 message['is_anonymous'] = True
                 message['sender_username'] = message['anonymous_identity']
+                message['profile_picture'] = None
+                message['is_admin'] = False
+                message['is_owner'] = False
+                message['is_moderator'] = False
             else:
                 from models.user import User
                 user_model = User(current_app.db)
@@ -298,10 +311,42 @@ def get_chat_room_messages(room_id):
                 if user:
                     message['display_name'] = user['username']
                     message['sender_username'] = user['username']
+                    message['profile_picture'] = user.get('profile_picture')
+                    message['is_admin'] = user.get('is_admin', False)
+                    
+                    # Check if owner or moderator
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
+                    if room:
+                        message['is_owner'] = str(room.get('owner_id')) == str(message['user_id'])
+                        moderators = room.get('moderators', [])
+                        message['is_moderator'] = any(str(mod) == str(message['user_id']) for mod in moderators)
                 else:
                     message['display_name'] = 'Deleted User'
                     message['sender_username'] = 'Deleted User'
+                    message['profile_picture'] = None
+                    message['is_admin'] = False
+                    message['is_owner'] = False
+                    message['is_moderator'] = False
                 message['is_anonymous'] = False
+
+            # Convert datetime to ISO string
+            if 'created_at' in message and isinstance(message['created_at'], datetime):
+                message['created_at'] = message['created_at'].isoformat()
+            if 'updated_at' in message and isinstance(message['updated_at'], datetime):
+                message['updated_at'] = message['updated_at'].isoformat()
+
+            # Ensure can_delete is set
+            if 'can_delete' not in message:
+                message['can_delete'] = False
+            
+            # Convert any remaining ObjectId fields (mentions, reactions, etc.)
+            if 'mentions' in message and isinstance(message['mentions'], list):
+                message['mentions'] = [str(m) if isinstance(m, ObjectId) else m for m in message['mentions']]
+            if 'reactions' in message and isinstance(message['reactions'], dict):
+                for key in message['reactions']:
+                    if isinstance(message['reactions'][key], list):
+                        message['reactions'][key] = [str(r) if isinstance(r, ObjectId) else r for r in message['reactions'][key]]
 
         return jsonify({
             'success': True,
@@ -370,15 +415,67 @@ def create_chat_room_message(room_id):
             anon_model = AnonymousIdentity(current_app.db)
             anonymous_identity = anon_model.get_anonymous_identity(user_id, topic_id)
 
+        # Get attachments if provided
+        attachments = data.get('attachments', [])
+        
+        # Log incoming attachments for debugging
+        if attachments:
+            logger.info(f"Received {len(attachments)} attachments")
+            for i, att in enumerate(attachments):
+                has_data = 'data' in att
+                data_size = len(str(att.get('data', ''))) if has_data else 0
+                logger.info(f"Attachment {i}: type={att.get('type')}, filename={att.get('filename')}, has_data={has_data}, data_size={data_size}")
+        
+        # Process attachments: convert base64 to files and store them
+        if attachments:
+            from services.file_storage import FileStorageService
+            from utils.file_helpers import process_attachments
+            
+            use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+            file_storage = FileStorageService(
+                uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                use_azure=use_azure
+            )
+            
+            # Get secret key for encryption
+            secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+            
+            processed_attachments, errors = process_attachments(
+                attachments,
+                file_storage,
+                user_id=user_id,
+                secret_key=secret_key
+            )
+            
+            if errors:
+                logger.warning(f"Errors processing attachments: {errors}")
+            
+            attachments = processed_attachments
+            
+            # Log processed attachments to verify base64 is removed
+            for att in attachments:
+                if 'data' in att:
+                    logger.error(f"ERROR: Attachment still contains base64 data after processing! Type: {att.get('type')}, Filename: {att.get('filename')}")
+                logger.debug(f"Processed attachment: {att.get('type')}, file_id: {att.get('file_id')}, url: {att.get('url')}")
+        
+        # Ensure no base64 data in attachments before creating message
+        if attachments:
+            for att in attachments:
+                if 'data' in att:
+                    logger.error(f"CRITICAL: Attachment has base64 data before message creation! Removing it.")
+                    att.pop('data', None)
+        
         # Create message
         message_model = Message(current_app.db)
         message_id = message_model.create_message(
+            topic_id=topic_id,  # Add topic_id for compatibility
             chat_room_id=room_id,
             user_id=user_id,
             content=content,
             message_type=message_type,
             anonymous_identity=anonymous_identity,
-            gif_url=gif_url
+            gif_url=gif_url,
+            attachments=attachments
         )
 
         # Get created message
@@ -386,9 +483,52 @@ def create_chat_room_message(room_id):
         if not new_message:
             return jsonify({'success': False, 'errors': ['Failed to create message']}), 500
 
+        # get_message_by_id already converts ObjectIds, but we need to ensure ALL are converted
+        from bson import ObjectId
+        from datetime import datetime
+        
+        def convert_objectids(obj):
+            """Recursively convert ObjectId to string in nested structures."""
+            if isinstance(obj, ObjectId):
+                return str(obj)
+            elif isinstance(obj, dict):
+                return {k: convert_objectids(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_objectids(item) for item in obj]
+            elif isinstance(obj, datetime):
+                return obj.isoformat()
+            return obj
+        
+        # Add display info BEFORE final conversion
+        if anonymous_identity:
+            # For anonymous messages, explicitly set profile_picture to None
+            new_message['profile_picture'] = None
+            new_message['banner'] = None
+        else:
+            from models.user import User
+            user_model = User(current_app.db)
+            user = user_model.get_user_by_id(user_id)
+            if user:
+                new_message['profile_picture'] = user.get('profile_picture')
+                new_message['banner'] = user.get('banner')
+            else:
+                new_message['profile_picture'] = None
+                new_message['banner'] = None
+        
+        # Now recursively convert ALL remaining ObjectIds and datetimes
+        new_message = convert_objectids(new_message)
+        
+        # Ensure can_delete is set (after conversion)
+        new_message['can_delete'] = str(new_message.get('user_id')) == user_id
+
+        # Don't expose real user_id when anonymous
+        if anonymous_identity:
+            new_message['user_id'] = ''  # Hide user_id for anonymous users
+            new_message['is_anonymous'] = True
+
         # Emit socket event
         try:
-            from app import socketio
+            socketio = current_app.extensions.get('socketio')
             if socketio:
                 room_name = f"chat_room_{room_id}"
                 socketio.emit('new_chat_room_message', new_message, room=room_name)
@@ -407,11 +547,150 @@ def create_chat_room_message(room_id):
         return jsonify({'success': False, 'errors': [f'Failed to create message: {str(e)}']}), 500
 
 
+@chat_rooms_bp.route('/<room_id>/messages/<message_id>', methods=['DELETE'])
+@require_json
+@require_auth()
+@log_requests
+def delete_chat_room_message(room_id, message_id):
+    """Delete a message from a chat room."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        data = request.get_json() or {}
+        deletion_reason = data.get('deletion_reason')
+
+        # Verify chat room exists
+        chat_room_model = ChatRoom(current_app.db)
+        room = chat_room_model.get_chat_room_by_id(room_id)
+        if not room:
+            return jsonify({'success': False, 'errors': ['Chat room not found']}), 404
+
+        message_model = Message(current_app.db)
+        message = message_model.get_message_by_id(message_id)
+        
+        if not message:
+            return jsonify({'success': False, 'errors': ['Message not found']}), 404
+
+        # Verify message belongs to this chat room
+        if str(message.get('chat_room_id')) != room_id:
+            return jsonify({'success': False, 'errors': ['Message does not belong to this chat room']}), 400
+
+        # Check if user is owner (requires reason) or can delete without reason
+        is_owner_deletion = False
+        permission_level = chat_room_model.get_user_permission_level(room_id, user_id)
+        is_owner_deletion = permission_level == 3 and str(message.get('user_id')) != user_id
+        
+        # If owner deleting someone else's message, require reason
+        if is_owner_deletion and not deletion_reason:
+            return jsonify({'success': False, 'errors': ['Deletion reason is required for owner deletions']}), 400
+
+        success = message_model.delete_message(message_id, user_id, deletion_reason)
+
+        if success:
+            # If owner deleted with reason, create a report for admin
+            if is_owner_deletion:
+                from models.report import Report
+                report_model = Report(current_app.db)
+                report_model.create_report(
+                    reporter_id=user_id,
+                    reported_user_id=str(message.get('user_id')),
+                    reason=deletion_reason,
+                    description=f"Message deleted by chat owner. Message ID: {message_id}",
+                    content_type='message',
+                    report_type='message_deleted',
+                    related_message_id=message_id
+                )
+            
+            # Emit socket event
+            try:
+                socketio = current_app.extensions.get('socketio')
+                if socketio:
+                    room_name = f"chat_room_{room_id}"
+                    socketio.emit('message_deleted', {
+                        'message_id': message_id,
+                        'chat_room_id': room_id
+                    }, room=room_name)
+            except Exception as e:
+                logger.warning(f"Failed to emit socket event for deleted message: {str(e)}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Message deleted successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Permission denied or message not found']}), 403
+
+    except Exception as e:
+        logger.error(f"Delete chat room message error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': ['Failed to delete message']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/members', methods=['GET'])
+@require_auth()
+@log_requests
+def get_chat_room_members(room_id):
+    """Get list of all members in a chat room"""
+    try:
+        from bson import ObjectId
+        
+        # Validate room_id
+        if not room_id or len(room_id) != 24:
+            return jsonify({'success': False, 'errors': ['Invalid room ID']}), 400
+        
+        chat_room_model = ChatRoom(current_app.db)
+        room = chat_room_model.get_chat_room_by_id(room_id)
+        if not room:
+            return jsonify({'success': False, 'errors': ['Chat room not found']}), 404
+        
+        # Get members from the room's members list
+        member_ids = room.get('members', [])
+        if not member_ids:
+            return jsonify({
+                'success': True,
+                'data': [],
+                'count': 0
+            }), 200
+        
+        # Get user details for all members
+        from models.user import User
+        user_model = User(current_app.db)
+        members = []
+        
+        for member_id in member_ids:
+            try:
+                user = user_model.get_user_by_id(member_id)
+                if user:
+                    members.append({
+                        'id': str(user['_id']),
+                        'username': user.get('username', 'Unknown')
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to get user {member_id}: {str(e)}")
+                continue
+        
+        # Sort by username
+        members.sort(key=lambda x: x['username'].lower())
+        
+        return jsonify({
+            'success': True,
+            'data': members,
+            'count': len(members)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Get chat room members error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get members: {str(e)}']}), 500
+
+
 @chat_rooms_bp.route('/<room_id>', methods=['DELETE'])
 @require_auth()
 @log_requests
 def delete_chat_room(room_id):
-    """Delete a chat room (only owner can delete)."""
+    """Soft delete a chat room (only owner can delete). Requires admin approval."""
     try:
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()
@@ -425,7 +704,7 @@ def delete_chat_room(room_id):
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Chat room deleted successfully'
+                'message': 'Chatroom deletion requested. It will be permanently deleted in 7 days pending admin approval.'
             }), 200
         else:
             return jsonify({'success': False, 'errors': ['Permission denied or chat room not found']}), 403
@@ -552,4 +831,368 @@ def unban_user_from_chat(room_id, user_id_to_unban):
     except Exception as e:
         logger.error(f"Unban user from chat error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to unban user: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/kick/<user_id>', methods=['POST'])
+@require_auth()
+@log_requests
+def kick_user_from_chat(room_id, user_id):
+    """Kick a user from a chat room (owner or moderator can kick)."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        kicked_by = current_user_result['user']['id']
+
+        chat_room_model = ChatRoom(current_app.db)
+        success = chat_room_model.kick_user_from_chat(room_id, user_id, kicked_by)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User kicked from chat room successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Permission denied, cannot kick owner, or user not found']}), 403
+
+    except Exception as e:
+        logger.error(f"Kick user from chat error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to kick user: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/mute', methods=['POST'])
+@require_json
+@require_auth()
+@log_requests
+def mute_chat_room(room_id):
+    """Mute a chat room for a specified duration."""
+    try:
+        data = request.get_json()
+        minutes = int(data.get('minutes', 0))
+        
+        if minutes < -1:
+            return jsonify({'success': False, 'errors': ['Invalid mute duration']}), 400
+        
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+        
+        settings_model = ConversationSettings(current_app.db)
+        success = settings_model.mute_chat_room(user_id, room_id, minutes)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Chat room muted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'errors': ['Failed to mute chat room']
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Mute chat room error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to mute chat room: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/unmute', methods=['POST'])
+@require_auth()
+@log_requests
+def unmute_chat_room(room_id):
+    """Unmute a chat room."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+        
+        settings_model = ConversationSettings(current_app.db)
+        success = settings_model.unmute_chat_room(user_id, room_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Chat room unmuted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'errors': ['Failed to unmute chat room']
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Unmute chat room error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unmute chat room: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/invite', methods=['POST'])
+@require_auth()
+@require_json
+@log_requests
+def invite_user_to_chat(room_id):
+    """Invite a user to a private chat room."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        data = request.get_json()
+        invited_user_id = data.get('user_id')
+        invited_username = data.get('username')
+
+        if not invited_user_id and not invited_username:
+            return jsonify({'success': False, 'errors': ['User ID or username is required']}), 400
+
+        # If username provided, get user ID
+        if invited_username and not invited_user_id:
+            from models.user import User
+            user_model = User(current_app.db)
+            user = user_model.get_user_by_username(invited_username)
+            if not user:
+                return jsonify({'success': False, 'errors': ['User not found']}), 404
+            invited_user_id = str(user['_id'])
+
+        chat_room_model = ChatRoom(current_app.db)
+        result = chat_room_model.invite_user(room_id, invited_user_id, user_id)
+
+        if result == "is_owner":
+            return jsonify({'success': False, 'errors': ['Cannot invite the owner of the chat room.']}), 400
+        elif result == "already_member":
+            return jsonify({'success': False, 'errors': ['User is already a member of this chat room.']}), 400
+        elif result == "already_invited":
+            return jsonify({'success': False, 'errors': ['User has already been invited to this chat room.']}), 400
+        elif result == "is_banned":
+            return jsonify({'success': False, 'errors': ['User is banned from this chat room.']}), 400
+        elif result:  # result is invitation_id (string)
+            # Get room and inviter details for WebSocket event
+            room = chat_room_model.get_chat_room_by_id(room_id)
+            from models.user import User
+            user_model = User(current_app.db)
+            inviter = user_model.get_user_by_id(user_id)
+            
+            # Emit WebSocket event for invitation
+            socketio = current_app.extensions.get('socketio')
+            if socketio:
+                socketio.emit('chat_room_invitation', {
+                    'invitation_id': result,  # result is the invitation_id
+                    'room_id': room_id,
+                    'invited_user_id': invited_user_id,
+                    'invited_by': user_id,
+                    'invited_by_username': inviter.get('username') if inviter else 'Unknown',
+                    'room_name': room.get('name') if room else 'Unknown',
+                    'room_description': room.get('description') if room else None
+                }, room=f"user_{invited_user_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'User invited successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to invite user. User may already be invited or you may not have permission.']}), 400
+
+    except Exception as e:
+        logger.error(f"Invite user to chat error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to invite user: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/invitations', methods=['GET'])
+@require_auth()
+@log_requests
+def get_pending_invitations():
+    """Get all pending invitations for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        chat_room_model = ChatRoom(current_app.db)
+        invitations = chat_room_model.get_pending_invitations(user_id)
+
+        return jsonify({
+            'success': True,
+            'data': invitations
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get pending invitations error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get invitations: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/invitations/<invitation_id>/accept', methods=['POST'])
+@require_auth()
+@log_requests
+def accept_invitation(invitation_id):
+    """Accept a chat room invitation."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        chat_room_model = ChatRoom(current_app.db)
+        success = chat_room_model.accept_invitation(invitation_id, user_id)
+
+        if success:
+            # Emit WebSocket event
+            socketio = current_app.extensions.get('socketio')
+            if socketio:
+                invitation = current_app.db.chat_room_invitations.find_one({'_id': ObjectId(invitation_id)})
+                if invitation:
+                    socketio.emit('chat_room_invitation_accepted', {
+                        'room_id': str(invitation['room_id']),
+                        'user_id': user_id
+                    }, room=f"room_{invitation['room_id']}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Invitation accepted successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to accept invitation']}), 400
+
+    except Exception as e:
+        logger.error(f"Accept invitation error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to accept invitation: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/invitations/<invitation_id>/decline', methods=['POST'])
+@require_auth()
+@log_requests
+def decline_invitation(invitation_id):
+    """Decline a chat room invitation."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        chat_room_model = ChatRoom(current_app.db)
+        success = chat_room_model.decline_invitation(invitation_id, user_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Invitation declined successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to decline invitation']}), 400
+
+    except Exception as e:
+        logger.error(f"Decline invitation error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to decline invitation: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/picture', methods=['PUT'])
+@require_json
+@require_auth()
+@log_requests
+def update_chat_picture(room_id):
+    """Update chat room picture (owner or moderator only)."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        data = request.get_json()
+        picture = data.get('picture')
+
+        chat_room_model = ChatRoom(current_app.db)
+        room = chat_room_model.get_chat_room_by_id(room_id)
+        
+        if not room:
+            return jsonify({'success': False, 'errors': ['Chat room not found']}), 404
+
+        # Check if user is owner or moderator
+        permission_level = chat_room_model.get_user_permission_level(room_id, user_id)
+        if permission_level < 2:  # Only owner (3) or moderator (2) can update
+            return jsonify({'success': False, 'errors': ['Only the owner or moderator can update the picture']}), 403
+
+        # Update picture
+        result = chat_room_model.collection.update_one(
+            {'_id': ObjectId(room_id)},
+            {'$set': {'picture': picture}}
+        )
+
+        if result.modified_count > 0:
+            updated_room = chat_room_model.get_chat_room_by_id(room_id)
+            return jsonify({
+                'success': True,
+                'message': 'Picture updated successfully',
+                'data': updated_room
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to update picture']}), 500
+
+    except Exception as e:
+        logger.error(f"Update chat picture error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to update picture: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/<room_id>/background', methods=['PUT'])
+@require_json
+@require_auth()
+@log_requests
+def update_chat_background(room_id):
+    """Update chat room background picture (owner or moderator only)."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        data = request.get_json()
+        background_picture = data.get('background_picture')
+        
+        # Darken the background image before storing
+        if background_picture:
+            from utils.image_compression import darken_image_base64
+            darkened_image = darken_image_base64(background_picture, darkness_factor=0.6)
+            if darkened_image:
+                background_picture = darkened_image
+                logger.info("Background image darkened before storage")
+
+        chat_room_model = ChatRoom(current_app.db)
+        room = chat_room_model.get_chat_room_by_id(room_id)
+        
+        if not room:
+            return jsonify({'success': False, 'errors': ['Chat room not found']}), 404
+
+        # Check if user is owner or moderator
+        permission_level = chat_room_model.get_user_permission_level(room_id, user_id)
+        if permission_level < 2:  # Only owner (3) or moderator (2) can update
+            return jsonify({'success': False, 'errors': ['Only the owner or moderator can update the background picture']}), 403
+
+        # Update background picture
+        result = chat_room_model.collection.update_one(
+            {'_id': ObjectId(room_id)},
+            {'$set': {'background_picture': background_picture}}
+        )
+
+        if result.modified_count > 0:
+            updated_room = chat_room_model.get_chat_room_by_id(room_id)
+            return jsonify({
+                'success': True,
+                'message': 'Background picture updated successfully',
+                'data': updated_room
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to update background picture']}), 500
+
+    except Exception as e:
+        logger.error(f"Update chat background error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to update background picture: {str(e)}']}), 500
 

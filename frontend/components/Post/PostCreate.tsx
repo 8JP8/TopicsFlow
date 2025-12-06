@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LoadingSpinner from '../UI/LoadingSpinner';
+import { getAnonymousModeState, saveAnonymousModeState } from '@/utils/anonymousStorage';
 
 interface PostCreateProps {
   topicId: string;
@@ -12,20 +13,47 @@ interface PostCreateProps {
 
 const PostCreate: React.FC<PostCreateProps> = ({ topicId, onPostCreated, onCancel }) => {
   const { t } = useLanguage();
+  
+  // Load anonymous mode state from localStorage
+  const savedState = getAnonymousModeState(topicId);
+  
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    use_anonymous: false,
+    use_anonymous: savedState.isAnonymous,
+    tags: '',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
+  // Load anonymous state when topicId changes
+  useEffect(() => {
+    const saved = getAnonymousModeState(topicId);
+    setFormData(prev => ({
+      ...prev,
+      use_anonymous: saved.isAnonymous,
+    }));
+  }, [topicId]);
+
+  // Save anonymous state to localStorage when it changes
+  useEffect(() => {
+    saveAnonymousModeState(topicId, formData.use_anonymous);
+  }, [topicId, formData.use_anonymous]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
+    
+    // Auto-convert spaces to commas for tags input
+    let processedValue = value;
+    if (name === 'tags' && type === 'text') {
+      // Replace spaces with commas to separate tags
+      processedValue = value.replace(/\s+/g, ',');
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : processedValue,
     }));
   };
 
@@ -46,15 +74,19 @@ const PostCreate: React.FC<PostCreateProps> = ({ topicId, onPostCreated, onCance
     setLoading(true);
 
     try {
+      // Parse tags
+      const tags = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+
       const response = await api.post(API_ENDPOINTS.POSTS.CREATE(topicId), {
         title: formData.title.trim(),
         content: formData.content.trim(),
         use_anonymous: formData.use_anonymous,
+        tags: tags,
       });
 
       if (response.data.success) {
         toast.success(t('posts.postCreated') || 'Post created successfully');
-        setFormData({ title: '', content: '', use_anonymous: false });
+        setFormData({ title: '', content: '', use_anonymous: false, tags: '' });
         if (onPostCreated) {
           onPostCreated(response.data.data);
         }
@@ -120,6 +152,21 @@ const PostCreate: React.FC<PostCreateProps> = ({ topicId, onPostCreated, onCance
             rows={6}
             className="w-full px-3 py-2 border theme-border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder={t('posts.contentPlaceholder') || 'Enter post content...'}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="tags" className="block text-sm font-medium theme-text-primary mb-1">
+            {t('posts.tags') || 'Tags'} <span className="text-xs theme-text-muted">({t('posts.tagsHint') || 'comma-separated'})</span>
+          </label>
+          <input
+            type="text"
+            id="tags"
+            name="tags"
+            value={formData.tags}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border theme-border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={t('posts.tagsPlaceholder') || 'tag1, tag2, tag3...'}
           />
         </div>
 

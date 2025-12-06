@@ -124,6 +124,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         setOnlineUsers(data.users.length);
       },
 
+      'online_count_update': (data: any) => {
+        console.log('Online count update:', data.count);
+        setOnlineUsers(data.count);
+      },
+
       'topic_joined': (data: any) => {
         console.log('[SocketContext] topic_joined event received:', {
           topicId: data.topic_id,
@@ -223,6 +228,33 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         toast.success(t('mentions.mentionedYou') + ' ' + t(`mentions.in${contentType.charAt(0).toUpperCase() + contentType.slice(1)}`));
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('user_mentioned', { detail: data }));
+        }
+      },
+      'user_warning': (data: any) => {
+        console.log('[SocketContext] user_warning event received:', data);
+        // Dispatch window event to trigger user refresh and warning display
+        if (typeof window !== 'undefined') {
+          console.log('[SocketContext] Dispatching user_warning window event');
+          window.dispatchEvent(new CustomEvent('user_warning', { detail: data }));
+        } else {
+          console.warn('[SocketContext] Window is not available, cannot dispatch user_warning event');
+        }
+      },
+      'chat_room_invitation': (data: any) => {
+        console.log('[SocketContext] chat_room_invitation event received:', data);
+        toast.success(t('chatRoom.invitationReceived', { roomName: data.room_name || 'Chat Room' }) || `You've been invited to ${data.room_name || 'a chat room'}`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('chat_room_invitation', { detail: data }));
+        }
+        // Also trigger notification center update
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('refresh_invitations'));
+        }
+      },
+      'chat_room_invitation_accepted': (data: any) => {
+        console.log('[SocketContext] chat_room_invitation_accepted event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('chat_room_invitation_accepted', { detail: data }));
         }
       },
     };

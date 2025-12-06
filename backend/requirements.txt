@@ -24,3 +24,4 @@ webauthn==1.11.1
 qrcode==7.4.2
 pillow==10.1.0
 config
+azure-storage-blob==12.19.0

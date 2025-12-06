@@ -78,8 +78,8 @@ class ApiClient {
     return this.client.patch(url, data);
   }
 
-  async delete<T = any>(url: string): Promise<AxiosResponse<T>> {
-    return this.client.delete(url);
+  async delete<T = any>(url: string, data?: any): Promise<AxiosResponse<T>> {
+    return this.client.delete(url, { data });
   }
 
   // File upload
@@ -143,6 +143,11 @@ export const API_ENDPOINTS = {
     TRANSFER_OWNERSHIP: (id: string) => `/api/topics/${id}/transfer-ownership`,
     USER_TOPICS: '/api/topics/my',
     ANONYMOUS_IDENTITY: (id: string) => `/api/topics/${id}/anonymous-identity`,
+    INVITE: (id: string) => `/api/topics/${id}/invite`,
+    SILENCE: (id: string) => `/api/content-settings/topics/${id}/silence`,
+    UNSILENCE: (id: string) => `/api/content-settings/topics/${id}/unsilence`,
+    HIDE: (id: string) => `/api/content-settings/topics/${id}/hide`,
+    UNHIDE: (id: string) => `/api/content-settings/topics/${id}/unhide`,
   },
 
   // Messages
@@ -152,6 +157,7 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/messages/${id}`,
     DELETE: (id: string) => `/api/messages/${id}`,
     REPORT: (id: string) => `/api/messages/${id}/report`,
+    REPORT_USER: (id: string) => `/api/messages/${id}/report-user`,
     REPORTS: (id: string) => `/api/messages/${id}/reports`,
     SEARCH: (id: string) => `/api/messages/topic/${id}/search`,
     USER_MESSAGES: (id: string) => `/api/messages/user/${id}`,
@@ -165,6 +171,7 @@ export const API_ENDPOINTS = {
 
   // Reports
   REPORTS: {
+    CREATE: '/api/reports',
     LIST: '/api/reports',
     GET: (id: string) => `/api/reports/${id}`,
     REVIEW: (id: string) => `/api/reports/${id}/review`,
@@ -173,6 +180,7 @@ export const API_ENDPOINTS = {
     STATISTICS: '/api/reports/statistics',
     RECENT: '/api/reports/recent',
     USER_REPORTS: '/api/reports/my',
+    MY_REPORTS: '/api/reports/my',
     DELETE: (id: string) => `/api/reports/${id}`,
   },
 
@@ -181,6 +189,7 @@ export const API_ENDPOINTS = {
     PROFILE: '/api/users/profile',
     GET: (id: string) => `/api/users/${id}`,
     GET_BY_USERNAME: (username: string) => `/api/users/username/${username}`,
+    SEARCH: '/api/users/search',
     TOPICS: '/api/users/topics',
     ANONYMOUS_IDENTITIES: '/api/users/anonymous-identities',
     DELETE_ANONYMOUS_IDENTITY: (topicId: string) => `/api/users/anonymous-identities/${topicId}`,
@@ -191,7 +200,9 @@ export const API_ENDPOINTS = {
     MUTE_CONVERSATION: (userId: string) => `/api/users/private-messages/${userId}/mute`,
     BLOCK_USER_LEGACY: (userId: string) => `/api/users/block/${userId}`, // Legacy - kept for compatibility
     DELETE_CONVERSATION: (userId: string) => `/api/users/private-messages/${userId}`,
-    SEARCH: '/api/users/search',
+    DELETE_MESSAGE_FOR_ME: (messageId: string) => `/api/users/private-messages/${messageId}/delete-for-me`,
+    RESTORE_MESSAGE_FOR_ME: (messageId: string) => `/api/users/private-messages/${messageId}/restore-for-me`,
+    DELETED_MESSAGES: '/api/users/private-messages/deleted',
     STATS: '/api/users/stats',
     ONLINE_USERS: '/api/users/online',
     CHECK_USERNAME: '/api/users/check-username',
@@ -199,10 +210,14 @@ export const API_ENDPOINTS = {
     FRIENDS: '/api/users/friends',
     FRIEND_REQUESTS: '/api/users/friends/requests',
     SEND_FRIEND_REQUEST: '/api/users/friends/request',
+    CHECK_FRIENDSHIP: (userId: string) => `/api/friends/check/${userId}`,
     ACCEPT_FRIEND_REQUEST: (requestId: string) => `/api/users/friends/request/${requestId}/accept`,
     REJECT_FRIEND_REQUEST: (requestId: string) => `/api/users/friends/request/${requestId}/reject`,
     CANCEL_FRIEND_REQUEST: (requestId: string) => `/api/users/friends/request/${requestId}/cancel`,
     REMOVE_FRIEND: (friendId: string) => `/api/users/friends/${friendId}`,
+    BLOCK: (userId: string) => `/api/users/${userId}/block`,
+    UNBLOCK: (userId: string) => `/api/users/${userId}/unblock`,
+    BLOCKED_USERS: '/api/users/blocked',
   },
 
   // GIFs
@@ -215,38 +230,25 @@ export const API_ENDPOINTS = {
     REGISTER_SHARE: '/api/gifs/register-share',
   },
 
-  // Themes (new - within Topics, Reddit-style)
-  THEMES: {
-    LIST_BY_TOPIC: (topicId: string) => `/api/themes/topics/${topicId}`,
-    CREATE: (topicId: string) => `/api/themes/topics/${topicId}`,
-    GET: (id: string) => `/api/themes/${id}`,
-    UPDATE: (id: string) => `/api/themes/${id}`,
-    DELETE: (id: string) => `/api/themes/${id}`,
-    JOIN: (id: string) => `/api/themes/${id}/join`,
-    LEAVE: (id: string) => `/api/themes/${id}/leave`,
-    MODERATORS: (id: string) => `/api/themes/${id}/moderators`,
-    ADD_MODERATOR: (id: string) => `/api/themes/${id}/moderators`,
-    REMOVE_MODERATOR: (id: string, moderatorId: string) => `/api/themes/${id}/moderators/${moderatorId}`,
-    BAN_USER: (id: string) => `/api/themes/${id}/ban`,
-    UNBAN_USER: (id: string) => `/api/themes/${id}/unban`,
-    TRANSFER_OWNERSHIP: (id: string) => `/api/themes/${id}/transfer-ownership`,
-    USER_THEMES: '/api/themes/my',
-    ANONYMOUS_IDENTITY: (id: string) => `/api/themes/${id}/anonymous-identity`,
-    // Legacy - kept for backward compatibility (returns error)
-    LIST: '/api/themes',
-  },
 
   // Posts (within Topics, Reddit-style)
   POSTS: {
     LIST_BY_TOPIC: (topicId: string) => `/api/posts/topics/${topicId}/posts`,
+    RECENT: '/api/posts/recent',
     CREATE: (topicId: string) => `/api/posts/topics/${topicId}/posts`,
     GET: (id: string) => `/api/posts/${id}`,
     DELETE: (id: string) => `/api/posts/${id}`,
     UPVOTE: (id: string) => `/api/posts/${id}/upvote`,
     DOWNVOTE: (id: string) => `/api/posts/${id}/downvote`,
     REPORT: (id: string) => `/api/posts/${id}/report`,
-    // Legacy - kept for backward compatibility
-    LIST_BY_THEME: (themeId: string) => `/api/posts/themes/${themeId}/posts`,
+    SILENCE: (id: string) => `/api/content-settings/posts/${id}/silence`,
+    UNSILENCE: (id: string) => `/api/content-settings/posts/${id}/unsilence`,
+    HIDE: (id: string) => `/api/content-settings/posts/${id}/hide`,
+    UNHIDE: (id: string) => `/api/content-settings/posts/${id}/unhide`,
+  },
+  CONTENT_SETTINGS: {
+    HIDDEN_ITEMS: '/api/content-settings/hidden-items',
+    SILENCED_ITEMS: '/api/content-settings/silenced-items',
   },
 
   // Comments (new)
@@ -257,6 +259,7 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/comments/${id}`,
     DELETE: (id: string) => `/api/comments/${id}`,
     UPVOTE: (id: string) => `/api/comments/${id}/upvote`,
+    DOWNVOTE: (id: string) => `/api/comments/${id}/downvote`,
     REPORT: (id: string) => `/api/comments/${id}/report`,
   },
 
@@ -265,24 +268,79 @@ export const API_ENDPOINTS = {
     LIST_BY_TOPIC: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
     CREATE: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
     GET: (id: string) => `/api/chat-rooms/${id}`,
+    UPDATE: (id: string) => `/api/chat-rooms/${id}`,
     DELETE: (id: string) => `/api/chat-rooms/${id}`,
     JOIN: (id: string) => `/api/chat-rooms/${id}/join`,
     LEAVE: (id: string) => `/api/chat-rooms/${id}/leave`,
     MESSAGES: (id: string) => `/api/chat-rooms/${id}/messages`,
     SEND_MESSAGE: (id: string) => `/api/chat-rooms/${id}/messages`,
+    DELETE_MESSAGE: (roomId: string, messageId: string) => `/api/chat-rooms/${roomId}/messages/${messageId}`,
+    GET_MEMBERS: (roomId: string) => `/api/chat-rooms/${roomId}/members`,
     ADD_MODERATOR: (id: string) => `/api/chat-rooms/${id}/moderators`,
     REMOVE_MODERATOR: (id: string, moderatorId: string) => `/api/chat-rooms/${id}/moderators/${moderatorId}`,
     BAN_USER: (id: string, userId: string) => `/api/chat-rooms/${id}/ban/${userId}`,
     UNBAN_USER: (id: string, userId: string) => `/api/chat-rooms/${id}/unban/${userId}`,
-    // Legacy - kept for backward compatibility
-    LIST_BY_THEME: (themeId: string) => `/api/chat-rooms/themes/${themeId}/chat-rooms`,
+    KICK_USER: (id: string, userId: string) => `/api/chat-rooms/${id}/kick/${userId}`,
+    INVITE_USER: (roomId: string) => `/api/chat-rooms/${roomId}/invite`,
+    GET_INVITATIONS: '/api/chat-rooms/invitations',
+    ACCEPT_INVITATION: (invitationId: string) => `/api/chat-rooms/invitations/${invitationId}/accept`,
+    DECLINE_INVITATION: (invitationId: string) => `/api/chat-rooms/invitations/${invitationId}/decline`,
+    UPDATE_PICTURE: (id: string) => `/api/chat-rooms/${id}/picture`,
+    UPDATE_BACKGROUND: (id: string) => `/api/chat-rooms/${id}/background`,
   },
 
   // Blocking (new)
   BLOCKING: {
     BLOCK: (userId: string) => `/api/users/${userId}/block`,
-    UNBLOCK: (userId: string) => `/api/users/${userId}/block`,
+    UNBLOCK: (userId: string) => `/api/users/${userId}/unblock`,
     LIST_BLOCKED: '/api/users/blocked',
+  },
+
+  // Admin
+  ADMIN: {
+    REPORTS: '/api/admin/reports',
+    TICKETS: '/api/admin/tickets',
+    BAN_USER: (userId: string) => `/api/admin/users/${userId}/ban`,
+    UNBAN_USER: (userId: string) => `/api/admin/users/${userId}/unban`,
+    BANNED_USERS: '/api/admin/users/banned',
+    STATS: '/api/admin/stats',
+    REPORT_ACTION: (reportId: string) => `/api/admin/reports/${reportId}/action`,
+    REPORT_REOPEN: (reportId: string) => `/api/admin/reports/${reportId}/reopen`,
+    TICKET_UPDATE: (ticketId: string) => `/api/admin/tickets/${ticketId}`,
+    USER_MESSAGES: (userId: string) => `/api/admin/users/${userId}/messages`,
+    DELETED_MESSAGES: '/api/admin/deleted-messages',
+    PERMANENT_DELETE_MESSAGE: (messageId: string) => `/api/admin/deleted-messages/${messageId}/permanent-delete`,
+    CLEANUP_EXPIRED_MESSAGES: '/api/admin/deleted-messages/cleanup-expired',
+    PENDING_DELETIONS: '/api/admin/pending-deletions',
+    APPROVE_TOPIC_DELETION: (topicId: string) => `/api/admin/topics/${topicId}/approve-deletion`,
+    REJECT_TOPIC_DELETION: (topicId: string) => `/api/admin/topics/${topicId}/reject-deletion`,
+    APPROVE_POST_DELETION: (postId: string) => `/api/admin/posts/${postId}/approve-deletion`,
+    REJECT_POST_DELETION: (postId: string) => `/api/admin/posts/${postId}/reject-deletion`,
+    APPROVE_CHATROOM_DELETION: (roomId: string) => `/api/admin/chatrooms/${roomId}/approve-deletion`,
+    REJECT_CHATROOM_DELETION: (roomId: string) => `/api/admin/chatrooms/${roomId}/reject-deletion`,
+  },
+
+
+  // Tickets (user-facing)
+  TICKETS: {
+    CREATE: '/api/tickets',
+    MY_TICKETS: '/api/tickets/my-tickets',
+    GET_TICKET: (ticketId: string) => `/api/tickets/${ticketId}`,
+    UPDATE: (ticketId: string) => `/api/tickets/${ticketId}`,
+    DELETE: (ticketId: string) => `/api/tickets/${ticketId}`,
+    CATEGORIES: '/api/tickets/categories',
+  },
+
+  // Mute features (add to USERS)
+  MUTE: {
+    MUTE_TOPIC: (topicId: string) => `/api/topics/${topicId}/mute`,
+    UNMUTE_TOPIC: (topicId: string) => `/api/topics/${topicId}/unmute`,
+    MUTE_CHAT: (chatRoomId: string) => `/api/chat-rooms/${chatRoomId}/mute`,
+    UNMUTE_CHAT: (chatRoomId: string) => `/api/chat-rooms/${chatRoomId}/unmute`,
+    MUTE_POST: (postId: string) => `/api/users/posts/${postId}/mute`,
+    UNMUTE_POST: (postId: string) => `/api/users/posts/${postId}/unmute`,
+    MUTE_CHAT_ROOM: (chatId: string) => `/api/users/chats/${chatId}/mute`,
+    UNMUTE_CHAT_ROOM: (chatId: string) => `/api/users/chats/${chatId}/unmute`,
   },
 } as const;
 

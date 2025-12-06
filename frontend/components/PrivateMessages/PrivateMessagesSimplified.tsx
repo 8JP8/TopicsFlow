@@ -8,7 +8,16 @@ import GifPicker from '@/components/Chat/GifPicker';
 import ContextMenu from '@/components/UI/ContextMenu';
 import UserTooltip from '@/components/UI/UserTooltip';
 import UserContextMenu from '@/components/UI/UserContextMenu';
+import UserBanner from '@/components/UI/UserBanner';
+import Avatar from '@/components/UI/Avatar';
+import { useUserBanner } from '@/hooks/useUserBanner';
+import { getUserProfilePicture } from '@/hooks/useUserProfile';
 import FriendsDialog from '@/components/UI/FriendsDialog';
+import FriendRequestsButton from '@/components/UI/FriendRequestsButton';
+import ReportUserDialog from '@/components/Reports/ReportUserDialog';
+import FileCard from '@/components/UI/FileCard';
+import ImageViewerModal from '@/components/UI/ImageViewerModal';
+import VideoPlayer from '@/components/UI/VideoPlayer';
 import toast from 'react-hot-toast';
 
 interface Conversation {
@@ -33,6 +42,13 @@ interface Message {
   sender_username: string;
   user_id?: string;
   gif_url?: string;
+  attachments?: Array<{
+    type: string;
+    url: string;
+    filename: string;
+    size?: number;
+    mime_type?: string;
+  }>;
 }
 
 interface PrivateMessagesSimplifiedProps {
@@ -65,14 +81,26 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [searching, setSearching] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [viewingImage, setViewingImage] = useState<{url: string, filename: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId: string, username: string} | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{userId: string, username: string, x: number, y: number} | null>(null);
   const [tooltip, setTooltip] = useState<{username: string, x: number, y: number} | null>(null);
+  const { showBanner, bannerPos, selectedUser: bannerUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
   const [friends, setFriends] = useState<Array<{id: string, username: string, email: string, profile_picture?: string}>>([]);
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [userToReport, setUserToReport] = useState<{userId: string, username: string} | null>(null);
   const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const [areFriends, setAreFriends] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(false);
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
+  const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
+  const [conversationStatuses, setConversationStatuses] = useState<Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>>(new Map());
   
   // If expanded message is provided, use it
   useEffect(() => {
@@ -88,8 +116,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     if (user) {
       // Reset loading state when user changes
       setLoading(true);
-      loadConversations();
-      loadFriends();
+      // Load friends first, then conversations will use friends list
+      loadFriends().then(() => {
+        loadConversations();
+      });
     }
   }, [user]);
 
@@ -97,8 +127,36 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation);
+      // Check friendship from loaded friends list
+      const isFriend = isUserFriend(selectedConversation);
+      setAreFriends(isFriend);
+      
+      // Load user info and online status
+      const loadUserData = async () => {
+        const [userInfo, onlineUsersSet] = await Promise.all([
+          loadUserInfo(selectedConversation),
+          loadOnlineUsers(),
+        ]);
+        // Use onlineUsersSet as primary source, but also check userInfo.isOnline from backend
+        const userIsOnline = onlineUsersSet.has(selectedConversation) || userInfo.isOnline;
+        setIsOnline(userIsOnline);
+        // Only set lastLogin if user is offline (if online, lastLogin should be null)
+        setLastLogin(userIsOnline ? null : userInfo.lastLogin);
+      };
+      loadUserData();
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, friends]);
+
+  // Load online users periodically and on mount
+  useEffect(() => {
+    if (user) {
+      loadOnlineUsers();
+      const interval = setInterval(() => {
+        loadOnlineUsers();
+      }, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -123,11 +181,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       });
       
       // Check if this message is for the currently selected conversation
-      const fromUserId = String(data.from_user_id || '');
-      const toUserId = String(data.to_user_id || '');
-      const currentUserId = String(user.id || '');
-      const selectedUserId = String(selectedConversation || '');
-      
+      // Ensure all comparisons use String() to avoid type coercion issues
+      const fromUserId = String(data.from_user_id || '').trim();
+      const toUserId = String(data.to_user_id || '').trim();
+      const currentUserId = String(user.id || '').trim();
+      const selectedUserId = String(selectedConversation || '').trim();
+
       // Message is for current conversation if:
       // - It's from the selected user (they sent it to me)
       // - Or it's to the selected user (I sent it to them)
@@ -183,11 +242,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         selectedConversation,
       });
       // If this is for the current conversation, add it to messages
-      const toUserId = String(data.to_user_id || '');
-      const fromUserId = String(data.from_user_id || '');
-      const currentUserId = String(user?.id || '');
-      const selectedUserId = String(selectedConversation || '');
-      
+      // Ensure all comparisons use String() and trim() to avoid type coercion issues
+      const toUserId = String(data.to_user_id || '').trim();
+      const fromUserId = String(data.from_user_id || '').trim();
+      const currentUserId = String(user?.id || '').trim();
+      const selectedUserId = String(selectedConversation || '').trim();
+
       // Check if message is for current conversation (including self-messages)
       const isForCurrentConversation = selectedConversation && (
         toUserId === selectedUserId ||
@@ -241,6 +301,33 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         console.log('[PrivateMessages] Loaded conversations:', conversationsData);
         // Backend now sorts by last_message.created_at, so no need to sort client-side
         setConversations(conversationsData);
+        
+        // Load status for all conversations
+        const onlineUsersSet = await loadOnlineUsers();
+        const statusMap = new Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>();
+        
+        // Create a Set of friend IDs for faster lookup - use current friends state
+        const friendIdsSet = new Set(friends.map(f => String(f.id).trim()));
+        
+        await Promise.all(conversationsData.map(async (conv: Conversation) => {
+          try {
+            const userInfo = await loadUserInfo(conv.user_id);
+            // Check friendship from loaded friends list instead of API call
+            const convUserId = String(conv.user_id).trim();
+            const areFriendsResult = friendIdsSet.has(convUserId);
+            const convIsOnline = onlineUsersSet.has(conv.user_id) || userInfo.isOnline;
+            statusMap.set(conv.user_id, {
+              isOnline: convIsOnline,
+              // Only set lastLogin if user is offline (if online, lastLogin should be null)
+              lastLogin: convIsOnline ? null : userInfo.lastLogin,
+              areFriends: areFriendsResult,
+            });
+          } catch (error) {
+            console.error(`Failed to load status for user ${conv.user_id}:`, error);
+          }
+        }));
+        
+        setConversationStatuses(statusMap);
       } else {
         console.error('[PrivateMessages] Failed to load conversations:', response.data);
       }
@@ -257,7 +344,36 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       const friendsResponse = await api.get(API_ENDPOINTS.USERS.FRIENDS);
 
       if (friendsResponse.data.success) {
-        setFriends(friendsResponse.data.data || []);
+        const friendsList = friendsResponse.data.data || [];
+        setFriends(friendsList);
+        
+        // Update areFriends for selected conversation
+        if (selectedConversation) {
+          const normalizedSelectedId = String(selectedConversation).trim();
+          const isFriend = friendsList.some((friend: any) => String(friend.id).trim() === normalizedSelectedId);
+          setAreFriends(isFriend);
+        }
+        
+        // Update conversation statuses with friendship info
+        setConversationStatuses(prev => {
+          const newMap = new Map(prev);
+          conversations.forEach((conv: Conversation) => {
+            const normalizedConvId = String(conv.user_id).trim();
+            const isFriend = friendsList.some((friend: any) => String(friend.id).trim() === normalizedConvId);
+            const existingStatus = newMap.get(conv.user_id);
+            if (existingStatus) {
+              newMap.set(conv.user_id, { ...existingStatus, areFriends: isFriend });
+            } else {
+              newMap.set(conv.user_id, { isOnline: false, lastLogin: null, areFriends: isFriend });
+            }
+          });
+          return newMap;
+        });
+        
+        // Reload conversations to update statuses with friend info
+        if (conversations.length > 0) {
+          loadConversations();
+        }
       }
     } catch (error) {
       console.error('Failed to load friends:', error);
@@ -265,6 +381,81 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       setLoadingFriends(false);
     }
   };
+
+  // Helper function to check if a user is in the friends list
+  const isUserFriend = (userId: string): boolean => {
+    if (!userId || !friends || friends.length === 0) return false;
+    const normalizedUserId = String(userId).trim();
+    return friends.some(friend => String(friend.id).trim() === normalizedUserId);
+  };
+
+  const checkFriendship = async (userId: string) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.CHECK_FRIENDSHIP(userId));
+      if (response.data.success) {
+        return response.data.are_friends || false;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to check friendship:', error);
+      return false;
+    }
+  };
+
+  const loadOnlineUsers = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.ONLINE_USERS);
+      if (response.data.success) {
+        const onlineUserIds = new Set<string>((response.data.data || []).map((u: any) => String(u.id || u.user_id)));
+        setOnlineUsersList(onlineUserIds);
+        return onlineUserIds;
+      }
+      return new Set<string>();
+    } catch (error) {
+      console.error('Failed to load online users:', error);
+      return new Set<string>();
+    }
+  };
+
+  const loadUserInfo = async (userId: string) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
+      if (response.data.success) {
+        // Use last_seen (WebSocket disconnect time) if available, fallback to last_login
+        return {
+          lastLogin: response.data.data?.last_seen || response.data.data?.last_login || null,
+          isOnline: response.data.data?.is_online || false,
+        };
+      }
+      return { lastLogin: null, isOnline: false };
+    } catch (error) {
+      console.error('Failed to load user info:', error);
+      return { lastLogin: null, isOnline: false };
+    }
+  };
+
+  const formatLastSeen = (lastLogin: string | null) => {
+    if (!lastLogin) return null;
+    try {
+      const date = new Date(lastLogin);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (seconds < 60) return t('privateMessages.justNow') || 'Just now';
+      // Show minutes for anything less than 60 minutes, then switch to hours
+      if (minutes < 60) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${minutes} ${t('privateMessages.minutesAgo') || 'minutes ago'}`;
+      if (hours < 24) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${hours} ${t('privateMessages.hoursAgo') || 'hours ago'}`;
+      if (days < 7) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${days} ${t('privateMessages.daysAgo') || 'days ago'}`;
+      return `${t('privateMessages.lastSeen') || 'Last seen'} ${date.toLocaleDateString()}`;
+    } catch {
+      return null;
+    }
+  };
+
 
   const loadMessages = async (userId: string) => {
     try {
@@ -334,16 +525,51 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const uploadFiles = async (files: File[]): Promise<Array<{type: string, data: string, filename: string, size: number, mime_type: string}>> => {
+    const uploadPromises = files.map(async (file) => {
+      // Convert file to base64 data URL for backend processing
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      return {
+        type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
+        data: dataUrl, // Backend expects 'data' field with base64
+        filename: file.name,
+        size: file.size,
+        mime_type: file.type,
+      };
+    });
+
+    return Promise.all(uploadPromises);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if ((!messageInput.trim() && !selectedGifUrl) || !selectedConversation || sendingMessage) {
+    if ((!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || !selectedConversation || sendingMessage) {
       return;
     }
 
-    setSendingMessage(true);
-
     try {
+      setUploadingFiles(true);
+      setSendingMessage(true);
+
+      // Upload files if any
+      let attachments: Array<{type: string, data: string, filename: string, size: number, mime_type: string}> = [];
+      if (selectedFiles.length > 0) {
+        attachments = await uploadFiles(selectedFiles);
+      }
+
       // Determine message type
       let messageType = 'text';
       let gifUrl: string | undefined = undefined;
@@ -352,51 +578,113 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (selectedGifUrl) {
         messageType = 'gif';
         gifUrl = selectedGifUrl;
-        setSelectedGifUrl(null);
+      } else if (attachments.length > 0) {
+        if (attachments.some(a => a.type === 'image')) {
+          messageType = 'image';
+        } else if (attachments.some(a => a.type === 'video')) {
+          messageType = 'video';
+        } else {
+          messageType = 'file';
+        }
       }
 
+      const attachmentPlaceholder = `[${t('privateMessages.attachment')}]`;
       const response = await api.post(API_ENDPOINTS.MESSAGES.SEND_PRIVATE, {
         to_user_id: selectedConversation,
-        content: content,
+        content: content || (messageType === 'gif' ? '[GIF]' : '') || (attachments.length > 0 ? attachmentPlaceholder : ''),
         message_type: messageType,
         gif_url: gifUrl,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
 
       if (response.data.success) {
         // Add message to local state
         const newMessage: Message = {
           id: response.data.data.id,
-          content: content,
+          content: content || (messageType === 'gif' ? '[GIF]' : '') || (attachments.length > 0 ? attachmentPlaceholder : ''),
           message_type: messageType,
           created_at: response.data.data.created_at || new Date().toISOString(),
           is_from_me: true,
           sender_username: user?.username || 'You',
           gif_url: gifUrl,
+          attachments: response.data.data.attachments || attachments.map(a => ({
+            type: a.type,
+            url: '', // Will be populated by backend
+            filename: a.filename,
+            size: a.size,
+            mime_type: a.mime_type,
+          })),
         };
 
         setMessages(prev => [...prev, newMessage]);
         setMessageInput('');
+        setSelectedGifUrl(null);
+        setSelectedFiles([]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
 
         // Update conversation list after a short delay to ensure backend has processed
         setTimeout(() => {
           loadConversations();
         }, 100);
+      } else {
+        const errorMessage = response.data.errors?.[0] || t('toast.failedToSendMessage') || 'Failed to send message';
+        toast.error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      toast.error(t('toast.failedToSendMessage'));
+      const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.message || t('toast.failedToSendMessage') || 'Failed to send message';
+      toast.error(errorMessage);
     } finally {
       setSendingMessage(false);
+      setUploadingFiles(false);
     }
   };
 
   const formatMessageTime = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (seconds < 60) return t('notifications.justNow') || 'Just now';
+      if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
+      if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
+      if (days < 7) return `${days} ${t('posts.days')} ${t('posts.ago')}`;
+      return date.toLocaleDateString();
+    } catch {
+      return '';
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    if (diff < 60 * 1000) {
+      return t('notifications.justNow') || 'Just now';
+    } else if (diff < 60 * 60 * 1000) {
+      return `${Math.floor(diff / (60 * 1000))}m ${t('posts.ago') || 'ago'}`;
+    } else if (diff < 24 * 60 * 60 * 1000) {
+      return `${Math.floor(diff / (60 * 60 * 1000))}h ${t('posts.ago') || 'ago'}`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const formatMessageContent = (content: string) => {
+    if (!content) return '';
+    // Translate [Attachment] to current language
+    if (content === '[Attachment]') {
+      return `[${t('privateMessages.attachment')}]`;
+    }
+    return content;
   };
 
   const handleSelectUser = (userId: string, username: string) => {
@@ -444,7 +732,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     loadConversations();
   };
 
-  const handleSendFriendRequest = async (userId: string) => {
+  const handleSendFriendRequest = async (userId: string, username?: string) => {
     try {
       // Check if trying to send to yourself
       if (user && userId === user.id) {
@@ -456,8 +744,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         to_user_id: userId,
       });
       if (response.data.success) {
-        toast.success(t('privateMessages.friendRequestSent'));
-        loadFriends();
+        toast.success(t('privateMessages.friendRequestSent') || (username ? `Friend request sent to ${username}` : 'Friend request sent'));
+        // Reload friends list to update status
+        await loadFriends();
+        // Refresh friendship status if we have a selected conversation (will be updated by loadFriends)
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
@@ -476,6 +766,20 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         translatedError = t('privateMessages.failedToSendRequest');
       }
       toast.error(translatedError);
+    }
+  };
+
+  const handleRemoveFriend = async (userId: string, username?: string) => {
+    try {
+      const response = await api.delete(API_ENDPOINTS.USERS.REMOVE_FRIEND(userId));
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRemoved') || (username ? `Removed ${username} from friends` : 'Friend removed'));
+        // Reload friends list to update status (will update areFriends automatically)
+        await loadFriends();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
+      toast.error(errorMessage || t('privateMessages.failedToRemoveFriend') || 'Failed to remove friend');
     }
   };
 
@@ -498,7 +802,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       return;
     }
     try {
-      const response = await api.post(API_ENDPOINTS.USERS.BLOCK_USER(userId));
+      const response = await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
       if (response.data.success) {
         // Remove from conversations
         setConversations(prev => prev.filter(c => c.user_id !== userId));
@@ -573,13 +877,74 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   </svg>
                 </button>
               )}
-              <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center">
-                <span className="text-white font-semibold">
-                  {selectedUser.username.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <h3 className="font-medium theme-text-primary">{selectedUser.username}</h3>
+              <Avatar
+                userId={selectedUser.id}
+                username={selectedUser.username}
+                size="md"
+                onClick={() => {
+                  if (selectedUser.id && selectedUser.username) {
+                    handleClick({ currentTarget: {} } as React.MouseEvent, selectedUser.id, selectedUser.username);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setUserContextMenu({
+                    userId: selectedUser.id,
+                    username: selectedUser.username,
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
+                }}
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 
+                    className="font-medium theme-text-primary cursor-pointer hover:underline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleClick(e, selectedUser.id, selectedUser.username);
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setUserContextMenu({
+                        userId: selectedUser.id,
+                        username: selectedUser.username,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                  >
+                    {selectedUser.username}
+                  </h3>
+                  {areFriends && (
+                    <>
+                      {isOnline ? (
+                        <span className="text-xs text-green-500 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          {t('privateMessages.online') || 'Online'}
+                        </span>
+                      ) : lastLogin && formatLastSeen(lastLogin) ? (
+                        <span className="text-xs theme-text-muted">
+                          {formatLastSeen(lastLogin)}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
+                  {!areFriends && (
+                    <button
+                      onClick={() => handleSendFriendRequest(selectedUser.id, selectedUser.username)}
+                      className="p-1 rounded-md theme-bg-tertiary theme-text-secondary hover:theme-bg-hover transition-colors"
+                      title={t('privateMessages.sendFriendRequest') || 'Send friend request'}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm theme-text-secondary">{t('privateMessages.privateConversation')}</p>
               </div>
             </div>
@@ -612,11 +977,30 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                     }`}
                   >
                     {!message.is_from_me && (
-                      <div className="w-8 h-8 rounded-full theme-bg-tertiary flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium theme-text-primary">
-                          {message.sender_username.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <Avatar
+                        userId={message.user_id || selectedUser?.id}
+                        username={message.sender_username}
+                        profilePicture={(message.user_id || selectedUser?.id) ? getUserProfilePicture(message.user_id || selectedUser?.id || '') : undefined}
+                        size="sm"
+                        onClick={() => {
+                          const userId = message.user_id || selectedUser?.id;
+                          if (userId) {
+                            handleClick({ currentTarget: {} } as React.MouseEvent, userId, message.sender_username);
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          const userId = message.user_id || selectedUser?.id;
+                          if (userId) {
+                            setUserContextMenu({
+                              userId,
+                              username: message.sender_username,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }
+                        }}
+                      />
                     )}
                     <div className={`max-w-xs lg:max-w-md ${
                       message.is_from_me ? 'order-first' : ''
@@ -625,6 +1009,21 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         <div className="flex items-center space-x-2 mb-1">
                           <span
                             className="text-sm font-medium theme-text-primary cursor-pointer hover:underline"
+                            onMouseEnter={(e) => {
+                              const userId = message.user_id || selectedUser?.id;
+                              if (userId) {
+                                handleMouseEnter(e, userId, message.sender_username);
+                              }
+                            }}
+                            onMouseLeave={handleMouseLeave}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const userId = message.user_id || selectedUser?.id;
+                              if (userId) {
+                                handleClick(e, userId, message.sender_username);
+                              }
+                            }}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               const userId = message.user_id || selectedUser?.id;
@@ -674,9 +1073,42 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             />
                           </div>
                         ) : null}
-                        {message.content ? (
+                        {message.attachments && message.attachments.length > 0 ? (
+                          <div className="space-y-2 mb-2">
+                            {message.attachments.map((attachment, idx) => {
+                              if (attachment.type === 'image') {
+                                return (
+                                  <img
+                                    key={idx}
+                                    src={attachment.url}
+                                    alt={attachment.filename}
+                                    className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename })}
+                                  />
+                                );
+                              } else if (attachment.type === 'video') {
+                                return (
+                                  <VideoPlayer
+                                    key={idx}
+                                    src={attachment.url}
+                                    filename={attachment.filename}
+                                    className="max-w-xs h-48"
+                                  />
+                                );
+                              } else {
+                                return (
+                                  <FileCard
+                                    key={idx}
+                                    attachment={attachment}
+                                  />
+                                );
+                              }
+                            })}
+                          </div>
+                        ) : null}
+                        {message.content && !message.content.includes(`[${t('privateMessages.attachment')}]`) && message.content !== '[Attachment]' ? (
                           <div>
-                            {message.content.split(/(@\w+)/g).map((part, idx) => {
+                            {formatMessageContent(message.content).split(/(@\w+)/g).map((part: string, idx: number) => {
                               if (part.startsWith('@')) {
                                 const username = part.substring(1);
                                 return (
@@ -786,7 +1218,48 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                     <img src={selectedGifUrl} alt={t('privateMessages.selectedGif')} className="w-8 h-8 rounded object-cover" />
                   </div>
                 )}
+                {selectedFiles.length > 0 && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 theme-bg-secondary rounded-lg border theme-border max-h-32 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded text-xs">
+                          <span className="truncate max-w-[100px]">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* File Upload Button */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                multiple
+                className="hidden"
+                accept="image/*,video/*,*/*"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
+                title={t('common.attachFile') || 'Attach file'}
+              >
+                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </button>
 
               {/* GIF Button */}
               <button
@@ -799,10 +1272,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 {showGifPicker && (
-                  <div className="absolute bottom-full left-0 mb-2" style={{ transform: 'translateX(0)' }}>
+                  <div className="absolute bottom-full right-0 mb-2">
                     <GifPicker
                       onSelectGif={handleGifSelect}
                       onClose={() => setShowGifPicker(false)}
+                      position="right"
                     />
                   </div>
                 )}
@@ -810,10 +1284,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
               <button
                 type="submit"
-                disabled={(!messageInput.trim() && !selectedGifUrl) || sendingMessage}
+                disabled={(!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || sendingMessage || uploadingFiles}
                 className="px-4 py-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {sendingMessage ? <LoadingSpinner size="sm" /> : t('chat.send')}
+                {uploadingFiles || sendingMessage ? <LoadingSpinner size="sm" /> : t('chat.send')}
               </button>
             </form>
           </div>
@@ -826,6 +1300,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold theme-text-primary">{t('home.messages')}</h2>
               <div className="flex items-center space-x-2">
+                <FriendRequestsButton />
                 <button
                   onClick={() => {
                     setShowFriendsDialog(true);
@@ -896,24 +1371,57 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                     className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
                   >
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-semibold">
-                          {conversation.username.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <Avatar
+                        userId={conversation.user_id}
+                        username={conversation.username}
+                        size="md"
+                      />
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium theme-text-primary truncate">{conversation.username}</h4>
-                        <p className="text-sm theme-text-secondary truncate">
-                          {conversation.last_message?.is_from_me ? `${t('common.you')}: ` : ''}
-                          {conversation.last_message?.content || t('privateMessages.noMessages')}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium theme-text-primary truncate">{conversation.username}</h4>
+                          {(() => {
+                            const status = conversationStatuses.get(conversation.user_id);
+                            if (!status) return null;
+                            const { isOnline, lastLogin, areFriends } = status;
+                            if (!areFriends) return null;
+                            if (isOnline) {
+                              return (
+                                <span className="text-xs text-green-500 flex items-center gap-1 flex-shrink-0">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                  {t('privateMessages.online') || 'Online'}
+                                </span>
+                              );
+                            }
+                            if (lastLogin && formatLastSeen(lastLogin)) {
+                              return (
+                                <span className="text-xs theme-text-muted flex-shrink-0">
+                                  {formatLastSeen(lastLogin)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <p className="text-sm theme-text-secondary truncate flex-1 min-w-0">
+                            {conversation.last_message?.is_from_me ? `${t('common.you')}: ` : ''}
+                            {conversation.last_message?.content || t('privateMessages.noMessages')}
+                          </p>
+                          {conversation.last_message?.created_at && (
+                            <span className="text-xs theme-text-muted flex-shrink-0 whitespace-nowrap">
+                              {formatTimestamp(conversation.last_message.created_at)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {conversation.unread_count > 0 && (
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full flex-shrink-0 ml-2">
-                        {conversation.unread_count}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {conversation.unread_count > 0 && (
+                        <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full">
+                          {conversation.unread_count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -955,11 +1463,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center">
-                      <span className="text-white font-semibold">
-                        {conversation.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    <Avatar
+                      userId={conversation.user_id}
+                      username={conversation.username}
+                      size="md"
+                    />
                     <div className="flex-1">
                       <h4 className="font-medium theme-text-primary">{conversation.username}</h4>
                       <p className="text-sm theme-text-secondary truncate">
@@ -1093,7 +1601,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         <div className="flex items-center space-x-2">
                           {user && searchUser.id !== user.id && (
                             <button
-                              onClick={() => handleSendFriendRequest(searchUser.id)}
+                              onClick={() => handleSendFriendRequest(searchUser.id, searchUser.username)}
                               className="px-2 py-1 text-xs btn btn-secondary"
                               title={t('privateMessages.sendFriendRequest')}
                             >
@@ -1148,6 +1656,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                 </svg>
               ),
+              action: () => {}, // No action needed when submenu exists
               submenu: [
                 {
                   label: t('privateMessages.for15Minutes'),
@@ -1219,6 +1728,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           username={userContextMenu.username}
           x={userContextMenu.x}
           y={userContextMenu.y}
+          areFriends={areFriends}
           onClose={() => setUserContextMenu(null)}
           onSendMessage={(userId, username) => {
             window.dispatchEvent(new CustomEvent('openPrivateMessage', {
@@ -1226,15 +1736,75 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             }));
             setUserContextMenu(null);
           }}
+          onAddFriend={async (userId, username) => {
+            try {
+              const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
+                to_user_id: userId
+              });
+              if (response.data.success) {
+                toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
+                // Reload friends list to update status
+                await loadFriends();
+              } else {
+                toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+              }
+              setUserContextMenu(null);
+            } catch (error: any) {
+              console.error('Failed to send friend request:', error);
+              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+            }
+          }}
+          onRemoveFriend={async (userId, username) => {
+            await handleRemoveFriend(userId, username);
+            setUserContextMenu(null);
+          }}
+          onReportUser={async (userId, username) => {
+            setUserContextMenu(null);
+            setUserToReport({ userId, username });
+            setShowReportDialog(true);
+          }}
           onBlockUser={async (userId, username) => {
             try {
-              await api.post(API_ENDPOINTS.USERS.BLOCK_USER(userId));
+              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
               toast.success(t('chat.blockedUser', { username }));
               setUserContextMenu(null);
             } catch (error: any) {
               toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
             }
           }}
+        />
+      )}
+
+      {/* User Banner */}
+      {showBanner && bannerUser && bannerPos && (
+        <UserBanner
+          userId={bannerUser.userId}
+          username={bannerUser.username}
+          x={bannerPos.x}
+          y={bannerPos.y}
+          onClose={handleClose}
+        />
+      )}
+
+      {/* Report User Dialog */}
+      {showReportDialog && userToReport && (
+        <ReportUserDialog
+          userId={userToReport.userId}
+          username={userToReport.username}
+          onClose={() => {
+            setShowReportDialog(false);
+            setUserToReport(null);
+          }}
+          includeMessageHistory={true}
+        />
+      )}
+
+      {/* Image Viewer Modal */}
+      {viewingImage && (
+        <ImageViewerModal
+          imageUrl={viewingImage.url}
+          filename={viewingImage.filename}
+          onClose={() => setViewingImage(null)}
         />
       )}
     </div>
