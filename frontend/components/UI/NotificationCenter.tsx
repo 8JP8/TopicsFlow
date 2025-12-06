@@ -919,8 +919,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                         {/* Navigation button - simple gray link icon */}
                                         {(() => {
                                           if (notification.type === 'message' && notification.data?.from_user_id) {
-                                          return (
-                                            <button
+                                            return (
+                                              <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 group.notifications.forEach(n => markAsRead(n.id));
@@ -940,12 +940,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                               </svg>
-                                            </button>
-                                          );
+                                              </button>
+                                            );
                                           } else if (notification.type === 'chatroom_message' && (notification.data?.chat_room_id || notification.chat_room_id || notification.context_id)) {
                                             const chatRoomId = notification.data?.chat_room_id || notification.chat_room_id || notification.context_id;
                                             return (
-                                            <button
+                                              <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 group.notifications.forEach(n => markAsRead(n.id));
@@ -958,12 +958,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                               </svg>
-                                            </button>
-                                          );
+                                              </button>
+                                            );
                                           } else if (notification.type === 'comment' && (notification.data?.post_id || notification.post_id || notification.context_id)) {
                                             const postId = notification.data?.post_id || notification.post_id || notification.context_id;
                                             return (
-                                            <button
+                                              <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 group.notifications.forEach(n => markAsRead(n.id));
@@ -976,8 +976,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                               </svg>
-                                            </button>
-                                          );
+                                              </button>
+                                            );
                                           } else if (notification.type === 'invitation' && notification.data) {
                                             return (
                                               <div className="flex gap-2">
