@@ -34,7 +34,7 @@ class ApiClient {
       (error) => {
         // Don't show generic errors if we have specific error messages
         const hasSpecificError = error.response?.data?.errors || error.response?.data?.message || error.response?.data?.error;
-        
+
         if (error.response?.status === 401) {
           // Unauthorized - redirect to login only if not already on auth pages
           if (typeof window !== 'undefined') {
@@ -144,6 +144,9 @@ export const API_ENDPOINTS = {
     USER_TOPICS: '/api/topics/my',
     ANONYMOUS_IDENTITY: (id: string) => `/api/topics/${id}/anonymous-identity`,
     INVITE: (id: string) => `/api/topics/${id}/invite`,
+    GET_INVITATIONS: '/api/topics/invitations',
+    ACCEPT_INVITATION: (id: string) => `/api/topics/invitations/${id}/accept`,
+    DECLINE_INVITATION: (id: string) => `/api/topics/invitations/${id}/decline`,
     SILENCE: (id: string) => `/api/content-settings/topics/${id}/silence`,
     UNSILENCE: (id: string) => `/api/content-settings/topics/${id}/unsilence`,
     HIDE: (id: string) => `/api/content-settings/topics/${id}/hide`,
@@ -218,6 +221,8 @@ export const API_ENDPOINTS = {
     BLOCK: (userId: string) => `/api/users/${userId}/block`,
     UNBLOCK: (userId: string) => `/api/users/${userId}/unblock`,
     BLOCKED_USERS: '/api/users/blocked',
+    REQUEST_DELETION_CODE: '/api/users/request-deletion-code',
+    DELETE_ACCOUNT: '/api/users/delete-account',
   },
 
   // GIFs
@@ -241,6 +246,7 @@ export const API_ENDPOINTS = {
     UPVOTE: (id: string) => `/api/posts/${id}/upvote`,
     DOWNVOTE: (id: string) => `/api/posts/${id}/downvote`,
     REPORT: (id: string) => `/api/posts/${id}/report`,
+    UPDATE_STATUS: (id: string) => `/api/posts/${id}/status`,
     SILENCE: (id: string) => `/api/content-settings/posts/${id}/silence`,
     UNSILENCE: (id: string) => `/api/content-settings/posts/${id}/unsilence`,
     HIDE: (id: string) => `/api/content-settings/posts/${id}/hide`,

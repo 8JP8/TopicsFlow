@@ -420,6 +420,26 @@ class NotificationSettings:
             print(f"Error getting followed posts: {str(e)}")
             return []
 
+    def get_followed_chatrooms(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all chatrooms that a user is following."""
+        try:
+            followed = list(self.collection.find({
+                'user_id': ObjectId(user_id),
+                'type': 'chat_room',
+                'following': True
+            }))
+            
+            result = []
+            for item in followed:
+                result.append({
+                    'chat_room_id': str(item.get('chat_room_id')),
+                    'created_at': item.get('created_at').isoformat() if item.get('created_at') else None
+                })
+            return result
+        except Exception as e:
+            print(f"Error getting followed chatrooms: {str(e)}")
+            return []
+
     def get_settings(self, user_id: str, entity_type: str, entity_id: str) -> Optional[Dict[str, Any]]:
         """Get notification settings for a specific entity."""
         try:

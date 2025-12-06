@@ -18,7 +18,7 @@ interface ReportUserDialogProps {
   messageId?: string;
   ownerId?: string;
   ownerUsername?: string;
-  moderators?: Array<{id: string, username: string}>;
+  moderators?: Array<{ id: string, username: string }>;
   topicId?: string;
 }
 
@@ -35,6 +35,7 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
   ownerId,
   ownerUsername,
   moderators = [],
+  topicId,
 }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -81,7 +82,7 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
   // Get context-specific report reasons
   const getContextReasons = (): Array<{ value: ReportReason; label: string }> => {
     const allReasons = getReportReasons();
-    
+
     if (contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture') {
       // Chatroom-specific reasons
       return [
@@ -111,7 +112,7 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
         { value: 'other', label: t('reports.reason_other') || 'Other' },
       ];
     }
-    
+
     return allReasons;
   };
 
@@ -156,17 +157,17 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
 
     try {
       // Final check: prevent reporting yourself
-    if (user && userId && userId === user.id) {
-      setErrors([t('reports.cannotReportYourself') || 'You cannot report yourself']);
-      return;
-    }
+      if (user && userId && userId === user.id) {
+        setErrors([t('reports.cannotReportYourself') || 'You cannot report yourself']);
+        return;
+      }
 
-    if (user && contentType && contentType.startsWith('chatroom') && ownerId && ownerId === user.id) {
-      setErrors([t('reports.cannotReportYourself') || 'You cannot report your own chatroom']);
-      return;
-    }
+      if (user && contentType && contentType.startsWith('chatroom') && ownerId && ownerId === user.id) {
+        setErrors([t('reports.cannotReportYourself') || 'You cannot report your own chatroom']);
+        return;
+      }
 
-    const reportData: any = {
+      const reportData: any = {
         report_type: formData.report_type,
         reason: formData.reason,
         description: formData.description.trim(),
@@ -223,7 +224,7 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -231,8 +232,8 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
               {contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture'
                 ? (t('reports.reportChatroom') || 'Report Chatroom')
                 : contentType === 'post' || contentType === 'comment'
-                ? (t('reports.reportContent') || 'Report Content')
-                : (t('reports.reportUser') || 'Report User')}
+                  ? (t('reports.reportContent') || 'Report Content')
+                  : (t('reports.reportUser') || 'Report User')}
             </h2>
             <button
               onClick={onClose}
@@ -249,11 +250,11 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
           {contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture' ? (
             <div className="mb-4 p-3 theme-bg-tertiary rounded-lg space-y-2">
               <p className="text-sm font-semibold theme-text-primary">
-                {contentType === 'chatroom' 
+                {contentType === 'chatroom'
                   ? (t('reports.reportChatroom') || 'Report Chatroom')
                   : contentType === 'chatroom_background'
-                  ? (t('reports.reportBackground') || 'Report Background Image')
-                  : (t('reports.reportPicture') || 'Report Group Image')}
+                    ? (t('reports.reportBackground') || 'Report Background Image')
+                    : (t('reports.reportPicture') || 'Report Group Image')}
               </p>
               {ownerUsername && (
                 <p className="text-sm theme-text-muted">

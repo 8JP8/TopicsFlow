@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getUserColorClass } from '@/utils/colorUtils';
 import { toast } from 'react-hot-toast';
 import VoteButtons from '../Vote/VoteButtons';
 import CommentTree from '../Comment/CommentTree';
@@ -49,7 +50,7 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
   const [post, setPost] = useState<Post | null>(initialPost);
   const [loading, setLoading] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [commentToReport, setCommentToReport] = useState<{id: string, userId?: string, username?: string} | null>(null);
+  const [commentToReport, setCommentToReport] = useState<{ id: string, userId?: string, username?: string } | null>(null);
   const { showBanner, bannerPos, selectedUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
 
   useEffect(() => {
@@ -101,7 +102,7 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (minutes < 1) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
@@ -181,7 +182,7 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
             {t('posts.post') || 'Post'}
           </h2>
         </div>
-        
+
         {/* Navigation buttons with pagination */}
         {totalPages > 0 && (
           <div className="flex items-center gap-2">
@@ -240,7 +241,7 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
                   {post.title}
                 </h1>
 
-                {post.gif_url ? (
+                {post.gif_url && (
                   <div className="mb-4">
                     <img
                       src={post.gif_url}
@@ -248,7 +249,9 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
                       className="max-w-full max-h-96 rounded-lg"
                     />
                   </div>
-                ) : (
+                )}
+
+                {post.content && (
                   <div className="prose dark:prose-invert max-w-none mb-4">
                     <p className="theme-text-primary whitespace-pre-wrap">
                       {post.content}
@@ -258,8 +261,10 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
 
                 <div className="flex items-center gap-4 text-sm theme-text-muted pt-4 border-t theme-border">
                   <div className="flex items-center gap-2">
+
+
                     {post.is_anonymous ? (
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs">
+                      <div className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs`}>
                         {(post.display_name || 'Anonymous').charAt(0).toUpperCase()}
                       </div>
                     ) : post.user_id ? (

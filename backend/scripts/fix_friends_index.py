@@ -100,3 +100,6 @@ if __name__ == '__main__':
     success = fix_friends_collection(mongo_uri, db_name)
     sys.exit(0 if success else 1)
 
+
+
+

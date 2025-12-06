@@ -26,7 +26,7 @@ const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
   onRequestHandled,
 }) => {
   const { t } = useLanguage();
-  const [friendRequests, setFriendRequests] = useState<{received: FriendRequest[], sent: FriendRequest[]}>({received: [], sent: []});
+  const [friendRequests, setFriendRequests] = useState<{ received: FriendRequest[], sent: FriendRequest[] }>({ received: [], sent: [] });
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.USERS.FRIEND_REQUESTS);
       if (response.data.success) {
-        setFriendRequests(response.data.data || {received: [], sent: []});
+        setFriendRequests(response.data.data || { received: [], sent: [] });
       }
     } catch (error: any) {
       console.error('Failed to fetch friend requests:', error);
@@ -142,7 +142,7 @@ const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="theme-bg-secondary border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
+          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -290,4 +290,7 @@ const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
 };
 
 export default FriendRequestsModal;
+
+
+
 

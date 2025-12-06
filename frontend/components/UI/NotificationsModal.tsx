@@ -6,6 +6,8 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import toast from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 
+import useEscapeKey from '@/hooks/useEscapeKey';
+
 interface Notification {
   id: string;
   type: 'message' | 'mention' | 'report' | 'system' | 'invitation' | 'friend_request' | 'comment' | 'chatroom_message';
@@ -27,6 +29,9 @@ interface NotificationsModalProps {
 
 const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
+  useEscapeKey(() => {
+    if (isOpen) onClose();
+  });
   const router = useRouter();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -45,7 +50,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
 
   const fetchNotifications = async (reset = false) => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
       const currentPage = reset ? 1 : page;
@@ -54,7 +59,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
         offset: (currentPage - 1) * pageSize,
         unread_only: filter === 'unread',
       });
-      
+
       if (response.data.success && response.data.data) {
         const fetchedNotifications: Notification[] = response.data.data.map((notif: any) => ({
           id: notif.id || notif._id,
@@ -69,14 +74,14 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
           context_type: notif.context_type,
           context_name: notif.context_name || notif.data?.chat_room_name || notif.data?.post_title,
         }));
-        
+
         if (reset) {
           setNotifications(fetchedNotifications);
           setPage(1);
         } else {
           setNotifications(prev => [...prev, ...fetchedNotifications]);
         }
-        
+
         setHasMore(fetchedNotifications.length === pageSize);
       }
     } catch (error) {
@@ -181,7 +186,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    
+
     if (notification.type === 'message' && notification.data?.from_user_id) {
       const event = new CustomEvent('openPrivateMessage', {
         detail: {
@@ -224,7 +229,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="theme-bg-secondary border theme-border rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto"
+          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -236,21 +241,19 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
               <div className="flex space-x-2">
                 <button
                   onClick={() => setActiveTab('general')}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    activeTab === 'general'
-                      ? 'theme-blue-primary text-white'
-                      : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
-                  }`}
+                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${activeTab === 'general'
+                    ? 'theme-blue-primary text-white'
+                    : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
+                    }`}
                 >
                   {t('notifications.general') || 'General'}
                 </button>
                 <button
                   onClick={() => setActiveTab('mentions')}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    activeTab === 'mentions'
-                      ? 'theme-blue-primary text-white'
-                      : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
-                  }`}
+                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${activeTab === 'mentions'
+                    ? 'theme-blue-primary text-white'
+                    : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
+                    }`}
                 >
                   {t('notifications.mentions') || 'Mentions'}
                 </button>
@@ -278,21 +281,19 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
           <div className="px-6 py-3 border-b theme-border flex items-center space-x-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                filter === 'all'
-                  ? 'theme-blue-primary text-white'
-                  : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
-              }`}
+              className={`px-3 py-1 text-sm rounded-lg transition-colors ${filter === 'all'
+                ? 'theme-blue-primary text-white'
+                : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
+                }`}
             >
               {t('notifications.all') || 'All'}
             </button>
             <button
               onClick={() => setFilter('unread')}
-              className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                filter === 'unread'
-                  ? 'theme-blue-primary text-white'
-                  : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
-              }`}
+              className={`px-3 py-1 text-sm rounded-lg transition-colors ${filter === 'unread'
+                ? 'theme-blue-primary text-white'
+                : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
+                }`}
             >
               {t('notifications.unread') || 'Unread'}
             </button>
@@ -318,9 +319,8 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                 {displayedNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 rounded-lg border theme-border relative group cursor-pointer hover:theme-bg-tertiary transition-colors ${
-                      !notification.read ? 'theme-bg-primary' : ''
-                    }`}
+                    className={`p-4 rounded-lg border theme-border relative group cursor-pointer hover:theme-bg-tertiary transition-colors ${!notification.read ? 'theme-bg-primary' : ''
+                      }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     {/* X button */}
@@ -338,13 +338,12 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                     </button>
 
                     <div className="flex items-start space-x-3 pr-6">
-                      <div className={`p-2 rounded-full ${
-                        notification.type === 'message' ? 'theme-blue-primary' :
+                      <div className={`p-2 rounded-full ${notification.type === 'message' ? 'theme-blue-primary' :
                         notification.type === 'mention' ? 'bg-purple-500' :
-                        notification.type === 'comment' ? 'bg-green-500' :
-                        notification.type === 'chatroom_message' ? 'bg-blue-500' :
-                        'theme-bg-tertiary'
-                      }`}>
+                          notification.type === 'comment' ? 'bg-green-500' :
+                            notification.type === 'chatroom_message' ? 'bg-blue-500' :
+                              'theme-bg-tertiary'
+                        }`}>
                         <div className={notification.type === 'message' || notification.type === 'mention' || notification.type === 'comment' || notification.type === 'chatroom_message' ? 'text-white' : 'theme-text-primary'}>
                           {getNotificationIcon(notification.type)}
                         </div>
@@ -368,7 +367,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                     </div>
                   </div>
                 ))}
-                
+
                 {hasMore && (
                   <button
                     onClick={loadMore}

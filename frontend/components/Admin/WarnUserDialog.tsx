@@ -68,7 +68,7 @@ const WarnUserDialog: React.FC<WarnUserDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-2xl w-full p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
         <h2 className="text-2xl font-semibold theme-text-primary mb-4">
           {t('admin.warnUser') || 'Warn User'}
         </h2>
@@ -86,11 +86,10 @@ const WarnUserDialog: React.FC<WarnUserDialogProps> = ({
               <button
                 key={index}
                 onClick={() => handlePredefinedSelect(warning)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                  selectedPredefined === warning
+                className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedPredefined === warning
                     ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
                     : 'theme-border hover:theme-bg-tertiary'
-                }`}
+                  }`}
               >
                 <p className="text-sm theme-text-primary">{warning}</p>
               </button>

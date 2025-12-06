@@ -5,6 +5,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 import toast from 'react-hot-toast';
 import ReportUserDialog from '../Reports/ReportUserDialog';
 import Avatar from '../UI/Avatar';
+import useEscapeKey from '@/hooks/useEscapeKey';
 
 interface BlockedUser {
   id: string;
@@ -18,10 +19,13 @@ interface BlockedUsersModalProps {
 
 const BlockedUsersModal: React.FC<BlockedUsersModalProps> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
+  useEscapeKey(() => {
+    if (isOpen) onClose();
+  });
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [userToReport, setUserToReport] = useState<{userId: string, username: string} | null>(null);
+  const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
 
   useEffect(() => {
     if (isOpen) {

@@ -10,6 +10,8 @@ import BlockedUsersModal from '@/components/Settings/BlockedUsersModal';
 import HiddenItemsModal from '@/components/Settings/HiddenItemsModal';
 import FollowedPublicationsModal from '@/components/Settings/FollowedPublicationsModal';
 import FollowedChatroomsModal from '@/components/Settings/FollowedChatroomsModal';
+import BackupCodesModal from '@/components/Settings/BackupCodesModal';
+import DeleteAccountModal from '@/components/Settings/DeleteAccountModal';
 import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
 
 interface UserPreferences {
@@ -18,6 +20,7 @@ interface UserPreferences {
   notifications_enabled?: boolean;
   browser_notifications_enabled?: boolean;
   sound_enabled?: boolean;
+  show_support_widget?: boolean;
 }
 
 const Settings: React.FC = () => {
@@ -29,16 +32,35 @@ const Settings: React.FC = () => {
     language: 'en',
     notifications_enabled: true,
     sound_enabled: true,
+    show_support_widget: true,
   });
   const [_loading, _setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy'>('preferences');
+  const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy' | 'anonymous-identities'>('preferences');
   const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
   const [showHiddenItemsModal, setShowHiddenItemsModal] = useState(false);
   const [showFollowedPublicationsModal, setShowFollowedPublicationsModal] = useState(false);
   const [showFollowedChatroomsModal, setShowFollowedChatroomsModal] = useState(false);
+  const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
-  const [anonymousIdentities, setAnonymousIdentities] = useState<Array<{id: string, topic_id: string, topic_title: string, identity_name: string, created_at: string, message_count: number}>>([]);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [anonymousIdentities, setAnonymousIdentities] = useState<Array<{ id: string, topic_id: string, topic_title: string, identity_name: string, created_at: string, message_count: number }>>([]);
   const [loadingIdentities, setLoadingIdentities] = useState(false);
+  const [deletingIdentityId, setDeletingIdentityId] = useState<string | null>(null);
+
+  // Listen for tour events
+  useEffect(() => {
+    const handleSwitchTab = (e: CustomEvent) => {
+      const tab = e.detail;
+      if (['account', 'preferences', 'privacy', 'anonymous-identities'].includes(tab)) {
+        setActiveTab(tab as any);
+      }
+    };
+
+    window.addEventListener('tour:switch-settings-tab', handleSwitchTab as EventListener);
+    return () => {
+      window.removeEventListener('tour:switch-settings-tab', handleSwitchTab as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -51,8 +73,9 @@ const Settings: React.FC = () => {
         theme: user.preferences.theme || 'dark',
         language: user.preferences.language || 'en',
         notifications_enabled: user.preferences.notifications_enabled !== false,
-        browser_notifications_enabled: user.preferences.browser_notifications_enabled || false,
+        browser_notifications_enabled: (user.preferences as any).browser_notifications_enabled || false,
         sound_enabled: user.preferences.sound_enabled !== false,
+        show_support_widget: (user.preferences as any).show_support_widget !== false,
       });
     }
 
@@ -64,11 +87,21 @@ const Settings: React.FC = () => {
       }
     }
 
-  }, [user, authLoading, router, activeTab]);
+    // Handle query param for tab
+    if (router.query.tab) {
+      const tab = router.query.tab as string;
+      if (['account', 'preferences', 'privacy', 'anonymous-identities'].includes(tab)) {
+        setActiveTab(tab as any);
+      }
+    }
 
-  // Load anonymous identities
+  }, [user, authLoading, router]);
+
+
+
+  // Load anonymous identities when tab is active
   useEffect(() => {
-    if (user && activeTab === 'account') {
+    if (user && activeTab === 'anonymous-identities') {
       loadAnonymousIdentities();
     }
   }, [user, activeTab]);
@@ -92,6 +125,8 @@ const Settings: React.FC = () => {
       return;
     }
 
+    setDeletingIdentityId(topicId);
+
     try {
       const response = await api.delete(API_ENDPOINTS.USERS.DELETE_ANONYMOUS_IDENTITY(topicId));
       if (response.data.success) {
@@ -103,6 +138,8 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Failed to delete identity:', error);
       toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+    } finally {
+      setDeletingIdentityId(null);
     }
   };
 
@@ -111,8 +148,18 @@ const Settings: React.FC = () => {
     setPreferences(newPreferences);
 
     // Apply theme immediately without showing toast
+    // Apply theme immediately without showing toast
     if (key === 'theme') {
-      document.documentElement.classList.toggle('dark', value === 'dark');
+      // Use the context's setTheme (via explicit prop logic if we had access, but here we manually toggle class and fetch)
+      // Actually, we should call standard logic.
+      // Since we are in Settings, we WANT to save to backend.
+
+      // Update local state (ui) and localStorage
+      const themeValue = value as 'light' | 'dark';
+      document.documentElement.setAttribute('data-theme', themeValue);
+      document.documentElement.classList.toggle('dark', themeValue === 'dark');
+      localStorage.setItem('theme', themeValue); // Explicitly ensure it's saved
+
       // Save to backend silently (no toast)
       try {
         const response = await api.put(API_ENDPOINTS.AUTH.PREFERENCES, {
@@ -122,12 +169,12 @@ const Settings: React.FC = () => {
         if (response.data.success) {
           // Update user context silently
           if (user) {
-            updateUser({ 
-              ...user, 
-              preferences: { 
-                ...user.preferences, 
-                ...newPreferences 
-              } 
+            updateUser({
+              ...user,
+              preferences: {
+                ...user.preferences,
+                ...newPreferences
+              }
             });
           }
         }
@@ -148,12 +195,12 @@ const Settings: React.FC = () => {
         toast.success(t('settings.settingsSaved'));
         // Update user context
         if (user) {
-          updateUser({ 
-            ...user, 
-            preferences: { 
-              ...user.preferences, 
-              ...newPreferences 
-            } 
+          updateUser({
+            ...user,
+            preferences: {
+              ...user.preferences,
+              ...newPreferences
+            }
           });
         }
       } else {
@@ -174,44 +221,53 @@ const Settings: React.FC = () => {
     }
   };
 
-  const loadAnonymousIdentities = async () => {
-    try {
-      setLoadingIdentities(true);
-      const response = await api.get(API_ENDPOINTS.USERS.ANONYMOUS_IDENTITIES);
-      if (response.data.success) {
-        setAnonymousIdentities(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to load anonymous identities:', error);
-    } finally {
-      setLoadingIdentities(false);
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
-  const handleDeleteIdentity = async (topicId: string) => {
-    if (!confirm(t('anonymousIdentities.deleteConfirm') || 'Are you sure you want to delete this anonymous identity?')) {
-      return;
-    }
+  const updateTab = (tab: 'account' | 'preferences' | 'privacy' | 'anonymous-identities') => {
+    setActiveTab(tab);
+    // Optional: update URL shallowly
+    router.push({ pathname: '/settings', query: { tab } }, undefined, { shallow: true });
+  }
 
-    try {
-      const response = await api.delete(API_ENDPOINTS.USERS.DELETE_ANONYMOUS_IDENTITY(topicId));
-      if (response.data.success) {
-        toast.success(t('anonymousIdentities.deleteSuccess') || 'Anonymous identity deleted');
-        setAnonymousIdentities(prev => prev.filter(identity => identity.topic_id !== topicId));
-      } else {
-        toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
+  if (authLoading || !user) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <LoadingSpinner size="lg" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Continue tour from dashboard
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const shouldContinueTour = localStorage.getItem('continue_tour_settings');
+      if (shouldContinueTour === 'true') {
+        localStorage.removeItem('continue_tour_settings');
+        // Small delay to ensure rendering
+        setTimeout(() => {
+          // Trigger settings tab switch logic if needed (e.g. tour might expect default tab)
+          // But main tour start is enough as step 1 targets #settings-tabs
+          window.dispatchEvent(new CustomEvent('tour:start'));
+        }, 500);
       }
-    } catch (error) {
-      console.error('Failed to delete identity:', error);
-      toast.error(t('anonymousIdentities.deleteFailed') || 'Failed to delete anonymous identity');
     }
-  };
+  }, []);
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="mb-8">
           <button
+            id="back-to-dashboard-btn"
             onClick={() => router.push('/')}
             className="flex items-center text-sm theme-text-secondary hover:theme-text-primary mb-4 transition-colors"
           >
@@ -225,35 +281,45 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b theme-border mb-6">
-          <nav className="flex space-x-8">
+        <div className="border-b theme-border mb-6 overflow-x-auto">
+          <nav id="settings-tabs" className="flex space-x-8">
             <button
-              onClick={() => setActiveTab('account')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'account'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
-              }`}
-            >
-              {t('settings.account')}
-            </button>
-            <button
-              onClick={() => setActiveTab('preferences')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'preferences'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
-              }`}
+              id="preferences-tab-btn"
+              onClick={() => updateTab('preferences')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'preferences'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
+                }`}
             >
               {t('settings.preferences')}
             </button>
             <button
-              onClick={() => setActiveTab('privacy')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'privacy'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
-              }`}
+              id="account-tab-btn"
+              onClick={() => updateTab('account')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'account'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
+                }`}
+            >
+              {t('settings.account')}
+            </button>
+            <button
+              id="anonymous-identities-tab-btn"
+              onClick={() => updateTab('anonymous-identities')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'anonymous-identities'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
+                }`}
+            >
+              {t('settings.anonymousIdentities') || 'Anonymous Identities'}
+            </button>
+            <button
+              id="privacy-tab-btn"
+              onClick={() => updateTab('privacy')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'privacy'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
+                }`}
             >
               {t('settings.privacy')}
             </button>
@@ -263,118 +329,245 @@ const Settings: React.FC = () => {
         {/* Tab Content */}
         <div className="theme-bg-secondary rounded-lg shadow-sm p-6">
           {activeTab === 'account' && (
-            <div className="space-y-6">
+            <div className="space-y-8">
+              {/* Profile Details Group */}
               <div>
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.accountInformation')}</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium theme-text-primary mb-1">{t('settings.username')}</label>
-                    <input
-                      type="text"
-                      value={user.username}
-                      disabled
-                      className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary cursor-not-allowed"
-                    />
+                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.profileDetails') || 'Profile Details'}</h2>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium theme-text-primary">{t('settings.username')}</label>
+                    <div className="p-3 theme-bg-tertiary theme-border border rounded-lg theme-text-primary opacity-75">
+                      {user.username}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium theme-text-primary mb-1">{t('settings.email')}</label>
-                    <input
-                      type="email"
-                      value={user.email}
-                      disabled
-                      className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary cursor-not-allowed"
-                    />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium theme-text-primary">{t('settings.email')}</label>
+                    <div className="p-3 theme-bg-tertiary theme-border border rounded-lg theme-text-primary opacity-75">
+                      {user.email}
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="pt-4 border-t theme-border">
-                <h3 className="text-lg font-medium theme-text-primary mb-2">{t('settings.manageAccount')}</h3>
-                <div className="space-y-2">
+                <div className="mt-4">
                   <button
                     onClick={() => router.push('/profile')}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-primary mb-2"
+                    id="edit-profile-btn"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
                     {t('settings.editProfile')}
-                  </button>
-                  <button
-                    onClick={() => setShowBlockedUsersModal(true)}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
-                  >
-                    {t('settings.blockedUsers') || 'Blocked Users'}
-                  </button>
-                  <button
-                    onClick={() => setShowHiddenItemsModal(true)}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
-                  >
-                    {t('settings.hiddenItems') || 'Hidden Items'}
-                  </button>
-                  <button
-                    onClick={() => setShowFollowedPublicationsModal(true)}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost mb-2"
-                  >
-                    {t('settings.followedPublications') || 'Followed Publications'}
-                  </button>
-                  <button
-                    onClick={() => setShowFollowedChatroomsModal(true)}
-                    className="w-full sm:w-auto px-4 py-2 btn btn-ghost"
-                  >
-                    {t('settings.followedChatrooms') || 'Followed Chatrooms'}
                   </button>
                 </div>
               </div>
 
-              {/* Anonymous Identities Section */}
-              <div className="pt-4 border-t theme-border">
-                <h3 className="text-lg font-medium theme-text-primary mb-4">{t('settings.anonymousIdentities') || 'Anonymous Identities'}</h3>
+              {/* Content & Safety Group */}
+              <div className="pt-6 border-t theme-border">
+                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.contentAndSafety') || 'Content & Safety'}</h2>
+                <div id="content-safety-group" className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                  <button
+                    id="blocked-users-btn"
+                    onClick={() => setShowBlockedUsersModal(true)}
+                    className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-3 group-hover:bg-red-200 dark:group-hover:bg-red-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                      </div>
+                      <span className="font-medium theme-text-primary">{t('settings.blockedUsers')}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    id="hidden-items-btn"
+                    onClick={() => setShowHiddenItemsModal(true)}
+                    className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3 group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
+                        <svg className="w-5 h-5 theme-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      </div>
+                      <span className="font-medium theme-text-primary">{t('settings.hiddenItems')}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    id="followed-publications-btn"
+                    onClick={() => setShowFollowedPublicationsModal(true)}
+                    className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                      </div>
+                      <span className="font-medium theme-text-primary">{t('settings.followedPublications')}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    id="followed-chatrooms-btn"
+                    onClick={() => setShowFollowedChatroomsModal(true)}
+                    className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-3 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                        </svg>
+                      </div>
+                      <span className="font-medium theme-text-primary">{t('settings.followedChatrooms')}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Danger Zone Group */}
+              <div className="pt-6 border-t theme-border">
+                <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">{t('settings.dangerZone')}</h2>
+
+                <div className="space-y-4">
+                  {/* Logout Button */}
+                  <div className="p-4 theme-bg-tertiary border theme-border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium theme-text-primary">{t('settings.logout')}</h3>
+                        <p className="text-sm theme-text-secondary mt-1">{t('settings.logoutDesc') || 'Sign out of your account on this device.'}</p>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 theme-bg-secondary hover:theme-bg-hover text-red-600 border theme-border rounded-lg font-medium transition-colors"
+                      >
+                        {t('settings.logout')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Delete Account Button */}
+                  <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-red-700 dark:text-red-300">{t('settings.deleteAccount') || 'Delete Account'}</h3>
+                        <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
+                          {t('settings.deleteAccountDesc') || 'Permanently delete your account and all data. This action cannot be undone.'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowDeleteAccountModal(true)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        {t('settings.deleteAccount') || 'Delete Account'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'anonymous-identities' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold theme-text-primary mb-2">{t('settings.anonymousIdentities') || 'Anonymous Identities'}</h2>
+                <p className="text-sm theme-text-secondary mb-6">
+                  {t('anonymousIdentities.subtitle') || 'Manage your anonymous identities across different topics.'}
+                </p>
+
+                {/* Info Banner */}
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">{t('anonymousIdentities.infoTitle') || 'About Anonymous Identities'}</h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        {t('anonymousIdentities.infoDesc') || 'Anonymous identities allow you to participate in topics without revealing your real username.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {loadingIdentities ? (
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner size="sm" />
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner size="md" />
                   </div>
                 ) : anonymousIdentities.length === 0 ? (
-                  <p className="text-sm theme-text-secondary mb-4">
-                    {t('settings.noAnonymousIdentities') || 'You have no anonymous identities.'}
-                  </p>
+                  <div className="text-center py-12 border theme-border rounded-lg theme-bg-tertiary">
+                    <svg className="w-12 h-12 theme-text-muted mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <p className="text-sm theme-text-secondary">
+                      {t('settings.noAnonymousIdentities') || 'You have no anonymous identities.'}
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {anonymousIdentities.map((identity) => (
                       <div
                         key={identity.topic_id}
-                        className="p-4 rounded-lg border theme-border theme-bg-tertiary"
+                        className="p-4 rounded-lg border theme-border theme-bg-tertiary hover:theme-bg-hover transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="text-sm font-medium theme-text-primary mb-1">
-                              {identity.topic_title}
-                            </h4>
-                            <p className="text-xs theme-text-secondary mb-2">
-                              {t('settings.identityName') || 'Identity'}: {identity.identity_name}
-                            </p>
-                            <div className="flex items-center space-x-4 text-xs theme-text-muted">
+                            <div className="flex items-center mb-1">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center mr-3">
+                                <span className="text-white font-semibold text-xs">
+                                  {identity.identity_name?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium theme-text-primary">
+                                  {identity.identity_name}
+                                </h4>
+                                <p className="text-xs theme-text-secondary">
+                                  in <span className="font-medium">{identity.topic_title}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-4 text-xs theme-text-muted mt-2 ml-11">
                               <span>{identity.message_count} {t('settings.messages') || 'messages'}</span>
+                              <span>•</span>
+                              <span>{t('anonymousIdentities.createdAt')} {formatDate(identity.created_at)}</span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteIdentity(identity.topic_id)}
-                            className="px-3 py-1 text-xs btn btn-secondary ml-4"
-                          >
-                            {t('common.delete') || 'Delete'}
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => router.push(`/?topic=${identity.topic_id}`)}
+                              className="p-2 text-xs btn btn-ghost"
+                              title={t('anonymousIdentities.viewTopic') || 'View Topic'}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteIdentity(identity.topic_id)}
+                              disabled={deletingIdentityId === identity.topic_id}
+                              className="p-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                              title={t('common.delete') || 'Delete'}
+                            >
+                              {deletingIdentityId === identity.topic_id ? (
+                                <LoadingSpinner size="sm" />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="pt-4 border-t theme-border">
-                <h3 className="text-lg font-medium text-red-600 dark:text-red-400 mb-2">{t('settings.dangerZone')}</h3>
-                <button
-                  onClick={handleLogout}
-                  className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  {t('settings.logout')}
-                </button>
               </div>
             </div>
           )}
@@ -389,11 +582,10 @@ const Settings: React.FC = () => {
                     <div className="flex space-x-4">
                       <button
                         onClick={() => handlePreferenceChange('theme', 'light')}
-                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
-                          preferences.theme === 'light'
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
-                            : 'theme-border theme-bg-tertiary'
-                        }`}
+                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${preferences.theme === 'light'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
+                          : 'theme-border theme-bg-tertiary'
+                          }`}
                       >
                         <div className="flex items-center justify-center">
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,11 +596,10 @@ const Settings: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handlePreferenceChange('theme', 'dark')}
-                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
-                          preferences.theme === 'dark'
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
-                            : 'theme-border theme-bg-tertiary'
-                        }`}
+                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${preferences.theme === 'dark'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
+                          : 'theme-border theme-bg-tertiary'
+                          }`}
                       >
                         <div className="flex items-center justify-center">
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,14 +635,12 @@ const Settings: React.FC = () => {
                     </div>
                     <button
                       onClick={() => handlePreferenceChange('notifications_enabled', !preferences.notifications_enabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        preferences.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          preferences.notifications_enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.notifications_enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </div>
@@ -486,14 +675,12 @@ const Settings: React.FC = () => {
                           handlePreferenceChange('browser_notifications_enabled', false);
                         }
                       }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </div>
@@ -505,14 +692,29 @@ const Settings: React.FC = () => {
                     </div>
                     <button
                       onClick={() => handlePreferenceChange('sound_enabled', !preferences.sound_enabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        preferences.sound_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.sound_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          preferences.sound_enabled ? 'translate-x-6' : 'translate-x-1'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.sound_enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium theme-text-primary">{t('supportWidget.toggleLabel') || 'Support Button'}</h4>
+                      <p className="text-sm theme-text-secondary">{t('supportWidget.toggleDescription') || 'Show the support button in the header toolbar'}</p>
+                    </div>
+                    <button
+                      onClick={() => handlePreferenceChange('show_support_widget', !preferences.show_support_widget)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.show_support_widget ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.show_support_widget ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </div>
@@ -534,9 +736,26 @@ const Settings: React.FC = () => {
                       <div>
                         <h4 className="font-medium theme-text-primary">{t('settings.twoFactorAuth')}</h4>
                         <p className="text-sm theme-text-secondary mt-1">{t('settings.twoFactorAuthDesc')}</p>
+                        {user?.totp_enabled && (
+                          <button
+                            onClick={() => setShowBackupCodesModal(true)}
+                            className="mt-3 text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            {t('settings.viewRegenerateBackupCodes') || 'View/Regenerate Backup Codes'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Backup Codes Modal */}
+                  <BackupCodesModal
+                    isOpen={showBackupCodesModal}
+                    onClose={() => setShowBackupCodesModal(false)}
+                  />
 
 
                   <div className="p-4 theme-bg-tertiary rounded-lg">
@@ -562,14 +781,26 @@ const Settings: React.FC = () => {
         isOpen={showHiddenItemsModal}
         onClose={() => setShowHiddenItemsModal(false)}
       />
-      <FollowedPublicationsModal
-        isOpen={showFollowedPublicationsModal}
-        onClose={() => setShowFollowedPublicationsModal(false)}
+      {showFollowedPublicationsModal && (
+        <FollowedPublicationsModal
+          isOpen={showFollowedPublicationsModal}
+          onClose={() => setShowFollowedPublicationsModal(false)}
+        />
+      )}
+      {showFollowedChatroomsModal && (
+        <FollowedChatroomsModal
+          isOpen={showFollowedChatroomsModal}
+          onClose={() => setShowFollowedChatroomsModal(false)}
+        />
+      )}
+
+      <DeleteAccountModal
+        isOpen={showDeleteAccountModal}
+        onClose={() => setShowDeleteAccountModal(false)}
       />
-      <FollowedChatroomsModal
-        isOpen={showFollowedChatroomsModal}
-        onClose={() => setShowFollowedChatroomsModal(false)}
-      />
+
+
+
       {showNotificationDialog && (
         <NotificationPermissionDialog
           onClose={() => {

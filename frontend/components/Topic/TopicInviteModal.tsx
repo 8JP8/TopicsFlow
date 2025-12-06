@@ -4,6 +4,7 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Avatar from '../UI/Avatar';
+import useEscapeKey from '@/hooks/useEscapeKey';
 
 interface TopicInviteModalProps {
   isOpen: boolean;
@@ -21,6 +22,9 @@ const TopicInviteModal: React.FC<TopicInviteModalProps> = ({
   onInviteSent,
 }) => {
   const { t } = useLanguage();
+  useEscapeKey(() => {
+    if (isOpen) onClose();
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +46,8 @@ const TopicInviteModal: React.FC<TopicInviteModalProps> = ({
     try {
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.USERS.SEARCH, {
-        params: { q: searchQuery, limit: 20 }
+        q: searchQuery,
+        limit: 20
       });
       if (response.data.success) {
         setUsers(response.data.data || []);
@@ -89,7 +94,7 @@ const TopicInviteModal: React.FC<TopicInviteModalProps> = ({
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="theme-bg-secondary border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
+          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

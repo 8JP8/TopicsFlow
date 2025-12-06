@@ -1,3 +1,5 @@
+const colors = require('tailwindcss/colors');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -8,6 +10,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        gray: colors.neutral,
         // Dark theme colors
         dark: {
           primary: '#1a1a1a',
@@ -121,7 +124,7 @@ module.exports = {
     require('@tailwindcss/typography'),
     require('@tailwindcss/aspect-ratio'),
     // Custom plugin for theme-aware colors
-    function({ addUtilities, theme }) {
+    function ({ addUtilities, theme }) {
       const newUtilities = {
         '.theme-bg-primary': {
           backgroundColor: 'var(--theme-bg-primary)',

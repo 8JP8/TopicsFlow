@@ -421,3 +421,66 @@ def report_post(post_id):
         logger.error(f"Report post error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to report post: {str(e)}']}), 500
 
+
+@posts_bp.route('/<post_id>/status', methods=['PUT'])
+@require_json
+@require_auth()
+@log_requests
+def update_post_status(post_id):
+    """Update post status (admin only)."""
+    try:
+        # Check admin
+        from utils.admin_middleware import require_admin
+        # We can't use the decorator easily inside the function, so let's check manually or assume imports are handled.
+        # Actually I should update imports first. But for now I'll check user admin status manually.
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success') or not current_user_result['user'].get('is_admin'):
+             return jsonify({'success': False, 'errors': ['Admin access required']}), 403
+
+        data = request.get_json()
+        status = data.get('status')
+        reason = data.get('reason', '')
+        
+        if status not in ['open', 'closed']:
+            return jsonify({'success': False, 'errors': ['Invalid status']}), 400
+
+        post_model = Post(current_app.db)
+        post = post_model.get_post_by_id(post_id)
+        if not post:
+            return jsonify({'success': False, 'errors': ['Post not found']}), 404
+
+        if status == 'closed':
+            if not reason:
+                return jsonify({'success': False, 'errors': ['Closure reason is required']}), 400
+            success = post_model.close_post(post_id, reason)
+        else:
+            success = post_model.open_post(post_id)
+
+        if success:
+            # Emit socket event
+            try:
+                from app import socketio
+                if socketio:
+                    topic_id = post.get('topic_id')
+                    if topic_id:
+                        room_name = f"topic_{topic_id}"
+                        socketio.emit('post_status_updated', {
+                            'post_id': post_id,
+                            'status': status,
+                            'closure_reason': reason if status == 'closed' else None
+                        }, room=room_name)
+            except Exception as e:
+                logger.warning(f"Failed to emit socket event: {str(e)}")
+
+            return jsonify({
+                'success': True,
+                'message': f'Post {status} successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to update post status']}), 400
+
+    except Exception as e:
+        logger.error(f"Update post status error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to update post status: {str(e)}']}), 500
+

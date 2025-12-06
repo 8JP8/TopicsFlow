@@ -1,0 +1,45 @@
+{
+    "email": {
+        "verification": {
+            "subject": "{app_name} - Verify Your Email",
+            "title": "Welcome to {app_name}!",
+            "greeting": "Hello {username},",
+            "intro": "Thank you for registering! To complete your account setup, please verify your email address using the code below:",
+            "codeLabel": "Your Verification Code",
+            "expiry": "This code will expire in {minutes} minutes.",
+            "ignore": "If you didn't create an account with {app_name}, please ignore this email.",
+            "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
+        },
+        "recovery": {
+            "subject": "{app_name} - Account Recovery",
+            "title": "Account Recovery",
+            "greeting": "Hello {username},",
+            "intro": "We received a request to recover your {app_name} account. Use the code below to proceed with account recovery:",
+            "codeLabel": "Your Recovery Code",
+            "expiry": "This code will expire in {minutes} minutes.",
+            "warning": "⚠️ Security Notice: If you didn't request this recovery, please ignore this email and ensure your email account is secure.",
+            "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
+        },
+        "twoFactorReset": {
+            "subject": "{app_name} - Two-Factor Authentication Reset",
+            "title": "Security Alert",
+            "greeting": "Hello {username},",
+            "intro": "Your two-factor authentication (2FA) has been successfully reset.",
+            "actionDescription": "✓ What was done: Your authenticator app has been disconnected and new backup codes have been generated.",
+            "instruction": "Please set up your authenticator app again with the new QR code provided and save your new backup codes in a secure location.",
+            "warning": "⚠️ Security Notice: If you didn't perform this action, someone may have access to your account. Please contact support immediately.",
+            "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
+        },
+        "deleteAccount": {
+            "subject": "{app_name} - Confirm Account Deletion",
+            "title": "Account Deletion Request",
+            "greeting": "Hello {username},",
+            "intro": "We received a request to permanently delete your {app_name} account. To confirm this action, please use the code below:",
+            "codeLabel": "Verification Code",
+            "expiry": "This code will expire in {minutes} minutes.",
+            "warning": "⚠️ Warning: Deleting your account is permanent and cannot be undone. All your data will be erased.",
+            "ignore": "If you didn't request this, please ignore this email and change your password immediately.",
+            "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
+        }
+    }
+}

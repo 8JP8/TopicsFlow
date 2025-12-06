@@ -1,0 +1,45 @@
+{
+    "email": {
+        "verification": {
+            "subject": "{app_name} - Verifique o seu Email",
+            "title": "Bem-vindo ao {app_name}!",
+            "greeting": "Olá {username},",
+            "intro": "Obrigado por se registar! Para completar a configuração da sua conta, por favor verifique o seu endereço de email usando o código abaixo:",
+            "codeLabel": "O Seu Código de Verificação",
+            "expiry": "Este código expira em {minutes} minutos.",
+            "ignore": "Se não criou uma conta no {app_name}, por favor ignore este email.",
+            "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
+        },
+        "recovery": {
+            "subject": "{app_name} - Recuperação de Conta",
+            "title": "Recuperação de Conta",
+            "greeting": "Olá {username},",
+            "intro": "Recebemos um pedido para recuperar a sua conta {app_name}. Use o código abaixo para prosseguir com a recuperação da conta:",
+            "codeLabel": "O Seu Código de Recuperação",
+            "expiry": "Este código expira em {minutes} minutos.",
+            "warning": "⚠️ Aviso de Segurança: Se não solicitou esta recuperação, por favor ignore este email e garanta que a sua conta de email está segura.",
+            "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
+        },
+        "twoFactorReset": {
+            "subject": "{app_name} - Redefinição da Autenticação de Dois Fatores",
+            "title": "Alerta de Segurança",
+            "greeting": "Olá {username},",
+            "intro": "A sua autenticação de dois fatores (2FA) foi redefinida com sucesso.",
+            "actionDescription": "✓ O que foi feito: A sua aplicação autenticadora foi desconectada e novos códigos de backup foram gerados.",
+            "instruction": "Por favor, configure a sua aplicação autenticadora novamente com o novo código QR fornecido e guarde os seus novos códigos de backup num local seguro.",
+            "warning": "⚠️ Aviso de Segurança: Se não realizou esta ação, alguém pode ter acesso à sua conta. Por favor contacte o suporte imediatamente.",
+            "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
+        },
+        "deleteAccount": {
+            "subject": "{app_name} - Confirmar Eliminação de Conta",
+            "title": "Pedido de Eliminação de Conta",
+            "greeting": "Olá {username},",
+            "intro": "Recebemos um pedido para eliminar permanentemente a sua conta {app_name}. Para confirmar esta ação, por favor use o código abaixo:",
+            "codeLabel": "Código de Verificação",
+            "expiry": "Este código expira em {minutes} minutos.",
+            "warning": "⚠️ Aviso: A eliminação da sua conta é permanente e não pode ser desfeita. Todos os seus dados serão apagados.",
+            "ignore": "Se não solicitou isto, por favor ignore este email e altere a sua palavra-passe imediatamente.",
+            "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
+        }
+    }
+}

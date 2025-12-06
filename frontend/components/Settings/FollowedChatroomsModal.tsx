@@ -36,11 +36,9 @@ const FollowedChatroomsModal: React.FC<FollowedChatroomsModalProps> = ({ isOpen,
   const loadFollowedChatrooms = async () => {
     try {
       setLoading(true);
-      // Note: This endpoint may need to be created on the backend
-      // For now, we'll try to get all chatrooms and filter by follow status
-      // This is a placeholder - you may need to create a proper endpoint
-      const response = await api.get('/api/chat-rooms/followed');
-      
+      // Note: This endpoint is now implemented in notification_settings.py
+      const response = await api.get('/api/notification-settings/chat-rooms/followed');
+
       if (response.data.success) {
         setChatrooms(response.data.data || []);
       } else {
@@ -92,7 +90,7 @@ const FollowedChatroomsModal: React.FC<FollowedChatroomsModalProps> = ({ isOpen,
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="theme-bg-secondary border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
+          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b theme-border">

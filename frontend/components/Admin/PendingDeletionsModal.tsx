@@ -30,6 +30,8 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
   const [loading, setLoading] = useState(true);
   const [selectedDeletion, setSelectedDeletion] = useState<PendingDeletion | null>(null);
 
+  const [lockDeletion, setLockDeletion] = useState(false);
+
   useEffect(() => {
     loadPendingDeletions();
   }, []);
@@ -40,7 +42,7 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
       const response = await api.get(API_ENDPOINTS.ADMIN.PENDING_DELETIONS);
       if (response.data.success) {
         const allDeletions: PendingDeletion[] = [];
-        
+
         // Add topics
         if (response.data.data.topics && Array.isArray(response.data.data.topics)) {
           response.data.data.topics.forEach((topic: any) => {
@@ -56,7 +58,7 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
             });
           });
         }
-        
+
         // Add posts
         if (response.data.data.posts && Array.isArray(response.data.data.posts)) {
           response.data.data.posts.forEach((post: any) => {
@@ -72,7 +74,7 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
             });
           });
         }
-        
+
         // Add chatrooms
         if (response.data.data.chatrooms && Array.isArray(response.data.data.chatrooms)) {
           response.data.data.chatrooms.forEach((chatroom: any) => {
@@ -88,7 +90,7 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
             });
           });
         }
-        
+
         setDeletions(allDeletions);
       }
     } catch (error: any) {
@@ -112,7 +114,7 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
         toast.error(t('errors.generic') || 'Unknown deletion type');
         return;
       }
-      
+
       const response = await api.post(endpoint);
       if (response.data.success) {
         toast.success(t('admin.deletionApproved') || 'Deletion approved');
@@ -139,8 +141,9 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
         toast.error(t('errors.generic') || 'Unknown deletion type');
         return;
       }
-      
-      const response = await api.post(endpoint);
+
+      const payload = deletion.type === 'post' ? { lock_deletion: lockDeletion } : {};
+      const response = await api.post(endpoint, payload);
       if (response.data.success) {
         toast.success(t('admin.deletionRejected') || 'Deletion rejected and content restored');
         loadPendingDeletions();
@@ -157,13 +160,13 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
     const now = new Date();
     const deleteAt = new Date(permanentDeleteAt);
     const diff = deleteAt.getTime() - now.getTime();
-    
+
     if (diff <= 0) return t('admin.expired') || 'Expired';
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
@@ -212,10 +215,12 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
                   {deletions.map((deletion) => (
                     <button
                       key={deletion.id}
-                      onClick={() => setSelectedDeletion(deletion)}
-                      className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                        selectedDeletion?.id === deletion.id ? 'bg-gray-100 dark:bg-gray-700' : ''
-                      }`}
+                      onClick={() => {
+                        setSelectedDeletion(deletion);
+                        setLockDeletion(false);
+                      }}
+                      className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${selectedDeletion?.id === deletion.id ? 'bg-gray-100 dark:bg-gray-700' : ''
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
@@ -270,10 +275,10 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
                       {t('admin.type') || 'Type'}
                     </label>
                     <p className="theme-text-primary">
-                      {selectedDeletion.type === 'topic' ? (t('admin.deletionTypeTopic') || 'Topic') : 
-                       selectedDeletion.type === 'post' ? (t('admin.deletionTypePost') || 'Post') : 
-                       selectedDeletion.type === 'chatroom' ? (t('admin.deletionTypeChatroom') || 'Chatroom') : 
-                       selectedDeletion.type}
+                      {selectedDeletion.type === 'topic' ? (t('admin.deletionTypeTopic') || 'Topic') :
+                        selectedDeletion.type === 'post' ? (t('admin.deletionTypePost') || 'Post') :
+                          selectedDeletion.type === 'chatroom' ? (t('admin.deletionTypeChatroom') || 'Chatroom') :
+                            selectedDeletion.type}
                     </p>
                   </div>
 
@@ -322,6 +327,26 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
                     </div>
                   </div>
                 </div>
+
+                {/* Lock Deletion Option */}
+                {selectedDeletion.type === 'post' && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={lockDeletion}
+                        onChange={(e) => setLockDeletion(e.target.checked)}
+                        className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm theme-text-primary">
+                        {t('admin.lockDeletion') || 'Prevent further removals (Lock Deletion)'}
+                      </span>
+                    </label>
+                    <p className="text-xs theme-text-muted mt-1 ml-6">
+                      {t('admin.lockDeletionDesc') || 'If checked, the owner will not be able to delete this content again.'}
+                    </p>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="pt-4 space-y-2 border-t border-gray-200 dark:border-gray-700">

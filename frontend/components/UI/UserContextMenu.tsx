@@ -46,7 +46,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   const { t } = useLanguage();
   const { user } = useAuth();
   const isCurrentUser = user?.id === userId;
-  
+
   const items = [
     {
       label: t('userContextMenu.sendMessage'),
@@ -92,10 +92,9 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           </svg>
         ),
         disabled: false,
-        danger: true,
       });
     }
-    
+
     items.push({
       label: t('userContextMenu.reportUser'),
       action: () => {
@@ -110,7 +109,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       ),
       disabled: !onReportUser,
     });
-    
+
     items.push({
       label: isBlocked ? t('blocking.unblockUser') : t('blocking.blockUser'),
       action: () => {
@@ -123,7 +122,6 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
         </svg>
       ),
-      danger: true,
       disabled: !onBlockUser,
     });
   }
@@ -173,7 +171,6 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
         </svg>
       ),
-      danger: true,
       disabled: !onKickUser,
     });
   }

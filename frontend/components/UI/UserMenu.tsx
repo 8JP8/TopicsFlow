@@ -5,6 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import Avatar from '@/components/UI/Avatar';
+import { getUserColorClass } from '@/utils/colorUtils';
 
 interface CurrentTopicAnonymousState {
   topicId: string;
@@ -30,9 +31,12 @@ const UserMenu: React.FC = () => {
         const stored = localStorage.getItem('current_topic_anonymous_state');
         if (stored) {
           const state = JSON.parse(stored) as CurrentTopicAnonymousState;
-          setCurrentTopicAnonymousState(state);
+          setCurrentTopicAnonymousState(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(state)) return prev;
+            return state;
+          });
         } else {
-          setCurrentTopicAnonymousState(null);
+          setCurrentTopicAnonymousState(prev => prev ? null : prev);
         }
       } catch (error) {
         console.error('Failed to read current topic anonymous state:', error);
@@ -57,7 +61,7 @@ const UserMenu: React.FC = () => {
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('anonymousStateChanged', handleAnonymousStateChange);
-    
+
     // Check periodically as fallback (reduced frequency)
     const interval = setInterval(checkAnonymousState, 1000);
 
@@ -95,6 +99,29 @@ const UserMenu: React.FC = () => {
       onClick: () => {
         setIsOpen(false);
         router.push('/profile');
+      },
+    },
+    {
+      label: t('userMenu.startTour') || 'Start Tour',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      onClick: () => {
+        setIsOpen(false);
+        const path = router.pathname;
+        if (path === '/') {
+          // Restart dashboard tour
+          // We need a way to trigger the tour again. Best way is to dispatch an event or use a global context/hook.
+          // Since existing tour uses `driver.js` initialized in `index.tsx` or `Layout.tsx` which often runs on mount or via a prop,
+          // we might need to expose a trigger.
+          // Assuming `driver.drive()` can be called if we can access the driver instance, or we can reload with a query param, or dispatch an event.
+          // Let's try dispatching a custom event that Layout or Index listens to.
+          window.dispatchEvent(new CustomEvent('tour:start', { detail: 'dashboard' }));
+        } else if (path === '/settings') {
+          window.dispatchEvent(new CustomEvent('tour:start', { detail: 'settings' }));
+        }
       },
     },
     {
@@ -143,7 +170,7 @@ const UserMenu: React.FC = () => {
       ),
       onClick: () => {
         setIsOpen(false);
-        router.push('/settings/anonymous-identities');
+        router.push('/settings?tab=anonymous-identities');
       },
     },
   ];
@@ -163,12 +190,15 @@ const UserMenu: React.FC = () => {
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
+          id="user-menu-btn"
           className="flex items-center space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
           aria-label="User menu"
         >
+
+
           {showAnonymous ? (
             // Show default avatar with initial when anonymous
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+            <div className={`w-8 h-8 rounded-full ${getUserColorClass(anonymousName || 'Anonymous')} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
               {anonymousName ? anonymousName.charAt(0).toUpperCase() : 'A'}
             </div>
           ) : (

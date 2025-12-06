@@ -78,7 +78,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     // Inverted: dragging right increases width, dragging left decreases width
     const diff = e.clientX - startXRef.current;
     const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidthRef.current + diff));
-    
+
     setWidth(newWidth);
     localStorage.setItem('sidebar-width', newWidth.toString());
     if (onWidthChange) {
@@ -105,6 +105,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
 
   return (
     <div
+      id="sidebar"
       ref={sidebarRef}
       className="relative flex flex-col"
       style={{ width: `${width}px` }}
@@ -112,9 +113,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       {children}
       <div
         onMouseDown={handleMouseDown}
-        className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors ${
-          isResizing ? 'bg-blue-500' : 'bg-transparent'
-        }`}
+        className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors ${isResizing ? 'bg-blue-500' : 'bg-transparent'
+          }`}
         style={{ zIndex: 10 }}
       />
     </div>

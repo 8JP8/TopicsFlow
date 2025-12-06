@@ -5,6 +5,7 @@ import { useSocket } from '@/contexts/SocketContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import toast from 'react-hot-toast';
+import Avatar from '@/components/UI/Avatar';
 
 interface Notification {
   id: string;
@@ -35,8 +36,18 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
   const { socket, connected } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeTab, setActiveTab] = useState<'general' | 'mentions'>('general');
   const notificationRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
+
+  // Listen for tour event to open notifications
+  useEffect(() => {
+    const handleOpenNotifications = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener('tour:open-notifications', handleOpenNotifications);
+    return () => window.removeEventListener('tour:open-notifications', handleOpenNotifications);
+  }, []);
 
   // Play notification sound using Web Audio API
   const playNotificationSound = () => {
@@ -47,39 +58,39 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       const audioContext = new AudioContext();
-      
+
       // Create a pleasant notification tone (two-tone chime)
       const oscillator1 = audioContext.createOscillator();
       const oscillator2 = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       // Connect oscillators to gain node
       oscillator1.connect(gainNode);
       oscillator2.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       // First tone: 800Hz
       oscillator1.frequency.value = 800;
       oscillator1.type = 'sine';
-      
+
       // Second tone: 1000Hz (plays slightly after first)
       oscillator2.frequency.value = 1000;
       oscillator2.type = 'sine';
-      
+
       // Envelope for smooth sound
       const now = audioContext.currentTime;
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
       gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-      
+
       // Start oscillators
       oscillator1.start(now);
       oscillator2.start(now + 0.1);
-      
+
       // Stop oscillators
       oscillator1.stop(now + 0.3);
       oscillator2.stop(now + 0.3);
-      
+
       // Clean up
       oscillator1.onended = () => {
         audioContext.close();
@@ -109,14 +120,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
   // Fetch notifications from API
   const fetchNotifications = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.NOTIFICATIONS.LIST, {
         limit: 100,
         unread_only: false
       });
-      
+
       if (response.data.success && response.data.data) {
         const fetchedNotifications: Notification[] = response.data.data.map((notif: any) => ({
           id: notif.id || notif._id,
@@ -134,7 +145,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           context_type: notif.context_type,
           context_name: notif.context_name || notif.data?.chat_room_name || notif.data?.post_title,
         }));
-        
+
         setNotifications(fetchedNotifications);
       }
     } catch (error) {
@@ -168,7 +179,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         currentUserId: user.id,
         senderUsername: data.sender_username,
       });
-      
+
       // Only show notification if message is for current user (not from them)
       // For self-messages, data.is_from_me will be false, so we should still show it
       // Ensure strict string comparison to avoid type coercion issues
@@ -227,7 +238,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           data.preview || data.content?.substring(0, 100) || t('notifications.newPrivateMessage'),
           `pm-${data.id}`
         );
-        
+
         // Refresh notifications from API
         fetchNotifications();
       } else {
@@ -246,12 +257,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         chatRoomName: data.context?.chat_room_name,
         postTitle: data.context?.post_title,
       });
-      
+
       // Build message based on context
       const senderUsername = data.sender_username || data.mentioned_by || data.data?.sender_username || t('notifications.someone');
       const chatRoomName = data.context?.chat_room_name || data.data?.chat_room_name;
       const postTitle = data.context?.post_title || data.data?.post_title;
-      
+
       let message = '';
       if (chatRoomName) {
         message = `${senderUsername} mentioned you on "${chatRoomName}"`;
@@ -260,7 +271,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       } else {
         message = `${senderUsername} mentioned you`;
       }
-      
+
       const notification: Notification = {
         id: `mention-${data.content_id || data.message_id || data.notification_id || Date.now()}`,
         type: 'mention',
@@ -299,36 +310,39 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       playNotificationSound();
 
       // Show toast notification
-      toast.success(t('notifications.mentionedBy', { 
+      // Toast notification removed as per user request
+      /*
+      toast.success(t('notifications.mentionedBy', {
         username: data.mentioned_by || t('notifications.someone'),
         topic: data.topic_title || t('home.topics')
       }), {
         duration: 5000,
         icon: '🔔',
       });
+      */
 
       // Show browser notification
       showBrowserNotification(
         t('notifications.youWereMentioned'),
-        t('notifications.mentionedBy', { 
+        t('notifications.mentionedBy', {
           username: data.mentioned_by || t('notifications.someone'),
           topic: data.topic_title || t('home.topics')
         }) + `: ${data.content_preview || ''}`,
         `mention-${data.message_id}`
       );
-      
+
       // Refresh notifications from API
       fetchNotifications();
     };
 
     const handleChatRoomInvitation = (data: any) => {
       console.log('[NotificationCenter] Chat room invitation received:', data);
-      
+
       const notification: Notification = {
         id: `invitation-${data.room_id}-${Date.now()}`,
         type: 'invitation',
         title: t('notifications.chatInvitation') || 'Chat Room Invitation',
-        message: t('notifications.invitedToChat', { 
+        message: t('notifications.invitedToChat', {
           inviter: data.invited_by_username || t('notifications.someone'),
           roomName: data.room_name || t('notifications.aChatRoom')
         }),
@@ -356,7 +370,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       });
 
       // Show toast notification
-      toast.success(t('notifications.invitedToChat', { 
+      toast.success(t('notifications.invitedToChat', {
         inviter: data.invited_by_username || t('notifications.someone'),
         roomName: data.room_name || t('notifications.aChatRoom')
       }), {
@@ -367,7 +381,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       // Show browser notification
       showBrowserNotification(
         t('notifications.chatInvitation') || 'Chat Room Invitation',
-        t('notifications.invitedToChat', { 
+        t('notifications.invitedToChat', {
           inviter: data.invited_by_username || t('notifications.someone'),
           roomName: data.room_name || t('notifications.aChatRoom')
         }),
@@ -377,12 +391,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
     const handleFriendRequestReceived = (data: any) => {
       console.log('[NotificationCenter] Friend request received:', data);
-      
+
       const notification: Notification = {
         id: `friend_request-${data.request_id}-${Date.now()}`,
         type: 'friend_request',
         title: t('notifications.friendRequestReceived') || 'New Friend Request',
-        message: t('notifications.friendRequestFrom', { 
+        message: t('notifications.friendRequestFrom', {
           username: data.from_username || t('notifications.someone')
         }) || `${data.from_username || 'Someone'} sent you a friend request`,
         timestamp: data.created_at || new Date().toISOString(),
@@ -406,7 +420,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       });
 
       // Show toast notification
-      toast.success(t('notifications.friendRequestFrom', { 
+      toast.success(t('notifications.friendRequestFrom', {
         username: data.from_username || t('notifications.someone')
       }) || `${data.from_username || 'Someone'} sent you a friend request`, {
         duration: 5000,
@@ -416,22 +430,77 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       // Show browser notification
       showBrowserNotification(
         t('notifications.friendRequestReceived') || 'New Friend Request',
-        t('notifications.friendRequestFrom', { 
+        t('notifications.friendRequestFrom', {
           username: data.from_username || t('notifications.someone')
         }) || `${data.from_username || 'Someone'} sent you a friend request`,
         `friend_request-${data.request_id}`
       );
     };
 
+    const handleTopicInvitation = (data: any) => {
+      console.log('[NotificationCenter] Topic invitation received:', data);
+
+      const notification: Notification = {
+        id: `topic_invitation-${data.topic_id}-${data.invitation_id}`,
+        type: 'invitation',
+        title: t('notifications.topicInvitation') || 'Topic Invitation',
+        message: t('notifications.invitedToTopic', {
+          inviter: data.invited_by_username || t('notifications.someone'),
+          topicTitle: data.topic_title || t('notifications.aTopic')
+        }),
+        timestamp: new Date().toISOString(),
+        read: false,
+        data: {
+          invitation_id: data.invitation_id,
+          topic_id: data.topic_id,
+          topic_title: data.topic_title,
+          invited_by: data.invited_by,
+          invited_by_username: data.invited_by_username
+        }
+      };
+
+      // Add to notifications
+      setNotifications(prev => {
+        // Check if notification already exists
+        const exists = prev.some(n => n.id === notification.id);
+        if (exists) {
+          console.log('[NotificationCenter] Topic invitation notification already exists, skipping');
+          return prev;
+        }
+        console.log('[NotificationCenter] Adding topic invitation notification to state');
+        return [notification, ...prev];
+      });
+
+      // Show toast notification
+      toast.success(t('notifications.invitedToTopic', {
+        inviter: data.invited_by_username || t('notifications.someone'),
+        topicTitle: data.topic_title || t('notifications.aTopic')
+      }), {
+        duration: 5000,
+        icon: '📢',
+      });
+
+      // Show browser notification
+      showBrowserNotification(
+        t('notifications.topicInvitation') || 'Topic Invitation',
+        t('notifications.invitedToTopic', {
+          inviter: data.invited_by_username || t('notifications.someone'),
+          topicTitle: data.topic_title || t('notifications.aTopic')
+        }),
+        `topic_invitation-${data.topic_id}`
+      );
+    };
+
     socket.on('new_private_message', handleNewPrivateMessage);
     socket.on('user_mentioned', handleUserMentioned);
     socket.on('chat_room_invitation', handleChatRoomInvitation);
+    socket.on('topic_invitation', handleTopicInvitation);
     socket.on('friend_request_received', handleFriendRequestReceived);
-    
+
     // Listen for new notifications from API
     const handleNewNotification = (data: any) => {
       console.log('[NotificationCenter] New notification received:', data);
-      
+
       // Add notification to state immediately
       const notification: Notification = {
         id: data.id || `notification-${Date.now()}`,
@@ -446,7 +515,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         context_type: data.context_type,
         context_name: data.context_name || data.data?.chat_room_name || data.data?.post_title,
       };
-      
+
       setNotifications(prev => {
         // Check if notification already exists
         const exists = prev.some(n => n.id === notification.id);
@@ -457,14 +526,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         console.log('[NotificationCenter] Adding new notification to state');
         return [notification, ...prev];
       });
-      
+
       // Play notification sound
       playNotificationSound();
-      
+
       // Show browser notification based on type
       let title = notification.title;
       let body = notification.message;
-      
+
       if (notification.type === 'message' && notification.sender_username) {
         title = t('notifications.newMessageFrom', { username: notification.sender_username });
         body = notification.data?.preview || notification.message;
@@ -472,15 +541,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         title = t('notifications.newMessageInRoom', { roomName: notification.context_name });
         body = `${notification.sender_username || t('notifications.someone')}: ${notification.message}`;
       }
-      
+
       showBrowserNotification(title, body, notification.id);
-      
+
       // Also refresh from API to ensure consistency
       fetchNotifications();
     };
-    
+
     socket.on('new_notification', handleNewNotification);
-    
+
     console.log('[NotificationCenter] All notification listeners registered');
 
     return () => {
@@ -488,6 +557,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       socket.off('new_private_message', handleNewPrivateMessage);
       socket.off('user_mentioned', handleUserMentioned);
       socket.off('chat_room_invitation', handleChatRoomInvitation);
+      socket.off('topic_invitation', handleTopicInvitation);
       socket.off('friend_request_received', handleFriendRequestReceived);
       socket.off('new_notification', handleNewNotification);
     };
@@ -497,15 +567,21 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
   useEffect(() => {
     const fetchPendingInvitations = async () => {
       if (!user) return;
-      
+
       try {
-        const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS);
-        if (response.data.success && response.data.data) {
-          const invitationNotifications = response.data.data.map((inv: any) => ({
+        const [chatRes, topicRes] = await Promise.all([
+          api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS),
+          api.get(API_ENDPOINTS.TOPICS.GET_INVITATIONS)
+        ]);
+
+        const newNotifications: Notification[] = [];
+
+        if (chatRes.data.success && chatRes.data.data) {
+          const chatInvites = chatRes.data.data.map((inv: any) => ({
             id: `invitation-${inv.room_id}-${inv.id}`,
             type: 'invitation' as const,
             title: t('notifications.chatInvitation') || 'Chat Room Invitation',
-            message: t('notifications.invitedToChat', { 
+            message: t('notifications.invitedToChat', {
               inviter: inv.invited_by?.username || t('notifications.someone'),
               roomName: inv.room_name || t('notifications.aChatRoom')
             }),
@@ -519,14 +595,37 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
               invited_by_username: inv.invited_by?.username
             }
           }));
-
-          setNotifications(prev => {
-            // Merge with existing notifications, avoiding duplicates
-            const existingIds = new Set(prev.map((n: Notification) => n.id));
-            const newNotifications = invitationNotifications.filter((n: Notification) => !existingIds.has(n.id));
-            return [...newNotifications, ...prev];
-          });
+          newNotifications.push(...chatInvites);
         }
+
+        if (topicRes.data.success && topicRes.data.data) {
+          const topicInvites = topicRes.data.data.map((inv: any) => ({
+            id: `topic_invitation-${inv.topic_id}-${inv.id}`,
+            type: 'invitation' as const,
+            title: t('notifications.topicInvitation') || 'Topic Invitation',
+            message: t('notifications.invitedToTopic', {
+              inviter: inv.inviter?.username || t('notifications.someone'),
+              topicTitle: inv.topic?.title || t('notifications.aTopic')
+            }),
+            timestamp: inv.created_at,
+            read: false,
+            data: {
+              invitation_id: inv.id,
+              topic_id: inv.topic_id,
+              topic_title: inv.topic?.title,
+              invited_by: inv.inviter?.id,
+              invited_by_username: inv.inviter?.username
+            }
+          }));
+          newNotifications.push(...topicInvites);
+        }
+
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map((n: Notification) => n.id));
+          const filteredNew = newNotifications.filter((n: Notification) => !existingIds.has(n.id));
+          return [...filteredNew, ...prev].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        });
+
       } catch (error) {
         console.error('Failed to fetch pending invitations:', error);
       }
@@ -616,6 +715,35 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
     }
   };
 
+  const handleAcceptTopicInvitation = async (invitationId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.ACCEPT_INVITATION(invitationId));
+      if (response.data.success) {
+        toast.success(t('notifications.invitationAccepted') || 'Invitation accepted');
+        // Remove notification
+        setNotifications(prev => prev.filter(n => !(n.type === 'invitation' && n.data?.invitation_id === invitationId)));
+      } else {
+        toast.error(response.data.errors?.[0] || t('notifications.failedToAccept') || 'Failed to accept invitation');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('notifications.failedToAccept') || 'Failed to accept invitation');
+    }
+  };
+
+  const handleDeclineTopicInvitation = async (invitationId: string) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.TOPICS.DECLINE_INVITATION(invitationId));
+      if (response.data.success) {
+        toast.success(t('notifications.invitationDeclined') || 'Invitation declined');
+        setNotifications(prev => prev.filter(n => !(n.type === 'invitation' && n.data?.invitation_id === invitationId)));
+      } else {
+        toast.error(response.data.errors?.[0] || t('notifications.failedToDecline') || 'Failed to decline invitation');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('notifications.failedToDecline') || 'Failed to decline invitation');
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'message':
@@ -684,10 +812,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
     // Aggregate similar notifications by type and entity
     const aggregatedMap = new Map<string, Notification[]>();
-    
+
     aggregated.forEach(notif => {
       let key: string;
-      
+
       if (notif.type === 'message' && notif.sender_username) {
         // Group private messages by sender: "1 new message from Guy" or "2 new messages from Guy"
         key = `message-${notif.data?.from_user_id || notif.sender_username}`;
@@ -700,6 +828,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       } else if (notif.type === 'invitation' && notif.data?.room_id) {
         // Group invitations by room
         key = `invitation-${notif.data.room_id}`;
+      } else if (notif.type === 'invitation' && notif.data?.topic_id) {
+        // Group invitations by topic
+        key = `invitation-topic-${notif.data.topic_id}`;
       } else {
         // Keep other notifications separate
         key = `other-${notif.id}`;
@@ -713,14 +844,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
     // Convert aggregated groups to display format
     const aggregatedGrouped: Array<{ notifications: Notification[], count: number, displayMessage: string, displayTitle: string }> = [];
-    
+
     aggregatedMap.forEach((group, key) => {
       const sortedGroup = group.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       const latest = sortedGroup[0];
-      
+
       let displayMessage = '';
       let displayTitle = latest.title;
-      
+
       if (key.startsWith('message-')) {
         // Private messages: "new message from Guy" or "3 new messages from Jeff"
         const username = latest.sender_username || latest.data?.sender_username || latest.data?.from_username || t('notifications.someone');
@@ -730,8 +861,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         } else {
           const fallbackText = `new messages from ${username}`;
           const messagesText = t('notifications.newMessagesFrom', { count: group.length, username }) || fallbackText;
-          displayTitle = `${group.length} ${messagesText}`;
-          displayMessage = `${group.length} ${messagesText}`;
+          displayTitle = messagesText;
+          displayMessage = messagesText;
         }
       } else if (key.startsWith('chatroom-')) {
         // Chatroom messages: "4 new messages for 'SOME' chatroom"
@@ -742,8 +873,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         } else {
           const fallbackText = `new messages for "${roomName}"`;
           const messagesText = t('notifications.newMessagesInRoom', { count: group.length, roomName }) || fallbackText;
-          displayTitle = `${group.length} ${messagesText}`;
-          displayMessage = `${group.length} ${messagesText}`;
+          displayTitle = messagesText;
+          displayMessage = messagesText;
         }
       } else if (key.startsWith('comment-')) {
         // Comments: "2 new comments on 'Hello' publication"
@@ -754,9 +885,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         } else {
           const fallbackText = `new comments on "${postTitle}"`;
           const commentsText = t('notifications.newCommentsOnPost', { count: group.length, postTitle }) || fallbackText;
-          displayTitle = `${group.length} ${commentsText}`;
-          displayMessage = `${group.length} ${commentsText}`;
+          displayTitle = commentsText;
+          displayMessage = commentsText;
         }
+      } else if (key.startsWith('invitation-topic-')) {
+        const topicTitle = latest.data?.topic_title || t('notifications.aTopic');
+        displayTitle = t('notifications.topicInvitation') || 'Topic Invitation';
+        displayMessage = t('notifications.invitedToTopic', { inviter: latest.data?.invited_by_username, topicTitle }) || latest.message;
       } else {
         displayMessage = latest.message;
       }
@@ -793,8 +928,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
     <div className="relative" ref={notificationRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        id="notification-center-btn"
         className="relative p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
         aria-label="Notifications"
+        title={t('tooltips.notifications') || 'Notifications'}
       >
         <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -823,11 +960,38 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs theme-blue-primary hover:underline"
+                  className="text-xs px-2 py-1 rounded border theme-border theme-text-secondary hover:theme-bg-tertiary transition-colors"
                 >
                   {t('notifications.markAllAsRead')}
                 </button>
               )}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 mx-4 mt-3 mb-2 p-1 rounded-lg border theme-border">
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${activeTab === 'general'
+                  ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+              >
+                {t('notifications.general') || 'General'}
+              </button>
+              <button
+                onClick={() => setActiveTab('mentions')}
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${activeTab === 'mentions'
+                  ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+              >
+                {t('notifications.mentions') || 'Mentions'}
+                {notifications.filter(n => n.type === 'mention' && !n.read).length > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 text-[10px] rounded-full">
+                    {notifications.filter(n => n.type === 'mention' && !n.read).length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* Notifications List */}
@@ -845,17 +1009,29 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                   return (
                     <>
                       {/* Aggregated Notifications Section */}
-                      {aggregated.length > 0 && (
+                      {/* Aggregated Notifications Section */}
+                      {activeTab === 'general' && aggregated.length > 0 && (
                         <>
-                          <div className="px-4 py-2 border-b theme-border bg-theme-bg-tertiary">
-                            <h4 className="text-xs font-semibold theme-text-secondary uppercase tracking-wide">
-                              {t('notifications.general') || 'General'}
-                            </h4>
-                          </div>
                           {aggregated.map((group, idx) => {
                             const notification = group.notifications[0];
                             const hasUnread = group.notifications.some(n => !n.read);
-                            
+
+                            // Determine avatar props
+                            let avatarProps = {
+                              userId: 'system',
+                              username: 'System',
+                              image: null as string | null | undefined
+                            };
+
+                            if (notification.type === 'message' || notification.type === 'chatroom_message' || notification.type === 'comment') {
+                              avatarProps.userId = notification.data?.from_user_id || notification.data?.sender_id || notification.data?.user_id || 'unknown';
+                              avatarProps.username = notification.sender_username || notification.data?.sender_username || t('notifications.someone');
+                              avatarProps.image = notification.data?.sender_profile_picture;
+                            } else if (notification.type === 'invitation') {
+                              avatarProps.userId = notification.data?.invited_by || 'unknown';
+                              avatarProps.username = notification.data?.invited_by_username || t('notifications.someone');
+                            }
+
                             const renderNavigationButton = () => {
                               if (notification.type === 'message' && notification.data?.from_user_id) {
                                 return (
@@ -973,19 +1149,25 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                   }}
                                 >
                                   <div className="flex items-start space-x-3">
-                                    <div className={`p-2 rounded-full ${
-                                      notification.type === 'message' ? 'theme-blue-primary' :
-                                      notification.type === 'invitation' ? 'bg-purple-500' :
-                                      notification.type === 'report' ? 'bg-red-500' :
-                                      'theme-bg-tertiary'
-                                    }`}>
-                                      <div className={`${
-                                        notification.type === 'message' || notification.type === 'invitation' ? 'text-white' :
-                                        notification.type === 'report' ? 'text-white' :
-                                        'theme-text-primary'
-                                      }`}>
-                                        {getNotificationIcon(notification.type)}
-                                      </div>
+                                    <div className="flex-shrink-0">
+                                      {(notification.type === 'message' || notification.type === 'chatroom_message' || notification.type === 'comment' || notification.type === 'invitation') ? (
+                                        <Avatar
+                                          userId={avatarProps.userId}
+                                          username={avatarProps.username}
+                                          // image={avatarProps.image} // Avatar component might handle fetching if just userId is passed? Using userId/username is safest fallback
+                                          size="sm"
+                                        />
+                                      ) : (
+                                        <div className={`p-2 rounded-full ${notification.type === 'report' ? 'bg-red-500' :
+                                          'theme-bg-tertiary'
+                                          }`}>
+                                          <div className={`${notification.type === 'report' ? 'text-white' :
+                                            'theme-text-primary'
+                                            }`}>
+                                            {getNotificationIcon(notification.type)}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center justify-between">
@@ -1011,126 +1193,146 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                               </div>
                             );
                           })}
+                          {aggregated.length === 0 && (
+                            <div className="px-4 py-8 text-center">
+                              <p className="text-sm theme-text-secondary">{t('notifications.noGeneral') || 'No general notifications'}</p>
+                            </div>
+                          )}
                         </>
                       )}
 
                       {/* Mentions Section */}
-                      {mentions.length > 0 && (
+                      {/* Mentions Section */}
+                      {activeTab === 'mentions' && (
                         <>
-                          {aggregated.length > 0 && (
-                            <div className="px-4 py-2 border-t-2 border-b theme-border bg-theme-bg-tertiary">
-                              <h4 className="text-xs font-semibold theme-text-secondary uppercase tracking-wide">
-                                {t('notifications.mentions') || 'Mentions'}
-                              </h4>
-                            </div>
-                          )}
-                          {mentions.map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`px-4 py-3 border-b theme-border last:border-b-0 relative group ${
-                                !notification.read ? 'theme-bg-primary' : ''
-                              }`}
-                            >
-                              {/* X button to close/delete */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteNotification(notification.id);
-                                }}
-                                className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title={t('notifications.delete') || 'Delete'}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                              
-                              {/* Clickable area (except X and link icon) */}
+                          {mentions.length > 0 ? (
+                            mentions.map((notification) => (
                               <div
-                                className="cursor-pointer hover:theme-bg-tertiary transition-colors -mx-4 -my-3 px-4 py-3"
-                                onClick={() => {
-                                  markAsRead(notification.id);
-                                  if (onOpenNotificationsModal) {
-                                    onOpenNotificationsModal();
-                                    setIsOpen(false);
-                                  }
-                                }}
+                                key={notification.id}
+                                className={`px-4 py-3 border-b theme-border last:border-b-0 relative group ${!notification.read ? 'theme-bg-primary' : ''
+                                  }`}
                               >
-                                <div className="flex items-start space-x-3">
-                                  <div className="p-2 rounded-full theme-blue-secondary">
-                                    <div className="text-white">
-                                      {getNotificationIcon(notification.type)}
+                                {/* X button to close/delete */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteNotification(notification.id);
+                                  }}
+                                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title={t('notifications.delete') || 'Delete'}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+
+                                {/* Clickable area (except X and link icon) */}
+                                <div
+                                  className="cursor-pointer hover:theme-bg-tertiary transition-colors -mx-4 -my-3 px-4 py-3"
+                                  onClick={() => {
+                                    markAsRead(notification.id);
+                                    if (onOpenNotificationsModal) {
+                                      onOpenNotificationsModal();
+                                      setIsOpen(false);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-start space-x-3">
+                                    <div className="flex-shrink-0">
+                                      <Avatar
+                                        userId={notification.data?.sender_id || notification.data?.mentioned_by_id || 'unknown'}
+                                        username={notification.sender_username || notification.data?.sender_username || t('notifications.someone')}
+                                        size="sm"
+                                      />
                                     </div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                      <p className="text-sm font-medium theme-text-primary truncate">
-                                        {notification.title}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium theme-text-primary truncate">
+                                          {notification.title}
+                                        </p>
+                                        {!notification.read && (
+                                          <div className="w-2 h-2 theme-blue-primary rounded-full" />
+                                        )}
+                                      </div>
+                                      <p className="text-xs theme-text-secondary mt-1 whitespace-pre-wrap break-words">
+                                        {notification.message}
                                       </p>
-                                      {!notification.read && (
-                                        <div className="w-2 h-2 theme-blue-primary rounded-full" />
-                                      )}
-                                    </div>
-                                    <p className="text-xs theme-text-secondary mt-1 whitespace-pre-wrap break-words">
-                                      {notification.message}
-                                    </p>
-                                    <div className="flex items-center justify-between mt-2">
-                                      <p className="text-xs theme-text-muted">
-                                        {formatTimestamp(notification.timestamp)}
-                                      </p>
-                                      {/* Navigation button for mentions - simple gray link icon */}
-                                      {(() => {
-                                        if (notification.data?.chat_room_id || notification.context_id) {
-                                          const chatRoomId = notification.data?.chat_room_id || notification.context_id;
-                                          return (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                markAsRead(notification.id);
-                                                router.push(`/chat-room/${chatRoomId}`);
-                                                setIsOpen(false);
-                                              }}
-                                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                              title={t('notifications.goToChatroom') || 'Go to chatroom'}
-                                            >
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                              </svg>
-                                            </button>
-                                          );
-                                        } else if (notification.data?.post_id || notification.context_id) {
-                                          const postId = notification.data?.post_id || notification.context_id;
-                                          return (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                markAsRead(notification.id);
-                                                router.push(`/post/${postId}`);
-                                                setIsOpen(false);
-                                              }}
-                                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                              title={t('notifications.goToPost') || 'Go to post'}
-                                            >
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                              </svg>
-                                            </button>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
+                                      <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs theme-text-muted">
+                                          {formatTimestamp(notification.timestamp)}
+                                        </p>
+                                        {/* Navigation button for mentions - simple gray link icon */}
+                                        {(() => {
+                                          if (notification.data?.chat_room_id || notification.context_id) {
+                                            const chatRoomId = notification.data?.chat_room_id || notification.context_id;
+                                            return (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  markAsRead(notification.id);
+                                                  router.push(`/chat-room/${chatRoomId}`);
+                                                  setIsOpen(false);
+                                                }}
+                                                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                                title={t('notifications.goToChatroom') || 'Go to chatroom'}
+                                              >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                </svg>
+                                              </button>
+                                            );
+                                          } else if (notification.data?.post_id || notification.context_id) {
+                                            const postId = notification.data?.post_id || notification.context_id;
+                                            return (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  markAsRead(notification.id);
+                                                  router.push(`/post/${postId}`);
+                                                  setIsOpen(false);
+                                                }}
+                                                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                                title={t('notifications.goToPost') || 'Go to post'}
+                                              >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                </svg>
+                                              </button>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
+                            ))) : (
+                            <div className="px-4 py-8 text-center">
+                              <p className="text-sm theme-text-secondary">{t('notifications.noMentions') || 'No mentions yet'}</p>
                             </div>
-                          ))}
+                          )}
                         </>
                       )}
                     </>
                   );
                 })()
               )}
+            </div>
+
+            {/* View All Button */}
+            <div className="p-3 border-t theme-border bg-theme-bg-tertiary rounded-b-lg">
+              <button
+                onClick={() => {
+                  if (onOpenNotificationsModal) {
+                    onOpenNotificationsModal();
+                    setIsOpen(false);
+                  }
+                }}
+                className="w-full py-2 text-sm theme-text-link hover:underline font-medium text-center"
+              >
+                {t('notifications.viewAll') || 'View All Notifications'}
+              </button>
             </div>
           </div>
         </>

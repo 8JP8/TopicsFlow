@@ -6,8 +6,8 @@
 :root {
   /* Light theme (default) */
   --theme-bg-primary: #ffffff;
-  --theme-bg-secondary: #f5f5f5;
-  --theme-bg-tertiary: #e0e0e0;
+  --theme-bg-secondary: #f3f4f6;
+  --theme-bg-tertiary: #e5e7eb;
   --theme-border: #e0e0e0;
   --theme-text-primary: #333333;
   --theme-text-secondary: #666666;
@@ -95,7 +95,8 @@ select {
   background-color: var(--theme-bg-secondary);
   color: var(--theme-text-primary);
   border: 1px solid var(--theme-border);
-  border-radius: 0.5rem; /* Standardized: 8px */
+  border-radius: 0.5rem;
+  /* Standardized: 8px */
   padding: 0.75rem 1rem;
   font-size: 1rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -167,7 +168,8 @@ textarea::placeholder {
 .card {
   background-color: var(--theme-bg-secondary);
   border: 1px solid var(--theme-border);
-  border-radius: 1rem; /* rounded-2xl: 16px - matching login page */
+  border-radius: 1rem;
+  /* rounded-2xl: 16px - matching login page */
   @apply shadow-xl p-6;
 }
 
@@ -182,6 +184,7 @@ textarea::placeholder {
     transform: translateY(100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -203,7 +206,8 @@ textarea::placeholder {
 /* Toast notifications - Matching login page theme */
 .toast {
   @apply fixed top-4 right-4 z-50 max-w-sm p-4 shadow-lg transform transition-all duration-300 ease-in-out;
-  border-radius: 0.5rem; /* rounded-lg: 8px */
+  border-radius: 0.5rem;
+  /* rounded-lg: 8px */
 }
 
 .toast-success {
@@ -230,14 +234,16 @@ textarea::placeholder {
 .modal-content {
   background-color: var(--theme-bg-secondary);
   border: 1px solid var(--theme-border);
-  border-radius: 1rem; /* rounded-2xl: 16px - matching login page */
+  border-radius: 1rem;
+  /* rounded-2xl: 16px - matching login page */
   @apply shadow-xl max-w-lg w-full max-h-screen overflow-y-auto;
 }
 
 /* Message bubble styles - Matching login page theme */
 .message-bubble {
   @apply max-w-xs lg:max-w-md px-4 py-2;
-  border-radius: 0.5rem; /* rounded-lg: 8px */
+  border-radius: 0.5rem;
+  /* rounded-lg: 8px */
 }
 
 .message-bubble-own {
@@ -353,6 +359,41 @@ textarea::placeholder {
   border-radius: 3px;
 }
 
+
 .chat-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--theme-text-muted);
+}
+
+/* Driver.js Theme Styles */
+.driver-dark-popover {
+  background-color: var(--theme-bg-secondary) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid var(--theme-border) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+.driver-dark-popover .driver-popover-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.driver-dark-popover .driver-popover-description {
+  color: var(--theme-text-secondary) !important;
+}
+
+.driver-dark-popover .driver-popover-footer button {
+  background-color: var(--theme-bg-tertiary) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid var(--theme-border) !important;
+  text-shadow: none !important;
+}
+
+.driver-dark-popover .driver-popover-footer button:hover {
+  background-color: var(--theme-blue-primary) !important;
+  color: white !important;
+}
+
+/* Light theme overrides to ensure consistency */
+
+.driver-popover-close-btn {
+  display: none !important;
 }

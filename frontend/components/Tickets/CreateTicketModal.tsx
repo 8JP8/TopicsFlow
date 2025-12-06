@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { getTicketCategories, getTicketPriorities, TicketCategory, TicketPriority } from '@/utils/ticketUtils';
+import useEscapeKey from '@/hooks/useEscapeKey';
 
 interface CreateTicketModalProps {
   onClose: () => void;
   onTicketCreated?: () => void;
 }
+
+import { createPortal } from 'react-dom';
 
 const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicketCreated }) => {
   const { t } = useLanguage();
@@ -20,6 +23,13 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEscapeKey(onClose);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const categories = getTicketCategories();
   const priorities = getTicketPriorities();
@@ -100,9 +110,11 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -244,7 +256,8 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

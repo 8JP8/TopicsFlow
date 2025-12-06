@@ -53,7 +53,7 @@ interface Message {
 
 interface PrivateMessagesSimplifiedProps {
   onExpandMessage?: (userId: string, username: string) => void;
-  expandedMessage?: {userId: string, username: string} | null;
+  expandedMessage?: { userId: string, username: string } | null;
   onCloseExpanded?: () => void;
   isExpanded?: boolean;
 }
@@ -69,7 +69,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<{id: string, username: string} | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ id: string, username: string } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -77,36 +77,36 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [showUserSelect, setShowUserSelect] = useState(false);
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{id: string, username: string, email: string, profile_picture?: string}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [viewingImage, setViewingImage] = useState<{url: string, filename: string} | null>(null);
+  const [viewingImage, setViewingImage] = useState<{ url: string, filename: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId: string, username: string} | null>(null);
-  const [userContextMenu, setUserContextMenu] = useState<{userId: string, username: string, x: number, y: number} | null>(null);
-  const [tooltip, setTooltip] = useState<{username: string, x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
+  const [userContextMenu, setUserContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ username: string, x: number, y: number } | null>(null);
   const { showBanner, bannerPos, selectedUser: bannerUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
-  const [friends, setFriends] = useState<Array<{id: string, username: string, email: string, profile_picture?: string}>>([]);
+  const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [userToReport, setUserToReport] = useState<{userId: string, username: string} | null>(null);
+  const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
   const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [areFriends, setAreFriends] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
-  const [conversationStatuses, setConversationStatuses] = useState<Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>>(new Map());
-  
+  const [conversationStatuses, setConversationStatuses] = useState<Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>>(new Map());
+
   // If expanded message is provided, use it
   useEffect(() => {
     if (expandedMessage) {
       setSelectedConversation(expandedMessage.userId);
-      setSelectedUser({id: expandedMessage.userId, username: expandedMessage.username});
+      setSelectedUser({ id: expandedMessage.userId, username: expandedMessage.username });
       setMessages([]);
       loadMessages(expandedMessage.userId);
     }
@@ -130,7 +130,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       // Check friendship from loaded friends list
       const isFriend = isUserFriend(selectedConversation);
       setAreFriends(isFriend);
-      
+
       // Load user info and online status
       const loadUserData = async () => {
         const [userInfo, onlineUsersSet] = await Promise.all([
@@ -179,7 +179,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         currentUserId: user.id,
         selectedConversation,
       });
-      
+
       // Check if this message is for the currently selected conversation
       // Ensure all comparisons use String() to avoid type coercion issues
       const fromUserId = String(data.from_user_id || '').trim();
@@ -196,7 +196,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         (toUserId === selectedUserId && fromUserId === currentUserId) ||
         (fromUserId === currentUserId && toUserId === currentUserId && selectedUserId === currentUserId)
       );
-      
+
       console.log('[PrivateMessages] Message check:', {
         isForCurrentConversation,
         fromUserId,
@@ -204,7 +204,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         currentUserId,
         selectedUserId,
       });
-      
+
       if (isForCurrentConversation) {
         const newMessage: Message = {
           id: String(data.id),
@@ -229,7 +229,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           return [...prev, newMessage];
         });
       }
-      
+
       // Reload conversations to update unread count and sort by most recent
       loadConversations();
     };
@@ -254,7 +254,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         fromUserId === selectedUserId ||
         (fromUserId === currentUserId && toUserId === currentUserId && selectedUserId === currentUserId)
       );
-      
+
       if (isForCurrentConversation) {
         const newMessage: Message = {
           id: String(data.id),
@@ -276,7 +276,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           return [...prev, newMessage];
         });
       }
-      
+
       // Reload conversations to update order
       loadConversations();
     };
@@ -301,14 +301,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         console.log('[PrivateMessages] Loaded conversations:', conversationsData);
         // Backend now sorts by last_message.created_at, so no need to sort client-side
         setConversations(conversationsData);
-        
+
         // Load status for all conversations
         const onlineUsersSet = await loadOnlineUsers();
-        const statusMap = new Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>();
-        
+        const statusMap = new Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>();
+
         // Create a Set of friend IDs for faster lookup - use current friends state
         const friendIdsSet = new Set(friends.map(f => String(f.id).trim()));
-        
+
         await Promise.all(conversationsData.map(async (conv: Conversation) => {
           try {
             const userInfo = await loadUserInfo(conv.user_id);
@@ -326,7 +326,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             console.error(`Failed to load status for user ${conv.user_id}:`, error);
           }
         }));
-        
+
         setConversationStatuses(statusMap);
       } else {
         console.error('[PrivateMessages] Failed to load conversations:', response.data);
@@ -346,14 +346,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (friendsResponse.data.success) {
         const friendsList = friendsResponse.data.data || [];
         setFriends(friendsList);
-        
+
         // Update areFriends for selected conversation
         if (selectedConversation) {
           const normalizedSelectedId = String(selectedConversation).trim();
           const isFriend = friendsList.some((friend: any) => String(friend.id).trim() === normalizedSelectedId);
           setAreFriends(isFriend);
         }
-        
+
         // Update conversation statuses with friendship info
         setConversationStatuses(prev => {
           const newMap = new Map(prev);
@@ -369,7 +369,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           });
           return newMap;
         });
-        
+
         // Reload conversations to update statuses with friend info
         if (conversations.length > 0) {
           loadConversations();
@@ -419,10 +419,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   const loadUserInfo = async (userId: string) => {
     // Validate userId before making request
-    if (!userId || userId.trim() === '' || userId.length < 10) {
+    if (!userId || typeof userId !== 'string' || userId.trim() === '' || userId.length < 10) {
+      console.warn(`[PrivateMessages] Skipping loadUserInfo for invalid userId: ${userId}`);
       return { lastLogin: null, isOnline: false };
     }
-    
+
     try {
       const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
       if (response.data.success) {
@@ -437,6 +438,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       // Only log non-404 errors (404 means user doesn't exist, which is fine)
       if (error.response?.status !== 404) {
         console.error('Failed to load user info:', error);
+      } else {
+        console.warn(`[PrivateMessages] User not found (404) for userId: ${userId}`);
       }
       return { lastLogin: null, isOnline: false };
     }
@@ -452,7 +455,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (seconds < 60) return t('privateMessages.justNow') || 'Just now';
       // Show minutes for anything less than 60 minutes, then switch to hours
       if (minutes < 60) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${minutes} ${t('privateMessages.minutesAgo') || 'minutes ago'}`;
@@ -540,7 +543,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   };
 
-  const uploadFiles = async (files: File[]): Promise<Array<{type: string, data: string, filename: string, size: number, mime_type: string}>> => {
+  const uploadFiles = async (files: File[]): Promise<Array<{ type: string, data: string, filename: string, size: number, mime_type: string }>> => {
     const uploadPromises = files.map(async (file) => {
       // Convert file to base64 data URL for backend processing
       const dataUrl = await new Promise<string>((resolve) => {
@@ -573,7 +576,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       setSendingMessage(true);
 
       // Upload files if any
-      let attachments: Array<{type: string, data: string, filename: string, size: number, mime_type: string}> = [];
+      let attachments: Array<{ type: string, data: string, filename: string, size: number, mime_type: string }> = [];
       if (selectedFiles.length > 0) {
         attachments = await uploadFiles(selectedFiles);
       }
@@ -659,7 +662,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (seconds < 60) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
@@ -697,13 +700,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   const handleSelectUser = (userId: string, username: string) => {
     setSelectedConversation(userId);
-    setSelectedUser({id: userId, username});
+    setSelectedUser({ id: userId, username });
     setShowUserSelect(false);
     setMessages([]);
     loadMessages(userId);
 
     // Mark as read
-    api.post(API_ENDPOINTS.USERS.MARK_CONVERSATION_READ(userId)).catch(() => {});
+    api.post(API_ENDPOINTS.USERS.MARK_CONVERSATION_READ(userId)).catch(() => { });
   };
 
   const handleSearch = async () => {
@@ -731,7 +734,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   const handleStartConversation = (userId: string, username: string) => {
     setSelectedConversation(userId);
-    setSelectedUser({id: userId, username});
+    setSelectedUser({ id: userId, username });
     setShowAddFriendModal(false);
     setSearchQuery('');
     setSearchResults([]);
@@ -761,14 +764,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
       // Translate common error messages
       let translatedError = errorMessage;
-      if (errorMessage.includes('Cannot send friend request to yourself') || 
-          errorMessage.toLowerCase().includes('yourself')) {
+      if (errorMessage.includes('Cannot send friend request to yourself') ||
+        errorMessage.toLowerCase().includes('yourself')) {
         translatedError = t('privateMessages.cannotSendFriendRequestToYourself');
-      } else if (errorMessage.includes('Already friends') || 
-                 errorMessage.toLowerCase().includes('already friends')) {
+      } else if (errorMessage.includes('Already friends') ||
+        errorMessage.toLowerCase().includes('already friends')) {
         translatedError = t('privateMessages.alreadyFriends');
-      } else if (errorMessage.toLowerCase().includes('already sent') || 
-                 errorMessage.toLowerCase().includes('already pending')) {
+      } else if (errorMessage.toLowerCase().includes('already sent') ||
+        errorMessage.toLowerCase().includes('already pending')) {
         translatedError = t('privateMessages.friendRequestAlreadyPending');
       } else if (!errorMessage) {
         translatedError = t('privateMessages.failedToSendRequest');
@@ -907,7 +910,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 
+                  <h3
                     className="font-medium theme-text-primary cursor-pointer hover:underline"
                     onClick={(e) => {
                       e.preventDefault();
@@ -980,9 +983,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex items-start space-x-3 ${
-                      message.is_from_me ? 'justify-end' : ''
-                    }`}
+                    className={`flex items-start space-x-3 ${message.is_from_me ? 'justify-end' : ''
+                      }`}
                   >
                     {!message.is_from_me && (
                       <Avatar
@@ -1010,9 +1012,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         }}
                       />
                     )}
-                    <div className={`max-w-xs lg:max-w-md ${
-                      message.is_from_me ? 'order-first' : ''
-                    }`}>
+                    <div className={`max-w-xs lg:max-w-md ${message.is_from_me ? 'order-first' : ''
+                      }`}>
                       {!message.is_from_me && (
                         <div className="flex items-center space-x-2 mb-1">
                           <span
@@ -1053,9 +1054,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         </div>
                       )}
                       <div
-                        className={`message-bubble ${
-                          message.is_from_me ? 'message-bubble-own' : 'message-bubble-other'
-                        }`}
+                        className={`message-bubble ${message.is_from_me ? 'message-bubble-own' : 'message-bubble-other'
+                          }`}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           if (!message.is_from_me) {
@@ -1124,7 +1124,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                                 return (
                                   <span
                                     key={partKey}
-                                    className="font-semibold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                    className="font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-1 rounded cursor-pointer hover:underline"
                                     onMouseEnter={(e) => {
                                       // Only set tooltip if it's not already set for this username
                                       if (!tooltip || tooltip.username !== username) {
@@ -1216,6 +1216,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               <div className="flex-1 relative">
                 <input
                   type="text"
+                  id="message-input-area"
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}
@@ -1294,6 +1295,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
               <button
                 type="submit"
+                id="send-message-btn"
                 disabled={(!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || sendingMessage || uploadingFiles}
                 className="px-4 py-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -1337,7 +1339,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           </div>
 
           {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto">
+          <div id="conversations-list" className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <LoadingSpinner size="lg" />
@@ -1666,7 +1668,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                 </svg>
               ),
-              action: () => {}, // No action needed when submenu exists
+              action: () => { }, // No action needed when submenu exists
               submenu: [
                 {
                   label: t('privateMessages.for15Minutes'),

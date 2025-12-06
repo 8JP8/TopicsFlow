@@ -20,11 +20,11 @@ const NotificationPermissionDialog: React.FC<NotificationPermissionDialogProps> 
     try {
       const permission = await Notification.requestPermission();
       console.log('[NotificationPermissionDialog] Permission result:', permission);
-      
+
       // Save to localStorage
       localStorage.setItem('notificationPermissionRequested', 'true');
       localStorage.setItem('notificationPermission', permission);
-      
+
       if (permission === 'granted') {
         // Test notification
         new Notification(t('notificationDialog.notificationsEnabled'), {
@@ -32,7 +32,7 @@ const NotificationPermissionDialog: React.FC<NotificationPermissionDialogProps> 
           icon: '/favicon.ico',
         });
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Failed to request notification permission:', error);
@@ -49,7 +49,7 @@ const NotificationPermissionDialog: React.FC<NotificationPermissionDialogProps> 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="theme-bg-secondary border theme-border rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+      <div className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center space-x-3 mb-4">
           <div className="p-2 rounded-full theme-blue-primary">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ const NotificationPermissionDialog: React.FC<NotificationPermissionDialogProps> 
           </div>
           <h3 className="text-lg font-semibold theme-text-primary">{t('notificationDialog.title')}</h3>
         </div>
-        
+
         <p className="text-sm theme-text-secondary mb-6">
           {t('notificationDialog.description')}
         </p>

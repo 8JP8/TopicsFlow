@@ -35,6 +35,7 @@ interface CommentTreeProps {
   topicId?: string;
   sortBy?: 'top' | 'new' | 'old';
   maxDepth?: number;
+  isClosed?: boolean;
 }
 
 const CommentTree: React.FC<CommentTreeProps> = ({
@@ -42,6 +43,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
   topicId,
   sortBy = 'top',
   maxDepth = 10,
+  isClosed = false,
 }) => {
   const { t } = useLanguage();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -53,33 +55,33 @@ const CommentTree: React.FC<CommentTreeProps> = ({
   const buildCommentTree = (flatComments: Comment[]): Comment[] => {
     const commentMap = new Map<string, Comment>();
     const rootComments: Comment[] = [];
-    
+
     // Helper to find root comment for any comment
     const findRootComment = (commentId: string, visited = new Set<string>()): string | null => {
       if (visited.has(commentId)) return null; // Prevent cycles
       visited.add(commentId);
-      
+
       const comment = flatComments.find(c => c.id === commentId);
       if (!comment) return null;
-      
+
       if (!comment.parent_comment_id) {
         return commentId; // This is a root comment
       }
-      
+
       return findRootComment(comment.parent_comment_id, visited);
     };
-    
+
     // Helper to get the author of the previous reply in the chain
-    const getPreviousReplyAuthor = (commentId: string, visited = new Set<string>()): {username: string, is_anonymous: boolean} | null => {
+    const getPreviousReplyAuthor = (commentId: string, visited = new Set<string>()): { username: string, is_anonymous: boolean } | null => {
       if (visited.has(commentId)) return null;
       visited.add(commentId);
-      
+
       const comment = flatComments.find(c => c.id === commentId);
       if (!comment || !comment.parent_comment_id) return null;
-      
+
       const parent = flatComments.find(c => c.id === comment.parent_comment_id);
       if (!parent) return null;
-      
+
       // If parent is a root comment, return its author
       if (!parent.parent_comment_id) {
         return {
@@ -87,7 +89,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
           is_anonymous: parent.is_anonymous || false
         };
       }
-      
+
       // Otherwise, get the parent's author (recursive)
       return getPreviousReplyAuthor(parent.id, visited);
     };
@@ -100,7 +102,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
     // Second pass: build tree structure with flat replies (Twitter/Instagram style)
     flatComments.forEach(comment => {
       const commentWithReplies = commentMap.get(comment.id)!;
-      
+
       if (comment.parent_comment_id) {
         // Find the root comment (main comment)
         const rootId = findRootComment(comment.id);
@@ -110,7 +112,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
             if (!root.replies) {
               root.replies = [];
             }
-            
+
             // Get the author of the previous reply to mention
             const previousAuthor = getPreviousReplyAuthor(comment.id);
             if (previousAuthor) {
@@ -119,12 +121,12 @@ const CommentTree: React.FC<CommentTreeProps> = ({
               // Fallback: mention the root comment author
               const rootComment = flatComments.find(c => c.id === rootId);
               if (rootComment) {
-                commentWithReplies.parent_author_username = rootComment.is_anonymous 
+                commentWithReplies.parent_author_username = rootComment.is_anonymous
                   ? (rootComment.display_name || 'Unknown')
                   : (rootComment.author_username || 'Unknown');
               }
             }
-            
+
             root.replies.push(commentWithReplies);
           }
         }
@@ -136,7 +138,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
     // Sort replies by creation time
     rootComments.forEach(root => {
       if (root.replies) {
-        root.replies.sort((a, b) => 
+        root.replies.sort((a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
       }
@@ -182,7 +184,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
       // First, check localStorage for saved state
       const savedState = getAnonymousModeState(topicId);
       const lastName = getLastAnonymousName(topicId);
-      
+
       // If we have a saved state, use it immediately
       if (savedState.isAnonymous) {
         setUseAnonymous(true);
@@ -289,9 +291,9 @@ const CommentTree: React.FC<CommentTreeProps> = ({
     const updateComment = (commentList: Comment[]): Comment[] => {
       return commentList.map(comment => {
         if (comment.id === commentId) {
-          return { 
-            ...comment, 
-            upvote_count: upCount, 
+          return {
+            ...comment,
+            upvote_count: upCount,
             downvote_count: downCount,
             score: score,
             user_has_upvoted: upvoted,
@@ -306,7 +308,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
     };
 
     const updatedComments = updateComment(comments);
-    
+
     // DO NOT re-sort the entire list - keep the order stable
     // Only update the specific comment's data
     setComments(updatedComments);
@@ -330,7 +332,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
         <select
           value={currentSort}
           onChange={(e) => setCurrentSort(e.target.value as any)}
-          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 pr-8 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
         >
           <option value="top">{t('posts.sortTop')}</option>
           <option value="new">{t('posts.sortNew')}</option>
@@ -340,10 +342,16 @@ const CommentTree: React.FC<CommentTreeProps> = ({
 
       {/* Comment Form */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <CommentForm
-          postId={postId}
-          onSubmit={handleCommentSubmit}
-        />
+        {isClosed ? (
+          <div className="text-center py-4 text-gray-500 dark:text-gray-400 italic">
+            {t('posts.commentsDisabled') || 'Comments are disabled for this post.'}
+          </div>
+        ) : (
+          <CommentForm
+            postId={postId}
+            onSubmit={handleCommentSubmit}
+          />
+        )}
       </div>
 
       {/* Comments Tree */}
@@ -365,6 +373,7 @@ const CommentTree: React.FC<CommentTreeProps> = ({
               }
               onReply={handleReply}
               maxDepth={maxDepth}
+              isClosed={isClosed}
             />
           ))}
         </div>

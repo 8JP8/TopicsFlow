@@ -41,7 +41,7 @@ const AdminDashboardButton: React.FC = () => {
       console.log('[Admin] Received notification:', data);
       // Refresh stats
       fetchPendingCount();
-      
+
       // Show toast notification
       if (data.type === 'new_report') {
         toast(t('admin.newReportReceived') || 'New report received', { icon: '📋' });
@@ -120,9 +120,10 @@ const AdminDashboardButton: React.FC = () => {
     <>
       <div className="relative" ref={dropdownRef}>
         <button
+          id="admin-dashboard-btn"
           onClick={() => setShowDropdown(!showDropdown)}
           className="relative px-3 py-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors flex items-center gap-2"
-          title={t('admin.controls') || 'Admin Controls'}
+          title={t('tooltips.adminDashboard') || 'Admin Dashboard'}
         >
           <span className="text-sm font-medium theme-text-primary hidden sm:inline">
             {t('admin.controls') || 'Admin Controls'}

@@ -1,15 +1,18 @@
 import React from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const ThemeToggle: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <button
+      id="theme-toggle-btn"
       onClick={toggleTheme}
       className="p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
       aria-label="Toggle theme"
-      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      title={t('tooltips.toggleTheme') || 'Toggle Theme'}
     >
       {theme === 'dark' ? (
         <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">

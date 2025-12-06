@@ -550,20 +550,23 @@ class Post:
         )
         return result.modified_count > 0
     
-    def reject_post_deletion(self, post_id: str) -> bool:
+    def reject_post_deletion(self, post_id: str, lock_deletion: bool = False) -> bool:
         """Reject post deletion and restore it (admin only)."""
+        update_data = {
+            'is_deleted': False,
+            'deleted_by': None,
+            'deleted_at': None,
+            'permanent_delete_at': None,
+            'deletion_status': 'rejected',
+            'updated_at': datetime.utcnow()
+        }
+        
+        if lock_deletion:
+            update_data['deletion_locked'] = True
+            
         result = self.collection.update_one(
             {'_id': ObjectId(post_id)},
-            {
-                '$set': {
-                    'is_deleted': False,
-                    'deleted_by': None,
-                    'deleted_at': None,
-                    'permanent_delete_at': None,
-                    'deletion_status': 'rejected',
-                    'updated_at': datetime.utcnow()
-                }
-            }
+            {'$set': update_data}
         )
         return result.modified_count > 0
 
@@ -632,4 +635,32 @@ class Post:
         content = ' '.join(words)
 
         return content.strip()
+
+    def close_post(self, post_id: str, reason: str) -> bool:
+        """Close a post for comments."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(post_id)},
+            {
+                '$set': {
+                    'status': 'closed',
+                    'closure_reason': reason,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
+
+    def open_post(self, post_id: str) -> bool:
+        """Re-open a closed post."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(post_id)},
+            {
+                '$set': {
+                    'status': 'open',
+                    'closure_reason': '',
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
 

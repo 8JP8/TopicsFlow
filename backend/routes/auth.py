@@ -236,8 +236,11 @@ def regenerate_backup_codes():
         if not current_user_result['success']:
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
 
+        data = request.get_json() or {}
+        totp_code = data.get('totp_code')
+
         user_id = current_user_result['user']['id']
-        result = auth_service.regenerate_backup_codes(user_id)
+        result = auth_service.regenerate_backup_codes(user_id, totp_code)
 
         if result['success']:
             return jsonify(result), 200

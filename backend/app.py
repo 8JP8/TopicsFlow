@@ -15,14 +15,12 @@ config_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(config_module)
 config = config_module.config
 
+# Import extensions to avoid circular imports
+from extensions import socketio, cors, session
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize extensions
-socketio = SocketIO()
-cors = CORS()
-session = Session()
 
 def create_app(config_name=None):
     """Create and configure Flask application."""

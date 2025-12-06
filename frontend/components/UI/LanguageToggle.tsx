@@ -2,7 +2,7 @@ import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const LanguageToggle: React.FC = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const toggleLanguage = () => {
     const newLanguage = language === 'en' ? 'pt' : 'en';
@@ -12,9 +12,10 @@ const LanguageToggle: React.FC = () => {
   return (
     <button
       onClick={toggleLanguage}
+      id="language-toggle-btn"
       className="flex items-center space-x-2 px-3 py-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
       aria-label="Toggle language"
-      title={language === 'en' ? 'Mudar para Português' : 'Switch to English'}
+      title={t('tooltips.toggleLanguage') || 'Switch Language'}
     >
       <svg className="w-4 h-4 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path

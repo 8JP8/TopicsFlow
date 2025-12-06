@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
+import { getUserColorClass } from '@/utils/colorUtils';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,9 +45,9 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showCreateChat, setShowCreateChat] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{chatId: string, chatName: string, x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ chatId: string, chatName: string, x: number, y: number } | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [reportChat, setReportChat] = useState<{chatId: string, reportType: 'chatroom' | 'chatroom_background' | 'chatroom_picture'} | null>(null);
+  const [reportChat, setReportChat] = useState<{ chatId: string, reportType: 'chatroom' | 'chatroom_background' | 'chatroom_picture' } | null>(null);
   const [hiddenChats, setHiddenChats] = useState<Set<string>>(new Set());
   const [followedChats, setFollowedChats] = useState<Set<string>>(new Set());
 
@@ -78,7 +79,7 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
           );
         }
         setChats(filteredChats);
-        
+
         // Load follow status for all chats
         if (user) {
           const followStatusPromises = filteredChats.map(async (chat: ChatRoom) => {
@@ -93,7 +94,7 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
             }
             return null;
           });
-          
+
           const followedIds = (await Promise.all(followStatusPromises)).filter((id): id is string => id !== null);
           setFollowedChats(new Set(followedIds));
         }
@@ -164,58 +165,79 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
     );
   }
 
+  // Check if there are any chats or active filters to decide whether to show standard UI or empty state
+  const hasContent = chats.length > 0 || searchQuery || selectedTags.length > 0;
+
   return (
     <div className="h-full flex flex-col p-4">
-      {/* Search and Filters */}
-      <div className="mb-4 space-y-3">
-        {/* Search with Create Button */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreateChat(true)}
-            className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0"
-            title={t('chats.createChat') || 'Create Chat'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-          <input
-            type="text"
-            placeholder={t('common.search') || 'Search chats...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-4 py-2 border theme-border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      {/* Search and Filters - Only show if there is content or active filtering */}
+      {hasContent && (
+        <div className="mb-4 space-y-3">
+          {/* Search with Create Button */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateChat(true)}
+              className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0"
+              title={t('chats.createChat') || 'Create Chat'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+            <input
+              type="text"
+              placeholder={t('common.search') || 'Search chats...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 px-4 py-2 border theme-border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-        {/* Tags Filter */}
-        {allTags.length > 0 && (
-          <div>
-            <p className="text-xs font-medium theme-text-secondary mb-2">{t('home.filterByTags') || 'Filter by tags'}</p>
-            <div className="flex flex-wrap gap-1">
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                    selectedTags.includes(tag)
+          {/* Tags Filter */}
+          {allTags.length > 0 && (
+            <div>
+              <p className="text-xs font-medium theme-text-secondary mb-2">{t('home.filterByTags') || 'Filter by tags'}</p>
+              <div className="flex flex-wrap gap-1">
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-2 py-1 text-xs rounded-full transition-colors ${selectedTags.includes(tag)
                       ? 'theme-blue-primary text-white'
                       : 'theme-bg-tertiary theme-text-secondary hover:theme-text-primary'
-                  }`}
-                >
-                  #{tag}
-                </button>
-              ))}
+                      }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Chats List */}
+      {/* Chats List or Empty State */}
       <div className="flex-1 overflow-y-auto space-y-2">
-        {chats.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p>{t('chats.noChats') || 'No chats found'}</p>
+        {!hasContent && !showCreateChat ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+            <div className="mb-6 flex items-center justify-center">
+              <svg className="w-16 h-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-400 mb-2">{t('chats.noChats') || 'No chat rooms yet'}</h3>
+            <p className="text-gray-500 max-w-sm mx-auto mb-8">
+              {t('chats.startChat') || "Create a chat room to connect with others in real-time."}
+            </p>
+            <button
+              onClick={() => setShowCreateChat(true)}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all hover:scale-105 flex items-center gap-2 mx-auto"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {t('chats.createChat') || 'Create Chat'}
+            </button>
           </div>
         ) : (
           chats.filter(chat => !hiddenChats.has(chat.id)).map(chat => (
@@ -234,6 +256,7 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
               }}
               className="relative overflow-hidden rounded-lg border theme-border hover:shadow-md transition-shadow cursor-pointer theme-bg-primary"
             >
+              {/* ... (Existing chat item content) ... */}
               <div className="relative p-4">
                 <div className="flex items-start gap-3">
                   {/* Chatroom Photo */}
@@ -244,8 +267,8 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                       className="w-16 h-16 rounded-lg object-cover flex-shrink-0 border-2 theme-border"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-lg theme-bg-secondary flex items-center justify-center flex-shrink-0 border-2 theme-border">
-                      <span className="text-2xl font-semibold theme-text-primary">
+                    <div className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 border-2 theme-border bg-gray-500">
+                      <span className="text-2xl font-semibold text-white">
                         {chat.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
@@ -254,29 +277,29 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                       {chat.name}
                     </h3>
-                  {chat.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                      {chat.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                    <span>{chat.member_count} {t('chats.members') || 'members'}</span>
-                    <span>{chat.message_count} {t('chats.messages') || 'messages'}</span>
-                    <span>{formatLastActivity(chat.last_activity)}</span>
-                  </div>
-                  {chat.tags && chat.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {chat.tags.slice(0, 3).map((tag, tagIndex) => (
-                        <span
-                          key={`${chat.id}-tag-${tagIndex}-${tag}`}
-                          className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                    {chat.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
+                        {chat.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                      <span>{chat.member_count} {t('chats.members') || 'members'}</span>
+                      <span>{chat.message_count} {t('chats.messages') || 'messages'}</span>
+                      <span>{formatLastActivity(chat.last_activity)}</span>
                     </div>
-                  )}
-                </div>
+                    {chat.tags && chat.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {chat.tags.slice(0, 3).map((tag, tagIndex) => (
+                          <span
+                            key={`${chat.id}-tag-${tagIndex}-${tag}`}
+                            className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {chat.user_is_member && (
                     <span className="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
                       {t('chats.member') || 'Member'}
@@ -319,11 +342,11 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
             onDelete={async (chatId) => {
               const chatToDelete = chats.find(c => c.id === chatId);
               if (!chatToDelete) return;
-              
+
               if (!confirm(t('chat.confirmDeleteChatroom') || `Are you sure you want to delete "${chatToDelete.name}"? It will be permanently deleted in 7 days pending admin approval.`)) {
                 return;
               }
-              
+
               try {
                 const response = await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(chatId));
                 if (response.data.success) {

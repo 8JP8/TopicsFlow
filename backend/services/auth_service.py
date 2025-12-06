@@ -269,7 +269,7 @@ class AuthService:
             session.clear()
             return {'success': False, 'error': 'Session error'}
 
-    def regenerate_backup_codes(self, user_id: str) -> dict:
+    def regenerate_backup_codes(self, user_id: str, totp_code: str = None) -> dict:
         """Regenerate backup codes for user."""
         try:
             # Verify user exists and has TOTP enabled
@@ -279,6 +279,11 @@ class AuthService:
 
             if not user.get('totp_enabled', False):
                 return {'success': False, 'errors': ['2FA not enabled']}
+
+            # If TOTP code is provided, verify it (Optional security check)
+            if totp_code:
+                if not self.user_model.verify_totp(user_id, totp_code):
+                    return {'success': False, 'errors': ['Invalid authentication code']}
 
             backup_codes = self.user_model.generate_backup_codes(user_id)
             return {'success': True, 'backup_codes': backup_codes}

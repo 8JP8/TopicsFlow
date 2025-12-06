@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useRouter } from 'next/router';
 import Avatar from './Avatar';
 import UserBadges from './UserBadges';
+import { getUserBannerGradient, getUserColorClass } from '@/utils/colorUtils';
 
 interface UserBannerProps {
   userId?: string;
@@ -59,13 +60,13 @@ const UserBanner: React.FC<UserBannerProps> = ({
       setLoading(false);
       return;
     }
-    
+
     if (!userId) {
       setError(t('errors.userNotFound') || 'User not found');
       setLoading(false);
       return;
     }
-    
+
     try {
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
@@ -123,6 +124,12 @@ const UserBanner: React.FC<UserBannerProps> = ({
     return null;
   }
 
+  // Get dynamic colors
+  // Ensure we use the same identifier for both to keep them consistent
+  const identifier = user?.id || userId || user?.username || initialUsername;
+  const bannerGradient = getUserBannerGradient(isAnonymous ? undefined : identifier);
+  const avatarColor = getUserColorClass(isAnonymous ? undefined : identifier);
+
   const content = (
     <div
       className="theme-bg-secondary rounded-lg shadow-xl overflow-hidden w-80 border theme-border"
@@ -144,13 +151,16 @@ const UserBanner: React.FC<UserBannerProps> = ({
       ) : (
         <>
           {/* Header/Banner */}
-          <div className="h-20 bg-gradient-to-r from-blue-500 to-purple-600 relative overflow-hidden">
+          <div className="h-20 relative overflow-hidden" style={bannerGradient}>
             {/* Show user's banner if not anonymous and has banner, otherwise show default gradient */}
-            {!isAnonymous && user.id && user.banner ? (
+            {!isAnonymous && user.banner ? (
               <img
                 src={user.banner.startsWith('data:') ? user.banner : `data:image/jpeg;base64,${user.banner}`}
                 alt={`${user.username} banner`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover relative z-10"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'; // Fallback to gradient if image fails
+                }}
               />
             ) : null}
             {onClose && (
@@ -167,20 +177,24 @@ const UserBanner: React.FC<UserBannerProps> = ({
 
           {/* Avatar */}
           <div className="relative px-4 pb-4">
-            <div className="absolute -top-12 left-4">
+            <div className="absolute -top-12 left-4 z-20">
               <div className="relative">
+                {/* Gray opaque layer behind avatar for transparent PNGs */}
+                <div className="absolute -inset-1 bg-gray-500 dark:bg-gray-700 rounded-full -z-10" />
                 {!user.id ? (
                   // Anonymous user - show default avatar with initial
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-2xl border-4 border-white dark:border-gray-800 shadow-lg">
+                  <div className={`w-20 h-20 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold text-2xl border-4 border-white dark:border-gray-800 shadow-lg relative z-10`}>
                     {user.username?.charAt(0).toUpperCase() || 'A'}
                   </div>
                 ) : (
-                  <Avatar
-                    userId={user.id}
-                    username={user.username}
-                    size="2xl"
-                    className="border-4 theme-border shadow-lg"
-                  />
+                  <div className="relative z-10">
+                    <Avatar
+                      userId={user.id}
+                      username={user.username}
+                      size="2xl"
+                      className="border-4 theme-border shadow-lg"
+                    />
+                  </div>
                 )}
               </div>
             </div>

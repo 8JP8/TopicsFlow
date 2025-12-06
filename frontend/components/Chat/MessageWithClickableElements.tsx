@@ -36,7 +36,7 @@ const MessageWithClickableElements: React.FC<MessageWithClickableElementsProps> 
   message,
   usersMap = new Map(),
 }) => {
-  
+
   /**
    * Parse message content and convert @mentions to clickable elements
    */
@@ -76,7 +76,7 @@ const MessageWithClickableElements: React.FC<MessageWithClickableElementsProps> 
             key={`mention-${matchIndex}`}
             userId={mentionedUser.id}
             username={mentionedUser.username}
-            className="text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 rounded"
+            className="text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-1 rounded font-medium"
           >
             @{mentionedUser.username}
           </ClickableUsername>
@@ -107,7 +107,7 @@ const MessageWithClickableElements: React.FC<MessageWithClickableElementsProps> 
 
   // Determine username and if anonymous
   const isAnonymous = message.is_anonymous || false;
-  const displayUsername = isAnonymous 
+  const displayUsername = isAnonymous
     ? (message.anonymous_identity || 'Anonymous')
     : (message.display_name || message.sender_username || 'Unknown User');
 

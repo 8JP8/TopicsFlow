@@ -66,12 +66,12 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
       const response = await api.get(API_ENDPOINTS.ADMIN.REPORTS, { params });
       if (response.data.success) {
         let reportsData = response.data.data || [];
-        
+
         // Frontend-side filtering as fallback (in case backend doesn't filter correctly)
         if (filterStatus && filterStatus !== 'all') {
           reportsData = reportsData.filter((report: Report) => report.status === filterStatus);
         }
-        
+
         console.log('[ReportsModal] Received reports:', reportsData.length, 'with status filter:', filterStatus);
         setReports(reportsData);
         // Update pagination based on filtered results
@@ -211,7 +211,7 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="theme-bg-secondary rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="p-6 border-b theme-border flex items-center justify-between">
             <h2 className="text-2xl font-semibold theme-text-primary">
@@ -302,9 +302,8 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                       <button
                         key={report.id}
                         onClick={() => setSelectedReport(report)}
-                        className={`w-full p-4 text-left hover:theme-bg-tertiary transition-colors ${
-                          selectedReport?.id === report.id ? 'theme-bg-tertiary' : ''
-                        }`}
+                        className={`w-full p-4 text-left hover:theme-bg-tertiary transition-colors ${selectedReport?.id === report.id ? 'theme-bg-tertiary' : ''
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
@@ -377,12 +376,12 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                           <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
                             {(selectedReport as any).content_type === 'user' ? t('admin.typeUser') || 'User' :
                               (selectedReport as any).content_type === 'message' ? t('admin.typeMessage') || 'Message' :
-                              (selectedReport as any).content_type === 'post' ? t('admin.typePost') || 'Post' :
-                              (selectedReport as any).content_type === 'comment' ? t('admin.typeComment') || 'Comment' :
-                              (selectedReport as any).content_type === 'chatroom' ? t('admin.typeChatroom') || 'Chatroom' :
-                              (selectedReport as any).content_type === 'chatroom_background' ? t('admin.typeChatroomBackground') || 'Chatroom Background' :
-                              (selectedReport as any).content_type === 'chatroom_picture' ? t('admin.typeChatroomPicture') || 'Chatroom Picture' :
-                              (selectedReport as any).content_type}
+                                (selectedReport as any).content_type === 'post' ? t('admin.typePost') || 'Post' :
+                                  (selectedReport as any).content_type === 'comment' ? t('admin.typeComment') || 'Comment' :
+                                    (selectedReport as any).content_type === 'chatroom' ? t('admin.typeChatroom') || 'Chatroom' :
+                                      (selectedReport as any).content_type === 'chatroom_background' ? t('admin.typeChatroomBackground') || 'Chatroom Background' :
+                                        (selectedReport as any).content_type === 'chatroom_picture' ? t('admin.typeChatroomPicture') || 'Chatroom Picture' :
+                                          (selectedReport as any).content_type}
                           </span>
                         )}
                       </div>
@@ -792,25 +791,25 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-3 space-y-2">
                           {message.attachments.map((attachment: any, attIdx: number) => {
-                                    if (attachment.type === 'image') {
-                                      return (
-                                        <img
-                                          key={attIdx}
-                                          src={attachment.url}
-                                          alt={attachment.filename || 'Image'}
-                                          className="max-w-full max-h-48 rounded-lg cursor-pointer"
-                                          onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename || 'Image' })}
-                                        />
-                                      );
-                                    } else if (attachment.type === 'video') {
-                                      return (
-                                        <VideoPlayer
-                                          key={attIdx}
-                                          src={attachment.url}
-                                          filename={attachment.filename || 'Video'}
-                                          className="max-w-full max-h-48"
-                                        />
-                                      );
+                            if (attachment.type === 'image') {
+                              return (
+                                <img
+                                  key={attIdx}
+                                  src={attachment.url}
+                                  alt={attachment.filename || 'Image'}
+                                  className="max-w-full max-h-48 rounded-lg cursor-pointer"
+                                  onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename || 'Image' })}
+                                />
+                              );
+                            } else if (attachment.type === 'video') {
+                              return (
+                                <VideoPlayer
+                                  key={attIdx}
+                                  src={attachment.url}
+                                  filename={attachment.filename || 'Video'}
+                                  className="max-w-full max-h-48"
+                                />
+                              );
                             } else if (attachment.type === 'gif' || attachment.gif_url) {
                               return (
                                 <img

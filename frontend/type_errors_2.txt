@@ -1,0 +1,77 @@
+
+> topicsflow-frontend@1.0.0 type-check
+> tsc --noEmit
+
+__tests__/ChatContainer.test.tsx(8,52): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+__tests__/ChatContainer.test.tsx(9,22): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.
+__tests__/ChatContainer.test.tsx(11,10): error TS2459: Module '"@/contexts/SocketContext"' declares 'SocketContext' locally, but it is not exported.
+__tests__/ChatContainer.test.tsx(12,10): error TS2459: Module '"@/contexts/AuthContext"' declares 'AuthContext' locally, but it is not exported.
+__tests__/ChatContainer.test.tsx(40,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(41,3): error TS2304: Cannot find name 'beforeEach'.
+__tests__/ChatContainer.test.tsx(45,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(50,13): error TS2739: Type '{ id: string; title: string; description: string; settings: { allow_anonymous: boolean; require_approval: boolean; }; }' is missing the following properties from type 'Topic': tags, member_count, last_activity, owner, user_permission_level
+__tests__/ChatContainer.test.tsx(59,5): error TS2304: Cannot find name 'expect'.
+__tests__/ChatContainer.test.tsx(62,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(74,13): error TS2739: Type '{ id: string; title: string; description: string; settings: { allow_anonymous: boolean; require_approval: boolean; }; }' is missing the following properties from type 'Topic': tags, member_count, last_activity, owner, user_permission_level
+__tests__/ChatContainer.test.tsx(90,7): error TS2304: Cannot find name 'expect'.
+__tests__/ChatContainer.test.tsx(100,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(118,13): error TS2739: Type '{ id: string; title: string; description: string; settings: { allow_anonymous: boolean; require_approval: boolean; }; }' is missing the following properties from type 'Topic': tags, member_count, last_activity, owner, user_permission_level
+__tests__/ChatContainer.test.tsx(127,5): error TS2304: Cannot find name 'expect'.
+__tests__/ChatContainer.test.tsx(130,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(149,13): error TS2739: Type '{ id: string; title: string; description: string; settings: { allow_anonymous: boolean; require_approval: boolean; }; }' is missing the following properties from type 'Topic': tags, member_count, last_activity, owner, user_permission_level
+__tests__/ChatContainer.test.tsx(159,5): error TS2304: Cannot find name 'expect'.
+__tests__/ChatContainer.test.tsx(160,5): error TS2304: Cannot find name 'expect'.
+__tests__/ChatContainer.test.tsx(163,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/ChatContainer.test.tsx(181,13): error TS2739: Type '{ id: string; title: string; description: string; settings: { allow_anonymous: boolean; require_approval: boolean; }; }' is missing the following properties from type 'Topic': tags, member_count, last_activity, owner, user_permission_level
+__tests__/ChatContainer.test.tsx(191,5): error TS2304: Cannot find name 'expect'.
+__tests__/GifPicker.test.tsx(5,52): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+__tests__/GifPicker.test.tsx(6,22): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.
+__tests__/GifPicker.test.tsx(18,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/GifPicker.test.tsx(22,3): error TS2304: Cannot find name 'beforeEach'.
+__tests__/GifPicker.test.tsx(42,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/GifPicker.test.tsx(44,5): error TS2304: Cannot find name 'expect'.
+__tests__/GifPicker.test.tsx(47,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/GifPicker.test.tsx(51,7): error TS2304: Cannot find name 'expect'.
+__tests__/GifPicker.test.tsx(55,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/GifPicker.test.tsx(62,7): error TS2304: Cannot find name 'expect'.
+__tests__/GifPicker.test.tsx(69,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/GifPicker.test.tsx(77,5): error TS2304: Cannot find name 'expect'.
+__tests__/GifPicker.test.tsx(78,5): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(5,52): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+__tests__/NotificationCenter.test.tsx(6,22): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.
+__tests__/NotificationCenter.test.tsx(8,10): error TS2459: Module '"@/contexts/SocketContext"' declares 'SocketContext' locally, but it is not exported.
+__tests__/NotificationCenter.test.tsx(9,10): error TS2459: Module '"@/contexts/AuthContext"' declares 'AuthContext' locally, but it is not exported.
+__tests__/NotificationCenter.test.tsx(26,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/NotificationCenter.test.tsx(27,3): error TS2304: Cannot find name 'beforeEach'.
+__tests__/NotificationCenter.test.tsx(31,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/NotificationCenter.test.tsx(41,5): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(44,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/NotificationCenter.test.tsx(56,5): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(59,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/NotificationCenter.test.tsx(68,5): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(68,71): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(71,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+__tests__/NotificationCenter.test.tsx(80,5): error TS2304: Cannot find name 'expect'.
+__tests__/NotificationCenter.test.tsx(80,66): error TS2304: Cannot find name 'expect'.
+components/Chat/ChatContainer.tsx(1199,25): error TS2322: Type 'boolean | "" | null' is not assignable to type 'boolean | undefined'.
+  Type 'null' is not assignable to type 'boolean | undefined'.
+components/Chat/ChatList.tsx(353,56): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+components/ChatRoom/ChatRoomContainer.tsx(1058,11): error TS2322: Type '"chat_background" | undefined' is not assignable to type '"post" | "user" | "message" | "comment" | "chatroom" | "chatroom_background" | "chatroom_picture" | undefined'.
+  Type '"chat_background"' is not assignable to type '"post" | "user" | "message" | "comment" | "chatroom" | "chatroom_background" | "chatroom_picture" | undefined'. Did you mean '"chatroom_background"'?
+components/Post/PostCard.tsx(344,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+components/Post/PostCard.tsx(346,50): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/PrivateMessages/PrivateMessages.tsx(628,43): error TS2339: Property 'user_id' does not exist on type 'Message'.
+components/Reports/ReportUserDialog.tsx(179,19): error TS2304: Cannot find name 'topicId'.
+components/Topic/TopicInviteModal.tsx(66,45): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+components/UI/Avatar.tsx(43,53): error TS2345: Argument of type 'User | null' is not assignable to parameter of type '{ id?: string | undefined; profile_picture?: string | undefined; } | undefined'.
+  Type 'null' is not assignable to type '{ id?: string | undefined; profile_picture?: string | undefined; } | undefined'.
+components/UI/UserContextMenu.tsx(95,9): error TS2353: Object literal may only specify known properties, and 'danger' does not exist in type '{ label: string; action: () => void; icon: Element; disabled: boolean; }'.
+components/UI/UserContextMenu.tsx(126,7): error TS2353: Object literal may only specify known properties, and 'danger' does not exist in type '{ label: string; action: () => void; icon: Element; disabled: boolean; }'.
+components/UI/UserContextMenu.tsx(176,7): error TS2353: Object literal may only specify known properties, and 'danger' does not exist in type '{ label: string; action: () => void; icon: Element; disabled: boolean; }'.
+contexts/LanguageContext.tsx(20,3): error TS2739: Type '{ common: { appName: string; loading: string; error: string; success: string; cancel: string; confirm: string; save: string; saving: string; delete: string; edit: string; you: string; back: string; close: string; ... 39 more ...; goBackHome: string; }; ... 43 more ...; about: { ...; }; }' is missing the following properties from type '{ common: { appName: string; loading: string; error: string; success: string; cancel: string; confirm: string; save: string; delete: string; edit: string; you: string; close: string; next: string; previous: string; ... 39 more ...; goBackHome: string; }; ... 47 more ...; about: { ...; }; }': "", "next", "refresh_invitations", "a"
+pages/index.tsx(140,11): error TS2304: Cannot find name 'saveLastAnonymousName'.
+pages/profile.tsx(38,34): error TS2339: Property 'banner' does not exist on type 'User'.
+pages/profile.tsx(224,43): error TS2339: Property 'banner' does not exist on type 'User'.
+utils/translations.ts(10,3): error TS2739: Type '{ common: { appName: string; loading: string; error: string; success: string; cancel: string; confirm: string; save: string; saving: string; delete: string; edit: string; you: string; back: string; close: string; ... 39 more ...; goBackHome: string; }; ... 43 more ...; about: { ...; }; }' is missing the following properties from type '{ common: { appName: string; loading: string; error: string; success: string; cancel: string; confirm: string; save: string; delete: string; edit: string; you: string; close: string; next: string; previous: string; ... 39 more ...; goBackHome: string; }; ... 47 more ...; about: { ...; }; }': "", "next", "refresh_invitations", "a"

@@ -84,7 +84,7 @@ const FollowedPublicationsModal: React.FC<FollowedPublicationsModalProps> = ({ i
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b theme-border">
           <h2 className="text-2xl font-bold theme-text-primary">

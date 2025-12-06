@@ -888,14 +888,18 @@ def approve_post_deletion(post_id):
 
 
 @admin_bp.route('/posts/<post_id>/reject-deletion', methods=['POST'])
+@require_json
 @require_auth()
 @require_admin()
 @log_requests
 def reject_post_deletion(post_id):
     """Reject post deletion and restore it (admin only)."""
     try:
+        data = request.get_json()
+        lock_deletion = data.get('lock_deletion', False)
+        
         post_model = Post(current_app.db)
-        success = post_model.reject_post_deletion(post_id)
+        success = post_model.reject_post_deletion(post_id, lock_deletion=lock_deletion)
         
         if success:
             return jsonify({

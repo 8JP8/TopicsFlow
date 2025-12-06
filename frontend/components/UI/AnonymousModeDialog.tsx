@@ -178,7 +178,7 @@ const AnonymousModeDialog: React.FC<AnonymousModeDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold theme-text-primary">
             {t('topics.anonymousMode') || 'Modo Anónimo'}
@@ -218,14 +218,12 @@ const AnonymousModeDialog: React.FC<AnonymousModeDialogProps> = ({
                 aria-checked={isAnonymous}
               />
               <span
-                className={`absolute inset-0 rounded-full transition-colors duration-200 ease-in-out ${
-                  isAnonymous ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
+                className={`absolute inset-0 rounded-full transition-colors duration-200 ease-in-out ${isAnonymous ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
               />
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out z-10 ${
-                  isAnonymous ? 'translate-x-5' : 'translate-x-0'
-                }`}
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out z-10 ${isAnonymous ? 'translate-x-5' : 'translate-x-0'
+                  }`}
               />
             </div>
           </label>

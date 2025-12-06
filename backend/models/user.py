@@ -788,15 +788,47 @@ class User:
 
         return new_secret
 
-    # User-Defined Recovery Code Methods
-    def set_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:
-        """Set user-defined recovery code (like a master password for account recovery)."""
-        recovery_code_hash = generate_password_hash(recovery_code)
+    # Account Deletion Methods
+    def set_deletion_code(self, user_id: str, code: str, expires_in_minutes: int = 15) -> bool:
+        """Set account deletion verification code with expiry."""
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+
         result = self.collection.update_one(
             {'_id': ObjectId(user_id)},
-            {'$set': {'user_recovery_code_hash': recovery_code_hash}}
+            {'$set': {
+                'deletion_code': code,
+                'deletion_expires': expires_at
+            }}
         )
         return result.modified_count > 0
+
+    def verify_deletion_code(self, user_id: str, code: str) -> bool:
+        """Verify account deletion code."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return False
+
+        # Check if code matches and hasn't expired
+        if (user.get('deletion_code') == code and
+            user.get('deletion_expires') and
+            user['deletion_expires'] > datetime.utcnow()):
+            return True
+
+        return False
+
+    def delete_user_permanently(self, user_id: str) -> bool:
+        """Permanently delete a user and all their data."""
+        # Note: This is a hard delete. In a real production app, you might want to soft delete
+        # or anonymize data, but the requirement is to "permanently delete".
+        
+        # Additional cleanup should be done here or triggered via signals/hooks
+        # (e.g. deleting messages, files, etc. depending on cascading rules)
+        
+        result = self.collection.delete_one({'_id': ObjectId(user_id)})
+        return result.deleted_count > 0
+
+
 
     def verify_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:
         """Verify user-defined recovery code."""

@@ -111,3 +111,6 @@ All required translation keys are already present in both `en.json` and `pt.json
 
 **All features are now fully implemented and ready for testing!** 🎉
 
+
+
+

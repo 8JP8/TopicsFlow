@@ -844,7 +844,7 @@ def invite_user_to_topic(topic_id):
             inviter = user_model.get_user_by_id(user_id)
             
             # Emit WebSocket event for invitation
-            from app import socketio
+            from extensions import socketio
             if socketio:
                 socketio.emit('topic_invitation', {
                     'invitation_id': result,
@@ -866,3 +866,84 @@ def invite_user_to_topic(topic_id):
     except Exception as e:
         logger.error(f"Invite user to topic error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to invite user: {str(e)}']}), 500
+
+
+@topics_bp.route('/invitations', methods=['GET'])
+@require_auth()
+@log_requests
+def get_my_invitations():
+    """Get pending topic invitations for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        topic_model = Topic(current_app.db)
+        invitations = topic_model.get_user_invitations(user_id)
+
+        return jsonify({
+            'success': True,
+            'data': invitations
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get invitations error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get invitations: {str(e)}']}), 500
+
+
+@topics_bp.route('/invitations/<invitation_id>/accept', methods=['POST'])
+@require_auth()
+@log_requests
+def accept_invitation(invitation_id):
+    """Accept a topic invitation."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        topic_model = Topic(current_app.db)
+        success = topic_model.accept_invitation(invitation_id, user_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Invitation accepted'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to accept invitation']}), 400
+
+    except Exception as e:
+        logger.error(f"Accept invitation error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to accept invitation: {str(e)}']}), 500
+
+
+@topics_bp.route('/invitations/<invitation_id>/decline', methods=['POST'])
+@require_auth()
+@log_requests
+def decline_invitation(invitation_id):
+    """Decline a topic invitation."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        topic_model = Topic(current_app.db)
+        success = topic_model.decline_invitation(invitation_id, user_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Invitation declined'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to decline invitation']}), 400
+
+    except Exception as e:
+        logger.error(f"Decline invitation error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to decline invitation: {str(e)}']}), 500

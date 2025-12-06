@@ -25,6 +25,8 @@ interface Post {
   user_has_downvoted?: boolean;
   created_at: string;
   gif_url?: string;
+  status?: 'open' | 'closed';
+  closure_reason?: string;
 }
 
 interface PostDetailProps {
@@ -83,7 +85,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (minutes < 1) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
@@ -193,6 +195,23 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
 
           {/* Content Section */}
           <div className="flex-1">
+            {post.status === 'closed' && (
+              <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-700 border-l-4 border-gray-500 rounded-r-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>{t('posts.closed') || 'Post Closed'}</span>
+                  </div>
+                  {post.closure_reason && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {t('posts.closedReason') || 'Reason'}: {post.closure_reason}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               {post.title}
             </h1>
@@ -262,7 +281,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
           {t('comments.title')}
         </h2>
-        <CommentTree postId={postId} />
+        <CommentTree postId={postId} isClosed={post.status === 'closed'} />
       </div>
     </div>
   );

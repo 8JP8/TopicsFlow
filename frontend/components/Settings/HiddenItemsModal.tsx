@@ -3,6 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import toast from 'react-hot-toast';
+import useEscapeKey from '@/hooks/useEscapeKey';
 
 interface HiddenPrivateMessage {
   id: string;
@@ -26,7 +27,10 @@ interface HiddenItemsModalProps {
 
 const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
-  const [hiddenItems, setHiddenItems] = useState<HiddenItems>({topics: [], posts: [], chats: [], private_messages: []});
+  useEscapeKey(() => {
+    if (isOpen) onClose();
+  });
+  const [hiddenItems, setHiddenItems] = useState<HiddenItems>({ topics: [], posts: [], chats: [], private_messages: [] });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,7 +44,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.CONTENT_SETTINGS.HIDDEN_ITEMS);
       if (response.data.success) {
-        setHiddenItems(response.data.data || {topics: [], posts: [], chats: [], private_messages: []});
+        setHiddenItems(response.data.data || { topics: [], posts: [], chats: [], private_messages: [] });
       }
     } catch (error) {
       console.error('Failed to load hidden items:', error);
@@ -60,7 +64,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
       } else if (type === 'private_message') {
         endpoint = API_ENDPOINTS.USERS.RESTORE_MESSAGE_FOR_ME(id);
       }
-      
+
       if (endpoint) {
         const response = await api.post(endpoint);
         if (response.data.success) {

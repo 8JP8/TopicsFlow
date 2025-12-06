@@ -125,6 +125,120 @@ def update_user_profile():
 
 
 
+@users_bp.route('/request-deletion-code', methods=['POST'])
+@require_auth()
+@log_requests
+def request_deletion_code():
+    """Request a verification code for account deletion."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+            
+        user = current_user_result['user']
+        user_id = user['id']
+        email = user['email']
+        username = user.get('username', 'User')
+
+        # Generate 6-digit code
+        import random
+        import string
+        code = ''.join(random.choices(string.digits, k=6))
+        
+        # Store code in user record
+        user_model = User(current_app.db)
+        success = user_model.set_deletion_code(user_id, code)
+        
+        if success:
+            # Send email
+            # We need to use the EmailService. Since it's not injected yet, we instantiate it.
+            # Assuming EmailService is in services.email_service
+            try:
+                from services.email_service import EmailService
+                email_service = EmailService()
+                
+                # Use current app config if needed, or environment variables are loaded
+                # The send_account_deletion_email method signature: (to_email, username, verification_code, lang='en')
+                # We can get language from user preferences
+                lang = user.get('preferences', {}).get('language', 'en')
+                
+                email_service.send_account_deletion_email(email, username, code, lang)
+                
+                return jsonify({
+                    'success': True, 
+                    'message': 'Verification code sent to your email'
+                }), 200
+            except Exception as e:
+                logger.error(f"Failed to send deletion email: {str(e)}")
+                return jsonify({'success': False, 'errors': ['Failed to send verification email']}), 500
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to generate verification code']}), 500
+
+    except Exception as e:
+        logger.error(f"Request deletion code error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': ['Internal server error']}), 500
+
+
+@users_bp.route('/delete-account', methods=['DELETE'])
+@require_json
+@require_auth()
+@log_requests
+def delete_account():
+    """Permanently delete user account."""
+    try:
+        data = request.get_json()
+        verification_code = data.get('verification_code', '')
+        totp_code = data.get('totp_code', '')
+        
+        if not verification_code:
+            return jsonify({'success': False, 'errors': ['Verification code is required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        
+        if not current_user_result['success']:
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+            
+        user = current_user_result['user']
+        user_id = user['id']
+        
+        user_model = User(current_app.db)
+        
+        # 1. Verify Email Code
+        if not user_model.verify_deletion_code(user_id, verification_code):
+            return jsonify({'success': False, 'errors': ['Invalid or expired verification code']}), 400
+            
+        # 2. Verify TOTP if enabled
+        # The frontend calls deletion after validating both, but we MUST validate on backend too.
+        if user.get('totp_enabled', False):
+            if not totp_code:
+                return jsonify({'success': False, 'errors': ['TOTP code is required']}), 400
+            
+            if not user_model.verify_totp(user_id, totp_code, require_enabled=True):
+                 return jsonify({'success': False, 'errors': ['Invalid TOTP code']}), 400
+
+        # 3. Delete Account
+        success = user_model.delete_user_permanently(user_id)
+        
+        if success:
+            # Clear session
+            session.clear()
+            return jsonify({
+                'success': True,
+                'message': 'Account deleted successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to delete account']}), 500
+
+    except Exception as e:
+        logger.error(f"Delete account error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': ['Internal server error']}), 500
+
+
 @users_bp.route('/topics', methods=['GET'])
 @require_auth()
 @log_requests

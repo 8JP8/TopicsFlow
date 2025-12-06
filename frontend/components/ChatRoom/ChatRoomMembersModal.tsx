@@ -78,7 +78,7 @@ const ChatRoomPhotoSection: React.FC<ChatRoomPhotoSectionProps> = ({
     try {
       console.log('Uploading chatroom photo to:', API_ENDPOINTS.CHAT_ROOMS.UPDATE_BACKGROUND(roomId));
       console.log('Photo data length:', photo.length);
-      
+
       const response = await api.put(API_ENDPOINTS.CHAT_ROOMS.UPDATE_PICTURE(roomId), {
         picture: photo,
       });
@@ -99,16 +99,16 @@ const ChatRoomPhotoSection: React.FC<ChatRoomPhotoSectionProps> = ({
       console.error('Upload error:', error);
       const axiosError = error as { response?: { data?: { errors?: string[]; message?: string; error?: string }; status?: number }; message?: string };
       let errorMessage = t('toast.failedToUpdatePhoto') || 'Failed to update photo';
-      
+
       if (axiosError.response?.data) {
-        errorMessage = axiosError.response.data.errors?.[0] || 
-                      axiosError.response.data.message || 
-                      axiosError.response.data.error || 
-                      errorMessage;
+        errorMessage = axiosError.response.data.errors?.[0] ||
+          axiosError.response.data.message ||
+          axiosError.response.data.error ||
+          errorMessage;
       } else if (axiosError.message) {
         errorMessage = axiosError.message;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setUploading(false);
@@ -119,7 +119,7 @@ const ChatRoomPhotoSection: React.FC<ChatRoomPhotoSectionProps> = ({
     setUploading(true);
     try {
       console.log('Removing chatroom photo from:', API_ENDPOINTS.CHAT_ROOMS.UPDATE_BACKGROUND(roomId));
-      
+
       const response = await api.put(API_ENDPOINTS.CHAT_ROOMS.UPDATE_PICTURE(roomId), {
         picture: null,
       });
@@ -141,16 +141,16 @@ const ChatRoomPhotoSection: React.FC<ChatRoomPhotoSectionProps> = ({
       console.error('Remove error:', error);
       const axiosError = error as { response?: { data?: { errors?: string[]; message?: string; error?: string }; status?: number }; message?: string };
       let errorMessage = t('toast.failedToRemovePhoto') || 'Failed to remove photo';
-      
+
       if (axiosError.response?.data) {
-        errorMessage = axiosError.response.data.errors?.[0] || 
-                      axiosError.response.data.message || 
-                      axiosError.response.data.error || 
-                      errorMessage;
+        errorMessage = axiosError.response.data.errors?.[0] ||
+          axiosError.response.data.message ||
+          axiosError.response.data.error ||
+          errorMessage;
       } else if (axiosError.message) {
         errorMessage = axiosError.message;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setUploading(false);
@@ -458,7 +458,7 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviting, setInviting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{id: string, username: string, email: string}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string, username: string, email: string }>>([]);
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -502,10 +502,10 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
         const roomResponse = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET(roomId));
         const roomData = roomResponse.data.data;
         const moderators = roomData?.moderators || [];
-        
+
         // Convert moderators to strings if they're ObjectIds
         const moderatorIds = moderators.map((m: any) => typeof m === 'string' ? m : String(m));
-        
+
         const membersData = (response.data.data || []).map((member: any) => ({
           id: member.id || String(member._id || member.user_id),
           username: member.username || 'Unknown',
@@ -589,7 +589,7 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
         toast.error(t('chat.userAlreadyMember') || 'User is already a member');
         return;
       }
-      
+
       // Join the user to the chat room (this is the invite action)
       // Note: The backend should handle adding the user to the room
       // We might need a specific invite endpoint, but for now using JOIN
@@ -678,11 +678,11 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="theme-bg-secondary rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
         <div className="p-6 border-b theme-border">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold theme-text-primary">
-              {mode === 'manage' 
+              {mode === 'manage'
                 ? (t('chatRooms.manageMembers') || 'Manage Members')
                 : (t('chatRooms.memberList') || 'Member List')
               }

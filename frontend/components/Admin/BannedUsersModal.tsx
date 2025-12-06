@@ -111,7 +111,7 @@ const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ isOpen, onClose }) 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="theme-bg-secondary border theme-border rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col pointer-events-auto"
+          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -159,9 +159,8 @@ const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ isOpen, onClose }) 
                   return (
                     <div
                       key={user.id}
-                      className={`p-4 theme-bg-tertiary rounded-lg border theme-border ${
-                        expired ? 'opacity-60' : ''
-                      }`}
+                      className={`p-4 theme-bg-tertiary rounded-lg border theme-border ${expired ? 'opacity-60' : ''
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3 flex-1">

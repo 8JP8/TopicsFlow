@@ -4,7 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import FriendRequestsModal from './FriendRequestsModal';
 
-interface FriendRequestsButtonProps {}
+interface FriendRequestsButtonProps { }
 
 const FriendRequestsButton: React.FC<FriendRequestsButtonProps> = () => {
   const { t } = useLanguage();
@@ -25,7 +25,7 @@ const FriendRequestsButton: React.FC<FriendRequestsButtonProps> = () => {
     try {
       const response = await api.get(API_ENDPOINTS.USERS.FRIEND_REQUESTS);
       if (response.data.success) {
-        const data = response.data.data || {received: [], sent: []};
+        const data = response.data.data || { received: [], sent: [] };
         setFriendRequestCount(data.received?.length || 0);
       }
     } catch (error) {
@@ -46,7 +46,7 @@ const FriendRequestsButton: React.FC<FriendRequestsButtonProps> = () => {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="relative p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
+        className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
         aria-label={t('privateMessages.friendRequests') || 'Friend Requests'}
         title={t('privateMessages.friendRequests') || 'Friend Requests'}
       >

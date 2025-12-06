@@ -305,3 +305,49 @@ def get_followed_posts():
         logger.error(f"Get followed posts error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to get followed posts: {str(e)}']}), 500
 
+
+@notification_settings_bp.route('/chat-rooms/followed', methods=['GET'])
+@require_auth()
+@log_requests
+def get_followed_chatrooms():
+    """Get all chatrooms that the current user is following."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        notification_settings = NotificationSettings(current_app.db)
+        followed_chatrooms = notification_settings.get_followed_chatrooms(user_id)
+
+        # Get chatroom details
+        from models.chat_room import ChatRoom
+        chat_room_model = ChatRoom(current_app.db)
+        chatrooms_with_details = []
+        
+        for item in followed_chatrooms:
+            chatroom_id = item['chat_room_id']
+            chatroom = chat_room_model.get_chat_room_by_id(chatroom_id)
+            if chatroom:
+                chatrooms_with_details.append({
+                    'id': chatroom_id,
+                    'name': chatroom.get('name', 'Untitled'),
+                    'description': chatroom.get('description', ''),
+                    'topic_id': str(chatroom.get('topic_id', '')),
+                    'topic_title': chatroom.get('topic_title', ''),
+                    'member_count': chatroom.get('member_count', 0),
+                    'message_count': chatroom.get('message_count', 0),
+                    'last_activity': chatroom.get('last_message_at') or chatroom.get('created_at'),
+                    'followed_at': item.get('created_at')
+                })
+
+        return jsonify({
+            'success': True,
+            'data': chatrooms_with_details
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get followed chatrooms error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get followed chatrooms: {str(e)}']}), 500
+

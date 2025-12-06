@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import InvitationsPopup from './InvitationsPopup';
+import InvitationsModal from './InvitationsModal';
 
 const InvitationsButton: React.FC = () => {
   const { user } = useAuth();
@@ -11,6 +12,16 @@ const InvitationsButton: React.FC = () => {
   const { socket, connected } = useSocket();
   const [invitationCount, setInvitationCount] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [showFullModal, setShowFullModal] = useState(false);
+
+  // Listen for tour event to open invitations
+  useEffect(() => {
+    const handleOpenInvitations = () => {
+      setShowModal(true);
+    };
+    window.addEventListener('tour:open-invitations', handleOpenInvitations);
+    return () => window.removeEventListener('tour:open-invitations', handleOpenInvitations);
+  }, []);
 
   // Fetch pending invitations count
   const fetchInvitationCount = async () => {
@@ -70,12 +81,13 @@ const InvitationsButton: React.FC = () => {
   }
 
   return (
-    <>
+    <div className="relative">
       <button
-        onClick={() => setShowModal(true)}
+        onClick={() => setShowModal(!showModal)}
+        id="invitations-btn"
         className="relative p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
         aria-label={t('invitations.title') || 'Chat Invitations'}
-        title={t('invitations.title') || 'Chat Invitations'}
+        title={t('tooltips.invitations') || 'Chat Invitations'}
       >
         <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -93,9 +105,21 @@ const InvitationsButton: React.FC = () => {
           isOpen={showModal}
           onClose={handleModalClose}
           onInvitationHandled={fetchInvitationCount}
+          onViewAll={() => {
+            setShowModal(false);
+            setShowFullModal(true);
+          }}
         />
       )}
-    </>
+
+      {showFullModal && (
+        <InvitationsModal
+          isOpen={showFullModal}
+          onClose={() => setShowFullModal(false)}
+          onInvitationHandled={fetchInvitationCount}
+        />
+      )}
+    </div>
   );
 };
 

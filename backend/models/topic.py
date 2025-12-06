@@ -196,8 +196,7 @@ class Topic:
             return "is_banned"
 
         # Create invitation in topic_invitations collection
-        if not hasattr(self.db, 'topic_invitations'):
-            self.db.topic_invitations = self.db.topic_invitations
+        # Create invitation in topic_invitations collection
 
         invitation = {
             'topic_id': ObjectId(topic_id),
@@ -219,6 +218,119 @@ class Topic:
 
         result = self.db.topic_invitations.insert_one(invitation)
         return str(result.inserted_id)  # Return invitation ID
+
+    def get_user_invitations(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all pending topic invitations for a user."""
+        try:
+            invitations = list(self.db.topic_invitations.find({
+                'invited_user_id': ObjectId(user_id),
+                'status': 'pending'
+            }).sort([('created_at', -1)]))
+        except Exception:
+            # Collection might not exist or other DB error
+            return []
+
+        result = []
+        for invite in invitations:
+            try:
+                invite['_id'] = str(invite['_id'])
+                invite['id'] = str(invite['_id'])
+                invite['topic_id'] = str(invite['topic_id'])
+                invite['invited_user_id'] = str(invite['invited_user_id'])
+                invite['invited_by'] = str(invite['invited_by'])
+                
+                if 'created_at' in invite and isinstance(invite['created_at'], datetime):
+                    invite['created_at'] = invite['created_at'].isoformat()
+
+                # Get topic details
+                topic = self.collection.find_one({'_id': ObjectId(invite['topic_id'])})
+                if topic:
+                    invite['topic'] = {
+                        'id': str(topic['_id']),
+                        'title': topic.get('title'),
+                        'description': topic.get('description'),
+                        'member_count': topic.get('member_count', 0)
+                    }
+                else:
+                    # Topic deleted, skip invitation
+                    continue
+                
+                # Get inviter details
+                from .user import User
+                user_model = User(self.db)
+                inviter = user_model.get_user_by_id(invite['invited_by'])
+                if inviter:
+                    invite['inviter'] = {
+                        'id': str(inviter['_id']),
+                        'username': inviter.get('username'),
+                        'profile_picture': inviter.get('profile_picture')
+                    }
+                else:
+                    invite['inviter'] = {
+                         'id': invite['invited_by'],
+                         'username': 'Unknown User',
+                         'profile_picture': None
+                    }
+                
+                result.append(invite)
+            except Exception as e:
+                # Log error and skip malformed invitation
+                print(f"Error processing invitation {invite.get('_id')}: {str(e)}")
+                continue
+
+        return result
+
+    def accept_invitation(self, invitation_id: str, user_id: str) -> bool:
+        """Accept a topic invitation."""
+        if not hasattr(self.db, 'topic_invitations'):
+            return False
+
+        invitation = self.db.topic_invitations.find_one({
+            '_id': ObjectId(invitation_id),
+            'invited_user_id': ObjectId(user_id),
+            'status': 'pending'
+        })
+
+        if not invitation:
+            return False
+
+        # Add user to topic
+        topic_id = str(invitation['topic_id'])
+        success = self.add_member(topic_id, user_id)
+
+        if success:
+            # Update invitation status
+            self.db.topic_invitations.update_one(
+                {'_id': ObjectId(invitation_id)},
+                {
+                    '$set': {
+                        'status': 'accepted',
+                        'responded_at': datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        return False
+
+    def decline_invitation(self, invitation_id: str, user_id: str) -> bool:
+        """Decline a topic invitation."""
+        if not hasattr(self.db, 'topic_invitations'):
+            return False
+
+        result = self.db.topic_invitations.update_one(
+            {
+                '_id': ObjectId(invitation_id),
+                'invited_user_id': ObjectId(user_id),
+                'status': 'pending'
+            },
+            {
+                '$set': {
+                    'status': 'declined',
+                    'responded_at': datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
 
     def add_member(self, topic_id: str, user_id: str) -> bool:
         """Add a user to topic members."""

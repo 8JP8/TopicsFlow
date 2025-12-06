@@ -3,6 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import VoteButtons from '../Vote/VoteButtons';
 import PostContextMenu from '../UI/PostContextMenu';
 import UserBanner from '../UI/UserBanner';
+import { getUserColorClass } from '@/utils/colorUtils';
 import { useUserBanner } from '@/hooks/useUserBanner';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import toast from 'react-hot-toast';
@@ -12,6 +13,7 @@ import { getUserProfilePicture } from '@/hooks/useUserProfile';
 import ReportUserDialog from '../Reports/ReportUserDialog';
 import { useAuth } from '@/contexts/AuthContext';
 // Using simple date formatting instead of date-fns to avoid dependency
+import PostAdminModal from './PostAdminModal';
 
 interface Post {
   id: string;
@@ -34,6 +36,8 @@ interface Post {
   is_admin?: boolean;
   is_owner?: boolean;
   is_moderator?: boolean;
+  status?: 'open' | 'closed';
+  closure_reason?: string;
 }
 
 interface PostCardProps {
@@ -42,20 +46,27 @@ interface PostCardProps {
   onPostSelect?: (post: Post) => void;
   onPostHidden?: (postId: string) => void;
   onPostDeleted?: (postId: string) => void;
+  onStatusChange?: (postId: string, newStatus: 'open' | 'closed', newReason: string) => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, onPostHidden, onPostDeleted }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, onPostHidden, onPostDeleted, onStatusChange }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [contextMenu, setContextMenu] = useState<{postId: string, postTitle: string, x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ postId: string, postTitle: string, x: number, y: number } | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [topicOwner, setTopicOwner] = useState<{id: string, username: string} | null>(null);
-  const [topicModerators, setTopicModerators] = useState<Array<{id: string, username: string}>>([]);
+  const [topicOwner, setTopicOwner] = useState<{ id: string, username: string } | null>(null);
+  const [topicModerators, setTopicModerators] = useState<Array<{ id: string, username: string }>>([]);
   const [followedPosts, setFollowedPosts] = useState<Set<string>>(new Set(
     JSON.parse(localStorage.getItem('followedPosts') || '[]')
   ));
+
+  // Local state for admin actions
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<'open' | 'closed'>(post.status || 'open');
+  const [currentReason, setCurrentReason] = useState(post.closure_reason || '');
+
   const { showBanner, bannerPos, selectedUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
-  
+
   const isOwner = user?.id === post.user_id;
   const isFollowed = followedPosts.has(post.id);
 
@@ -68,7 +79,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (seconds < 60) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
@@ -94,7 +105,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
 
   return (
     <>
-      <div 
+      <div
         className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow cursor-pointer"
         onClick={handlePostClick}
         onContextMenu={(e) => {
@@ -127,9 +138,32 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
 
           {/* Content Section */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 hover:text-blue-600 dark:hover:text-blue-400 no-underline">
-              {post.title}
-            </h3>
+            <div className="flex justify-between items-start">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 hover:text-blue-600 dark:hover:text-blue-400 no-underline">
+                {post.title}
+                {currentStatus === 'closed' && (
+                  <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-full relative -top-[1px]">
+                    {t('admin.closed') || 'Closed'}
+                  </span>
+                )}
+              </h3>
+
+              {user?.is_admin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAdminModal(true);
+                  }}
+                  className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                  title={t('admin.managePost') || 'Manage Post'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
             {post.gif_url ? (
               <div className="mb-3">
@@ -152,8 +186,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
                 </span>
               )}
               <div className="flex items-center gap-2 no-underline flex-wrap">
+
+
                 {post.is_anonymous ? (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs">
+                  <div className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs`}>
                     {(post.display_name || 'Anonymous').charAt(0).toUpperCase()}
                   </div>
                 ) : post.user_id ? (
@@ -201,122 +237,137 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
           </div>
         </div>
       </div>
-    {contextMenu && (
-      <PostContextMenu
-        postId={contextMenu.postId}
-        postTitle={contextMenu.postTitle}
-        x={contextMenu.x}
-        y={contextMenu.y}
-        onClose={() => setContextMenu(null)}
-        onReport={async (postId) => {
-          setContextMenu(null);
-          // Fetch topic owner and moderators
-          try {
-            const topicResponse = await api.get(API_ENDPOINTS.TOPICS.GET(post.topic_id));
-            if (topicResponse.data.success) {
-              const topic = topicResponse.data.data;
-              if (topic.owner) {
-                setTopicOwner({ id: topic.owner.id, username: topic.owner.username });
+      {contextMenu && (
+        <PostContextMenu
+          postId={contextMenu.postId}
+          postTitle={contextMenu.postTitle}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onReport={async (postId) => {
+            setContextMenu(null);
+            // Fetch topic owner and moderators
+            try {
+              const topicResponse = await api.get(API_ENDPOINTS.TOPICS.GET(post.topic_id));
+              if (topicResponse.data.success) {
+                const topic = topicResponse.data.data;
+                if (topic.owner) {
+                  setTopicOwner({ id: topic.owner.id, username: topic.owner.username });
+                }
+                // Get moderators
+                const modsResponse = await api.get(API_ENDPOINTS.TOPICS.MODERATORS(post.topic_id));
+                if (modsResponse.data.success) {
+                  setTopicModerators(modsResponse.data.data.map((m: any) => ({ id: m.id, username: m.username })));
+                }
               }
-              // Get moderators
-              const modsResponse = await api.get(API_ENDPOINTS.TOPICS.MODERATORS(post.topic_id));
-              if (modsResponse.data.success) {
-                setTopicModerators(modsResponse.data.data.map((m: any) => ({ id: m.id, username: m.username })));
+            } catch (error) {
+              console.error('Failed to fetch topic info:', error);
+            }
+            setShowReportDialog(true);
+          }}
+          isHidden={false}
+          isFollowed={isFollowed}
+          onFollow={async (postId) => {
+            try {
+              const newFollowedPosts = new Set(followedPosts);
+              if (isFollowed) {
+                newFollowedPosts.delete(postId);
+                toast.success(t('contextMenu.postUnfollowed') || 'Post unfollowed');
+              } else {
+                newFollowedPosts.add(postId);
+                toast.success(t('contextMenu.postFollowed') || 'Post followed');
               }
+              setFollowedPosts(newFollowedPosts);
+              localStorage.setItem('followedPosts', JSON.stringify(Array.from(newFollowedPosts)));
+
+              // TODO: Replace with backend API call
+              // await api.post(isFollowed ? API_ENDPOINTS.POSTS.UNFOLLOW(postId) : API_ENDPOINTS.POSTS.FOLLOW(postId));
+            } catch (error: any) {
+              toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
             }
-          } catch (error) {
-            console.error('Failed to fetch topic info:', error);
-          }
-          setShowReportDialog(true);
-        }}
-        isHidden={false}
-        isFollowed={isFollowed}
-        onFollow={async (postId) => {
-          try {
-            const newFollowedPosts = new Set(followedPosts);
-            if (isFollowed) {
-              newFollowedPosts.delete(postId);
-              toast.success(t('contextMenu.postUnfollowed') || 'Post unfollowed');
-            } else {
-              newFollowedPosts.add(postId);
-              toast.success(t('contextMenu.postFollowed') || 'Post followed');
-            }
-            setFollowedPosts(newFollowedPosts);
-            localStorage.setItem('followedPosts', JSON.stringify(Array.from(newFollowedPosts)));
-            
-            // TODO: Replace with backend API call
-            // await api.post(isFollowed ? API_ENDPOINTS.POSTS.UNFOLLOW(postId) : API_ENDPOINTS.POSTS.FOLLOW(postId));
-          } catch (error: any) {
-            toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
-          }
-          setContextMenu(null);
-        }}
-        onHide={async (postId) => {
-          try {
-            const response = await api.post(API_ENDPOINTS.POSTS.HIDE(postId));
-            if (response.data.success) {
-              toast.success(t('contextMenu.postHidden') || 'Post hidden');
-              if (onPostHidden) {
-                onPostHidden(postId);
+            setContextMenu(null);
+          }}
+          onHide={async (postId) => {
+            try {
+              const response = await api.post(API_ENDPOINTS.POSTS.HIDE(postId));
+              if (response.data.success) {
+                toast.success(t('contextMenu.postHidden') || 'Post hidden');
+                if (onPostHidden) {
+                  onPostHidden(postId);
+                }
+              } else {
+                toast.error(response.data.errors?.[0] || t('errors.generic'));
               }
-            } else {
-              toast.error(response.data.errors?.[0] || t('errors.generic'));
+            } catch (error: any) {
+              toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
             }
-          } catch (error: any) {
-            toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
-          }
-          setContextMenu(null);
-        }}
-        onDelete={async (postId) => {
-          if (!confirm(t('posts.confirmDelete') || `Are you sure you want to delete "${post.title}"? It will be permanently deleted in 7 days pending admin approval.`)) {
-            return;
-          }
-          
-          try {
-            const response = await api.delete(API_ENDPOINTS.POSTS.DELETE(postId));
-            if (response.data.success) {
-              toast.success(t('posts.deletionRequested') || 'Post deletion requested. It will be permanently deleted in 7 days pending admin approval.');
-              if (onPostDeleted) {
-                onPostDeleted(postId);
+            setContextMenu(null);
+          }}
+          onDelete={async (postId) => {
+            if (!confirm(t('posts.confirmDelete') || `Are you sure you want to delete "${post.title}"? It will be permanently deleted in 7 days pending admin approval.`)) {
+              return;
+            }
+
+            try {
+              const response = await api.delete(API_ENDPOINTS.POSTS.DELETE(postId));
+              if (response.data.success) {
+                toast.success(t('posts.deletionRequested') || 'Post deletion requested. It will be permanently deleted in 7 days pending admin approval.');
+                if (onPostDeleted) {
+                  onPostDeleted(postId);
+                }
+              } else {
+                toast.error(response.data.errors?.[0] || t('errors.generic'));
               }
-            } else {
-              toast.error(response.data.errors?.[0] || t('errors.generic'));
+            } catch (error: any) {
+              toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
             }
-          } catch (error: any) {
-            toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
-          }
-          setContextMenu(null);
-        }}
-        isOwner={isOwner}
-      />
-    )}
-    {showBanner && selectedUser && bannerPos && (
-      <UserBanner
-        userId={post.is_anonymous ? '' : selectedUser.userId}
-        username={selectedUser.username}
-        isAnonymous={post.is_anonymous || false}
-        x={bannerPos.x}
-        y={bannerPos.y}
-        onClose={handleClose}
-      />
-    )}
-    {showReportDialog && (
-      <ReportUserDialog
-        contentId={post.id}
-        contentType="post"
-        userId={post.user_id}
-        username={post.author_username || post.display_name}
-        onClose={() => {
-          setShowReportDialog(false);
-          setTopicOwner(null);
-          setTopicModerators([]);
-        }}
-        ownerId={topicOwner?.id}
-        ownerUsername={topicOwner?.username}
-        moderators={topicModerators}
-        topicId={post.topic_id}
-      />
-    )}
+            setContextMenu(null);
+          }}
+          isOwner={isOwner}
+        />
+      )}
+      {showBanner && selectedUser && bannerPos && (
+        <UserBanner
+          userId={post.is_anonymous ? '' : selectedUser.userId}
+          username={selectedUser.username}
+          isAnonymous={post.is_anonymous || false}
+          x={bannerPos.x}
+          y={bannerPos.y}
+          onClose={handleClose}
+        />
+      )}
+      {showAdminModal && (
+        <PostAdminModal
+          postId={post.id}
+          currentStatus={currentStatus}
+          currentReason={currentReason}
+          onClose={() => setShowAdminModal(false)}
+          onStatusUpdate={(newStatus, newReason) => {
+            setCurrentStatus(newStatus);
+            setCurrentReason((newReason || '') as string);
+            if (onStatusChange) {
+              onStatusChange(post.id, newStatus, (newReason || '') as string);
+            }
+          }}
+        />
+      )}
+      {showReportDialog && (
+        <ReportUserDialog
+          contentId={post.id}
+          contentType="post"
+          userId={post.user_id}
+          username={post.author_username || post.display_name}
+          onClose={() => {
+            setShowReportDialog(false);
+            setTopicOwner(null);
+            setTopicModerators([]);
+          }}
+          ownerId={topicOwner?.id}
+          ownerUsername={topicOwner?.username}
+          moderators={topicModerators}
+          topicId={post.topic_id}
+        />
+      )}
     </>
   );
 };

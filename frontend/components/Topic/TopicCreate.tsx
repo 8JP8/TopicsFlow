@@ -27,9 +27,22 @@ interface TopicCreateProps {
   onTopicCreated: (topic: Topic) => void;
 }
 
+import useEscapeKey from '@/hooks/useEscapeKey';
+
+interface Topic {
+  // ...
+}
+
+interface TopicCreateProps {
+  // ...
+}
+
 const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCreated }) => {
   const { t } = useLanguage();
-  const handleCancel = onCancel || onClose || (() => {});
+  const handleCancel = onCancel || onClose || (() => { });
+
+  useEscapeKey(handleCancel);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -43,14 +56,14 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     // Auto-convert spaces to commas for tags input
     let processedValue = value;
     if (name === 'tags' && type === 'text') {
       // Replace spaces with commas to separate tags
       processedValue = value.replace(/\s+/g, ',');
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : processedValue,
