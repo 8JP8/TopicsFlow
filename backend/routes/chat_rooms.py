@@ -781,7 +781,11 @@ def get_chat_room_members(room_id):
                 if user:
                     members.append({
                         'id': str(user['_id']),
-                        'username': user.get('username', 'Unknown')
+                        'username': user.get('username', 'Unknown'),
+                        'display_name': user.get('display_name'),
+                        'profile_picture': user.get('profile_picture'),
+                        'is_admin': user.get('is_admin', False),
+                        'is_owner': str(user['_id']) == str(room.get('owner_id'))
                     })
             except Exception as e:
                 logger.warning(f"Failed to get user {member_id}: {str(e)}")

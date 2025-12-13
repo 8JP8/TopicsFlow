@@ -1,3 +1,4 @@
+import UserBanner from '@/components/UI/UserBanner'; // Added
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
@@ -25,6 +26,7 @@ interface Message {
   created_at: string;
   is_from_me: boolean;
   sender_username: string;
+  user_id?: string; // Added optional user_id
   gif_url?: string;
 }
 
@@ -38,17 +40,23 @@ const PrivateMessages: React.FC = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{id: string, username: string, email: string}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string, username: string, email: string }>>([]);
   const [searching, setSearching] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{messageId: string, x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ messageId: string, x: number, y: number } | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [areFriends, setAreFriends] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
-  const [conversationStatuses, setConversationStatuses] = useState<Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>>(new Map());
-  const [friends, setFriends] = useState<Array<{id: string, username: string, email: string, profile_picture?: string}>>([]);
-  
+  const [conversationStatuses, setConversationStatuses] = useState<Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>>(new Map());
+  const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
+
+  // User Banner State
+  const [showUserBanner, setShowUserBanner] = useState(false);
+  const [selectedBannerUser, setSelectedBannerUser] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ username: string, x: number, y: number } | null>(null);
+  const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     loadConversations();
     loadFriends();
@@ -60,13 +68,13 @@ const PrivateMessages: React.FC = () => {
       if (friendsResponse.data.success) {
         const friendsList = friendsResponse.data.data || [];
         setFriends(friendsList);
-        
+
         // Update areFriends for selected conversation
         if (selectedConversation) {
           const isFriend = friendsList.some((friend: any) => friend.id === selectedConversation);
           setAreFriends(isFriend);
         }
-        
+
         // Update conversation statuses with friendship info
         setConversationStatuses(prev => {
           const newMap = new Map(prev);
@@ -98,7 +106,7 @@ const PrivateMessages: React.FC = () => {
       // Check friendship from loaded friends list
       const isFriend = isUserFriend(selectedConversation);
       setAreFriends(isFriend);
-      
+
       // Load user info and online status
       const loadUserData = async () => {
         const [userInfo, onlineUsersSet] = await Promise.all([
@@ -149,14 +157,14 @@ const PrivateMessages: React.FC = () => {
       if (response.data.success) {
         const conversationsData = response.data.data || [];
         setConversations(conversationsData);
-        
+
         // Load status for all conversations
         const onlineUsersSet = await loadOnlineUsers();
-        const statusMap = new Map<string, {isOnline: boolean, lastLogin: string | null, areFriends: boolean}>();
-        
+        const statusMap = new Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>();
+
         // Create a Set of friend IDs for faster lookup
         const friendIdsSet = new Set(friends.map(f => f.id));
-        
+
         await Promise.all(conversationsData.map(async (conv: Conversation) => {
           try {
             const userInfo = await loadUserInfo(conv.user_id);
@@ -173,7 +181,7 @@ const PrivateMessages: React.FC = () => {
             console.error(`Failed to load status for user ${conv.user_id}:`, error);
           }
         }));
-        
+
         setConversationStatuses(statusMap);
       }
     } catch (error) {
@@ -238,7 +246,7 @@ const PrivateMessages: React.FC = () => {
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (seconds < 60) return t('privateMessages.justNow') || 'Just now';
       // Show minutes for anything less than 60 minutes, then switch to hours
       if (minutes < 60) return `${t('privateMessages.lastSeenAgo') || 'Last seen'} ${minutes} ${t('privateMessages.minutesAgo') || 'minutes ago'}`;
@@ -493,9 +501,8 @@ const PrivateMessages: React.FC = () => {
                       handleMarkAsRead(conversation.user_id);
                     }
                   }}
-                  className={`p-4 cursor-pointer hover:theme-bg-tertiary transition-colors ${
-                    selectedConversation === conversation.user_id ? 'theme-bg-tertiary' : ''
-                  }`}
+                  className={`p-4 cursor-pointer hover:theme-bg-tertiary transition-colors ${selectedConversation === conversation.user_id ? 'theme-bg-tertiary' : ''
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -611,9 +618,8 @@ const PrivateMessages: React.FC = () => {
                   {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex items-start space-x-3 ${
-                        message.is_from_me ? 'justify-end' : ''
-                      }`}
+                      className={`flex items-start space-x-3 ${message.is_from_me ? 'justify-end' : ''
+                        }`}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -630,13 +636,11 @@ const PrivateMessages: React.FC = () => {
                           size="sm"
                         />
                       )}
-                      <div className={`max-w-xs lg:max-w-md ${
-                        message.is_from_me ? 'order-first' : ''
-                      }`}>
+                      <div className={`max-w-xs lg:max-w-md ${message.is_from_me ? 'order-first' : ''
+                        }`}>
                         <div
-                          className={`message-bubble ${
-                            message.is_from_me ? 'message-bubble-own' : 'message-bubble-other'
-                          }`}
+                          className={`message-bubble ${message.is_from_me ? 'message-bubble-own' : 'message-bubble-other'
+                            }`}
                         >
                           {message.content}
                         </div>
@@ -789,6 +793,24 @@ const PrivateMessages: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* User Banner Popover */}
+      {showUserBanner && selectedBannerUser && (
+        <UserBanner
+          username={selectedBannerUser.username}
+          userId={selectedBannerUser.userId || undefined}
+          x={selectedBannerUser.x}
+          y={selectedBannerUser.y}
+          onClose={() => {
+            setShowUserBanner(false);
+            setSelectedBannerUser(null);
+          }}
+          onSendMessage={(userId, username) => {
+            handleStartConversation(userId);
+            setShowUserBanner(false);
+          }}
+        />
       )}
     </div>
   );

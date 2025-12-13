@@ -8,7 +8,7 @@ export default function Custom404() {
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
             <Head>
-                <title>404 - {t('errors.pageNotFound') || 'Page Not Found'} | {t('common.appName')}</title>
+                <title>404 - {t('errors.pageNotFound')} | {t('common.appName')}</title>
             </Head>
 
             {/* Background Blobs - Changed to Blue/Slate/Cyan */}
@@ -33,7 +33,7 @@ export default function Custom404() {
                     <div className="absolute bottom-10 left-0 animate-float-delay-2">
                         <div className="bg-slate-700 text-slate-200 p-4 rounded-2xl rounded-tr-none shadow-lg transform -rotate-6 border border-slate-600">
                             {/* Styling improvements */}
-                            <span className="text-lg font-medium">{t('errors.whereAreWe') || 'Where are we?'}</span>
+                            <span className="text-lg font-medium">{t('errors.whereAreWe')}</span>
                         </div>
                     </div>
 
@@ -44,10 +44,10 @@ export default function Custom404() {
                 </div>
 
                 <h2 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 mb-6 drop-shadow-sm">
-                    {t('errors.pageNotFound') || 'Page Not Found'}
+                    {t('errors.pageNotFound')}
                 </h2>
                 <p className="text-xl text-slate-300 mb-10 max-w-lg mx-auto leading-relaxed">
-                    {t('errors.pageNotFoundDesc') || "Looks like this discussion topic doesn't exist yet, or maybe it wandered off into the void."}
+                    {t('errors.pageNotFoundDesc')}
                 </p>
 
                 <Link
@@ -57,7 +57,7 @@ export default function Custom404() {
                     <svg className="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    {t('common.goBackHome') || 'Go Back Home'}
+                    {t('common.goBackHome')}
                 </Link>
             </div>
 

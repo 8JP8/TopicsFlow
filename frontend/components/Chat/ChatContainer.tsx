@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import GifPicker from './GifPicker';
+import MentionList from '@/components/UI/MentionList';
 import UserTooltip from '@/components/UI/UserTooltip';
 import UserContextMenu from '@/components/UI/UserContextMenu';
 import MessageContextMenu from '@/components/UI/MessageContextMenu';
@@ -58,7 +59,7 @@ interface ChatContainerProps {
   messages: Message[];
   onMessageReceived: (message: Message) => void;
   onBackToTopics: () => void;
-  anonymousIdentity?: {isAnonymous: boolean, name?: string};
+  anonymousIdentity?: { isAnonymous: boolean, name?: string };
   onAnonymousIdentityUpdate?: (isAnonymous: boolean, name?: string) => void;
 }
 
@@ -89,23 +90,60 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{username: string, x: number, y: number} | null>(null);
-  const [contextMenu, setContextMenu] = useState<{userId: string, username: string, x: number, y: number} | null>(null);
-  const [userProfiles, setUserProfiles] = useState<Map<string, {username: string, profile_picture?: string}>>(new Map());
-  const [messageContextMenu, setMessageContextMenu] = useState<{messageId: string, userId?: string, username?: string, x: number, y: number} | null>(null);
+  const [tooltip, setTooltip] = useState<{ username: string, x: number, y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
+  const [userProfiles, setUserProfiles] = useState<Map<string, { username: string, profile_picture?: string }>>(new Map());
+  const [messageContextMenu, setMessageContextMenu] = useState<{ messageId: string, userId?: string, username?: string, x: number, y: number } | null>(null);
   const [showUserBanner, setShowUserBanner] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{userId: string, username: string, isAnonymous?: boolean} | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ userId: string, username: string, isAnonymous?: boolean, x?: number, y?: number } | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [userToReport, setUserToReport] = useState<{userId: string, username: string} | null>(null);
+  const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
   const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
-  
+
   // Mention autocomplete state
-  const [mentionUsers, setMentionUsers] = useState<Array<{id: string, username: string}>>([]);
+  const [roomMembers, setRoomMembers] = useState<Array<{ id: string, username: string }>>([]); // Store base room members
+  const [mentionUsers, setMentionUsers] = useState<Array<{ id: string, username: string }>>([]);
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
+
+  // Debounced global search for mentions
+  useEffect(() => {
+    const searchGlobalUsers = async () => {
+      if (mentionSearch.length < 2) {
+        setMentionUsers(roomMembers);
+        return;
+      }
+
+      try {
+        const response = await api.get(API_ENDPOINTS.USERS.SEARCH, {
+          params: { query: mentionSearch, limit: 5 }
+        });
+
+        if (response.data.success && response.data.data) {
+          const globalUsers = response.data.data.map((u: any) => ({
+            id: u.id,
+            username: u.username,
+            display_name: u.display_name || u.username,
+            profile_picture: u.profile_picture
+          }));
+
+          // Merge room members with global results, avoiding duplicates
+          const existingIds = new Set(roomMembers.map(m => m.id));
+          const newUsers = globalUsers.filter((u: any) => !existingIds.has(u.id));
+
+          setMentionUsers([...roomMembers, ...newUsers]);
+        }
+      } catch (error) {
+        console.error('Failed to search global users:', error);
+      }
+    };
+
+    const timeoutId = setTimeout(searchGlobalUsers, 300);
+    return () => clearTimeout(timeoutId);
+  }, [mentionSearch, roomMembers]);
 
   // Listen for topic_joined event (messages are now loaded via REST API when topic changes)
   useEffect(() => {
@@ -116,9 +154,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       // Compare topic IDs as strings to handle ObjectId conversion
       const receivedTopicId = String(data.topic_id || '');
       const currentTopicId = String(topic.id || '');
-      
+
       console.log('Comparing topic IDs:', { receivedTopicId, currentTopicId, match: receivedTopicId === currentTopicId });
-      
+
       if (receivedTopicId === currentTopicId) {
         setTopicJoined(true);
         setLoading(false);
@@ -137,18 +175,18 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         contentLength: data.content?.length,
         displayName: data.display_name,
       });
-      
+
       const receivedTopicId = String(data.topic_id || '');
       const currentTopicId = String(topic.id || '');
-      
-      console.log('[ChatContainer] Comparing topic IDs:', { 
-        receivedTopicId, 
-        currentTopicId, 
+
+      console.log('[ChatContainer] Comparing topic IDs:', {
+        receivedTopicId,
+        currentTopicId,
         match: receivedTopicId === currentTopicId,
         receivedType: typeof receivedTopicId,
         currentType: typeof currentTopicId,
       });
-      
+
       if (receivedTopicId === currentTopicId) {
         // Check if message already exists (avoid duplicates)
         const messageId = String(data.id || '');
@@ -165,7 +203,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           topic_id: receivedTopicId,
           gif_url: data.gif_url,
         };
-        
+
         console.log('[ChatContainer] Adding message to state:', {
           messageId: message.id,
           contentPreview: message.content.substring(0, 50),
@@ -223,7 +261,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       setLoading(true);
       setTopicJoined(false); // Reset joined status when topic changes
       console.log('Joining topic:', topic.id, topic.title, 'Type:', typeof topic.id);
-      
+
       // Ensure topic.id is a string
       const topicId = String(topic.id);
       if (!topicId || topicId === 'undefined' || topicId === 'null') {
@@ -231,15 +269,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         setLoading(false);
         return;
       }
-      
+
       // Set a timeout to stop loading if topic_joined doesn't arrive
       const timeoutId = setTimeout(() => {
         console.warn('Topic join timeout - topic_joined event not received');
         setLoading(false);
       }, 10000); // 10 second timeout
-      
+
       joinTopic(topicId, useAnonymous, anonymousName || undefined);
-      
+
       // Cleanup timeout on unmount or topic change
       return () => {
         clearTimeout(timeoutId);
@@ -273,7 +311,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       // First, check localStorage for saved state
       const savedState = getAnonymousModeState(currentTopicId);
       const lastName = getLastAnonymousName(currentTopicId);
-      
+
       // If we have a saved state, use it immediately
       if (savedState.isAnonymous) {
         setUseAnonymous(true);
@@ -425,7 +463,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
           console.log('[ChatContainer] Loaded messages:', loadedMessages.length);
           setLocalMessages(loadedMessages);
-          
+
           // Set oldest message ID for pagination
           if (loadedMessages.length > 0) {
             setOldestMessageId(loadedMessages[0].id);
@@ -460,20 +498,33 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Fetch room members for @ mentions
   const fetchRoomMembers = useCallback(async () => {
     if (!topic || !topicJoined || localMessages.length === 0) return;
-    
+
     try {
       // Get the current room ID from the first message
       const currentRoomId = localMessages[0]?.chat_room_id;
       if (!currentRoomId) return;
-      
+
       const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_MEMBERS(currentRoomId));
       if (response.data.success) {
-        setMentionUsers(response.data.data || []);
+        let members = response.data.data || [];
+
+        // Add @todos / @everyone if user is admin or owner
+        const canMentionEveryone = user?.is_admin || (topic && ((topic as any).user_id === user?.id || (topic as any).owner_id === user?.id));
+
+        if (canMentionEveryone) {
+          members = [
+            { id: 'everyone', username: 'todos', display_name: 'Everyone', role: 'system' },
+            ...members
+          ];
+        }
+
+        setRoomMembers(members);
+        setMentionUsers(members);
       }
     } catch (error) {
       console.error('Failed to fetch room members:', error);
     }
-  }, [topic, topicJoined, localMessages]);
+  }, [topic, topicJoined, localMessages, user]);
 
   // Fetch members when room changes or messages load
   useEffect(() => {
@@ -507,7 +558,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     try {
       setLoadingMore(true);
       const topicId = String(topic.id || (topic as any)?._id).trim();
-      
+
       const response = await api.get(API_ENDPOINTS.MESSAGES.TOPIC_MESSAGES(topicId), {
         params: {
           limit: 50,
@@ -535,7 +586,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           setLocalMessages(prev => [...olderMessages, ...prev]);
           setOldestMessageId(olderMessages[0].id);
           setHasMoreMessages(olderMessages.length >= 50);
-          
+
           // Maintain scroll position
           const container = messagesContainerRef.current;
           if (container) {
@@ -582,10 +633,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     // Better topic ID extraction - handle both id and _id
     const topicIdRaw = topic?.id || (topic as any)?._id;
-    
+
     if (!topic || !topicIdRaw) {
-      console.error('Cannot send message: topic or topic.id is missing', { 
-        topic, 
+      console.error('Cannot send message: topic or topic.id is missing', {
+        topic,
         topicId: topicIdRaw,
         topicKeys: topic ? Object.keys(topic) : []
       });
@@ -595,7 +646,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     const topicId = String(topicIdRaw).trim();
     const messageContent = messageInput.trim();
-    
+
     // Validate topic ID format (should be 24 hex characters for MongoDB ObjectId)
     if (!topicId || topicId === 'undefined' || topicId === 'null' || topicId.length !== 24) {
       console.error('[ChatContainer] Invalid topic ID format:', {
@@ -608,7 +659,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       toast.error(t('chat.invalidTopicId'));
       return;
     }
-    
+
     console.log('[ChatContainer] handleSendMessage called:', {
       topicId,
       topicIdType: typeof topicId,
@@ -622,7 +673,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     // If there's both text and GIF, use 'gif' type but include the text content
     let messageType = selectedGifUrl ? 'gif' : 'text';
     let gifUrl: string | undefined = selectedGifUrl || undefined;
-    
+
     // Clear selected GIF after using it
     if (selectedGifUrl) {
       setSelectedGifUrl(null);
@@ -649,7 +700,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         message_type: messageType,
         use_anonymous: useAnonymous,
       };
-      
+
       if (gifUrl) {
         payload.gif_url = gifUrl;
       }
@@ -661,7 +712,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       });
 
       const response = await api.post(API_ENDPOINTS.MESSAGES.CREATE(topicId), payload);
-      
+
       if (response.data.success && response.data.data) {
         const newMessage: Message = {
           id: String(response.data.data.id || response.data.data._id),
@@ -676,7 +727,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           topic_id: topicId,
           gif_url: response.data.data.gif_url || gifUrl,
         };
-        
+
         // Add message to local state immediately
         setLocalMessages(prev => {
           const exists = prev.some(m => m.id === newMessage.id);
@@ -724,7 +775,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     }
 
     const topicId = String(topicIdRaw).trim();
-    
+
     // Validate topic ID format
     if (!topicId || topicId === 'undefined' || topicId === 'null' || topicId.length !== 24) {
       console.error('[ChatContainer] Invalid topic ID format for GIF:', topicId);
@@ -746,7 +797,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       topic_id: topicId,
       gif_url: gifUrl,
     };
-    
+
     // Add temp message to local state immediately
     setLocalMessages(prev => {
       const exists = prev.some(m => m.id === tempMessage.id);
@@ -773,7 +824,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       });
 
       const response = await api.post(API_ENDPOINTS.MESSAGES.CREATE(topicId), payload);
-      
+
       if (response.data.success && response.data.data) {
         const newMessage: Message = {
           id: String(response.data.data.id || response.data.data._id),
@@ -788,7 +839,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           topic_id: topicId,
           gif_url: response.data.data.gif_url || gifUrl,
         };
-        
+
         // Replace temp message with real one
         setLocalMessages(prev => {
           // Remove temp message
@@ -841,7 +892,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
+
       if (seconds < 60) return t('notifications.justNow') || 'Just now';
       if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
       if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
@@ -855,11 +906,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   // Fetch topic members for @ mention autocomplete (legacy - for topic-level mentions)
   const fetchTopicMembers = async () => {
     if (!topic) return;
-    
+
     try {
       const topicId = String(topic.id || (topic as any)?._id);
       const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_MEMBERS(topicId));
-      
+
       if (response.data.success && response.data.data) {
         setMentionUsers(response.data.data.map((member: any) => ({
           id: member.id,
@@ -886,11 +937,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     // Check for @ mention
     const textBeforeCursor = value.substring(0, cursorPos);
     const atIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
       const textAfterAt = textBeforeCursor.substring(atIndex + 1);
       const hasSpaceAfter = textAfterAt.includes(' ');
-      
+
       if (!hasSpaceAfter && /^\w*$/.test(textAfterAt)) {
         setMentionSearch(textAfterAt);
         setMentionCursorPosition(atIndex);
@@ -918,7 +969,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     setMessageInput(newValue);
     setShowMentionDropdown(false);
     setMentionSearch('');
-    
+
     setTimeout(() => {
       const input = document.querySelector('input[type="text"]') as HTMLInputElement;
       if (input) {
@@ -932,13 +983,13 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showMentionDropdown) return;
 
-    const filteredUsers = mentionUsers.filter(u => 
+    const filteredUsers = mentionUsers.filter(u =>
       u.username.toLowerCase().includes(mentionSearch.toLowerCase())
     );
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedMentionIndex((prev) => 
+      setSelectedMentionIndex((prev) =>
         prev < filteredUsers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -983,20 +1034,18 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           {topic.settings.allow_anonymous && (
             <button
               onClick={() => setShowAnonymousSettings(!showAnonymousSettings)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                useAnonymous
-                  ? 'theme-blue-primary text-white'
-                  : 'theme-bg-tertiary theme-text-primary hover:theme-bg-secondary'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${useAnonymous
+                ? 'theme-blue-primary text-white'
+                : 'theme-bg-tertiary theme-text-primary hover:theme-bg-secondary'
+                }`}
             >
               {useAnonymous ? t('chat.anonymous') : t('chat.realName')}
             </button>
           )}
 
           {/* Connection status */}
-          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${
-            connected ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-          }`}>
+          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${connected ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+            }`}>
             <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-yellow-500'}`} />
             <span>{connected ? t('chat.online') : t('chat.reconnecting')}</span>
           </div>
@@ -1036,7 +1085,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       )}
 
       {/* Messages */}
-      <div 
+      <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
@@ -1066,28 +1115,28 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               const currentUsername = (user?.username || '').trim().toLowerCase();
               const messageUsername = (message.sender_username || '').trim().toLowerCase();
               const messageDisplayName = (message.display_name || '').trim();
-              
+
               // Determine if message is from current user
               // Check by user_id first (most reliable), then by username
               const isFromMe = user && (
-                (messageUserId && currentUserId && messageUserId === currentUserId) || 
+                (messageUserId && currentUserId && messageUserId === currentUserId) ||
                 (messageUsername && currentUsername && messageUsername === currentUsername) ||
                 (!message.is_anonymous && messageDisplayName && messageDisplayName.toLowerCase() === currentUsername)
               );
 
               // For anonymous messages from current user, show "Você" instead of anonymous name
-              const displayNameForAnonymous = isFromMe && message.is_anonymous 
+              const displayNameForAnonymous = isFromMe && message.is_anonymous
                 ? t('common.you') || 'Você'
                 : messageDisplayName;
 
               return (
-                <div 
-                  key={message.id} 
+                <div
+                  key={message.id}
                   className={`flex items-start ${isFromMe ? 'justify-end' : 'justify-start'} ${isFromMe ? 'flex-row-reverse' : ''} space-x-3`}
                 >
-                  {message.is_anonymous ? (
+                  {message.is_anonymous && !isFromMe ? (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm">
-                      {isFromMe ? (t('common.you') || 'Você')?.charAt(0).toUpperCase() : messageDisplayName?.charAt(0).toUpperCase() || 'A'}
+                      {messageDisplayName?.charAt(0).toUpperCase() || 'A'}
                     </div>
                   ) : !isFromMe && (
                     <Avatar
@@ -1095,16 +1144,19 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                       username={messageDisplayName}
                       profilePicture={message.user_id ? (userProfiles.get(message.user_id)?.profile_picture || getUserProfilePicture(message.user_id)) : undefined}
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
                         // Don't show banner for anonymous users
                         if (message.is_anonymous && !isFromMe) {
                           return;
                         }
                         if (displayNameForAnonymous) {
+                          const rect = e?.currentTarget?.getBoundingClientRect();
                           setSelectedUser({
                             userId: message.is_anonymous ? '' : (message.user_id || ''),
                             username: displayNameForAnonymous,
-                            isAnonymous: message.is_anonymous && !isFromMe || false
+                            isAnonymous: message.is_anonymous && !isFromMe || false,
+                            x: rect ? rect.right + 10 : undefined,
+                            y: rect ? rect.top : undefined
                           });
                           setShowUserBanner(true);
                         }
@@ -1160,19 +1212,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                   <div className={`max-w-xs lg:max-w-md`}>
                     <div className={`flex items-center space-x-2 mb-1 ${isFromMe ? 'justify-end' : 'justify-start'} flex-wrap`}>
                       <span
-                        className={`text-sm font-medium theme-text-primary ${
-                          message.is_anonymous && !isFromMe ? 'cursor-default' : 'cursor-pointer hover:underline'
-                        }`}
-                        onClick={() => {
-                          // Don't show banner for anonymous users (except own messages which show "Você")
+                        className={`text-sm font-medium theme-text-primary ${message.is_anonymous && !isFromMe ? 'cursor-default' : 'cursor-pointer hover:underline'
+                          }`}
+                        onClick={(e) => {
+                          // Don't show banner for anonymous users
                           if (message.is_anonymous && !isFromMe) {
                             return;
                           }
                           if (displayNameForAnonymous) {
+                            const rect = e.currentTarget.getBoundingClientRect();
                             setSelectedUser({
                               userId: message.is_anonymous ? '' : (message.user_id || ''),
                               username: displayNameForAnonymous,
-                              isAnonymous: message.is_anonymous && !isFromMe || false
+                              isAnonymous: message.is_anonymous && !isFromMe || false,
+                              x: rect.right + 10,
+                              y: rect.top
                             });
                             setShowUserBanner(true);
                           }
@@ -1200,7 +1254,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                         isAdmin={message.is_admin}
                         isOwner={message.is_owner}
                         isModerator={message.is_moderator}
-                        isAnonymous={message.is_anonymous}
+                        isAnonymous={!!message.is_anonymous}
                       />
                       <span className="text-xs theme-text-muted">
                         {formatTimestamp(message.created_at)}
@@ -1248,15 +1302,22 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                               return (
                                 <span
                                   key={idx}
-                                  className="font-semibold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
-                                  onClick={async () => {
+                                  className="font-semibold text-white cursor-pointer hover:underline !bg-transparent"
+                                  style={{ backgroundColor: 'transparent' }}
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     // Fetch user ID and show banner
                                     try {
                                       const response = await api.get(API_ENDPOINTS.USERS.GET_BY_USERNAME(username));
                                       if (response.data.success && response.data.data) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
                                         setSelectedUser({
                                           userId: response.data.data.id,
-                                          username: response.data.data.username
+                                          username: response.data.data.username,
+                                          x: rect.left,
+                                          y: rect.top + 20, // Offset slightly
+                                          isAnonymous: false
                                         });
                                         setShowUserBanner(true);
                                       }
@@ -1264,32 +1325,42 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                                       console.error('Failed to fetch user:', error);
                                     }
                                   }}
-                                  onMouseEnter={(e) => {
-                                    // Only set tooltip if it's not already set for this username
-                                    if (!tooltip || tooltip.username !== username) {
-                                      // Clear any pending timeout
-                                      if (tooltipTimeoutRef.current) {
-                                        clearTimeout(tooltipTimeoutRef.current);
-                                        tooltipTimeoutRef.current = null;
+                                  onMouseEnter={async (e) => {
+                                    // Trigger UserBanner on hover with delay
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    // Use a ref to store the timeout so we can cancel it
+                                    // Reuse existing tooltipTimeoutRef if available, or just set directly
+                                    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+
+                                    tooltipTimeoutRef.current = setTimeout(async () => {
+                                      try {
+                                        const response = await api.get(API_ENDPOINTS.USERS.GET_BY_USERNAME(username));
+                                        if (response.data.success && response.data.data) {
+                                          setSelectedUser({
+                                            userId: response.data.data.id,
+                                            username: response.data.data.username,
+                                            x: rect.left,
+                                            y: rect.top + 20,
+                                            isAnonymous: false
+                                          });
+                                          setShowUserBanner(true);
+                                        }
+                                      } catch (error) {
+                                        console.error('Fetch user failed:', error);
                                       }
-                                      const rect = e.currentTarget.getBoundingClientRect();
-                                      setTooltip({
-                                        username,
-                                        x: rect.left + rect.width / 2,
-                                        y: rect.top,
-                                      });
-                                    }
+                                    }, 500); // 500ms delay for hover
                                   }}
                                   onMouseLeave={() => {
-                                    // Clear any existing timeout
-                                    if (tooltipTimeoutRef.current) {
-                                      clearTimeout(tooltipTimeoutRef.current);
-                                    }
-                                    // Small delay to allow moving to tooltip
+                                    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+                                    // Don't immediately hide UserBanner to allow interaction? 
+                                    // User said "open the userbanner card on hovering... for the same period".
+                                    // Usually this means it auto-closes.
+                                    // Let's add a close timeout.
                                     tooltipTimeoutRef.current = setTimeout(() => {
-                                      setTooltip(null);
-                                      tooltipTimeoutRef.current = null;
-                                    }, 200);
+                                      // Only close if we are not hovering the banner itself (handled by banner logic usually)
+                                      // But for now, simple behavior:
+                                      setShowUserBanner(false);
+                                    }, 300);
                                   }}
                                   onContextMenu={async (e) => {
                                     e.preventDefault();
@@ -1380,39 +1451,18 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               className="w-full px-4 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
               autoComplete="off"
             />
-            
+
             {/* Mention Autocomplete Dropdown */}
             {showMentionDropdown && mentionUsers.length > 0 && (
-              <div className="absolute bottom-full left-0 mb-2 w-64 max-h-60 overflow-y-auto theme-bg-secondary border theme-border rounded-lg shadow-xl z-50">
-                {mentionUsers
-                  .filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))
-                  .slice(0, 10)
-                  .map((user, index) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handleSelectMention(user.username)}
-                      onMouseEnter={() => setSelectedMentionIndex(index)}
-                      className={`w-full px-4 py-2 text-left hover:theme-bg-hover transition-colors flex items-center space-x-2 ${
-                        index === selectedMentionIndex ? 'theme-bg-hover' : ''
-                      }`}
-                    >
-                      <Avatar
-                        userId={user.id}
-                        username={user.username}
-                        size="sm"
-                      />
-                      <span className="theme-text-primary font-medium">{user.username}</span>
-                    </button>
-                  ))}
-                {mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase())).length === 0 && (
-                  <div className="px-4 py-3 text-center theme-text-muted text-sm">
-                    {t('chat.noUsersFound') || 'No users found'}
-                  </div>
-                )}
+              <div className="absolute bottom-full left-0 mb-2 z-50">
+                <MentionList
+                  users={mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))}
+                  selectedIndex={selectedMentionIndex}
+                  onSelect={handleSelectMention}
+                />
               </div>
             )}
-            
+
             {selectedGifUrl && (
               <div className="absolute top-1 right-1">
                 <img src={selectedGifUrl} alt="Selected GIF" className="w-8 h-8 rounded object-cover" />
@@ -1451,21 +1501,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       </div>
 
       {/* User Tooltip */}
-        {tooltip && (
-          <UserTooltip
-            username={tooltip.username}
-            x={tooltip.x}
-            y={tooltip.y}
-            onClose={() => {
-              // Clear timeout when closing
-              if (tooltipTimeoutRef.current) {
-                clearTimeout(tooltipTimeoutRef.current);
-                tooltipTimeoutRef.current = null;
-              }
-              setTooltip(null);
-            }}
-          />
-        )}
+      {tooltip && (
+        <UserTooltip
+          username={tooltip.username}
+          x={tooltip.x}
+          y={tooltip.y}
+          onClose={() => {
+            // Clear timeout when closing
+            if (tooltipTimeoutRef.current) {
+              clearTimeout(tooltipTimeoutRef.current);
+              tooltipTimeoutRef.current = null;
+            }
+            setTooltip(null);
+          }}
+        />
+      )}
 
       {/* User Context Menu */}
       {contextMenu && (
@@ -1546,7 +1596,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         <UserBanner
           userId={selectedUser.userId}
           username={selectedUser.username}
-          isAnonymous={selectedUser.isAnonymous || false}
+          isAnonymous={selectedUser.isAnonymous}
+          x={selectedUser.x}
+          y={selectedUser.y}
           onClose={() => {
             setShowUserBanner(false);
             setSelectedUser(null);

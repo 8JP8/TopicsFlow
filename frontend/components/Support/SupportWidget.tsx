@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
+import TicketDetailsModal from '@/components/Tickets/TicketDetailsModal';
 
 interface Ticket {
     id: string;
@@ -18,6 +19,7 @@ const SupportWidget: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [showCreateTicket, setShowCreateTicket] = useState(false);
     const [showMyTickets, setShowMyTickets] = useState(false);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(false);
     const widgetRef = useRef<HTMLDivElement>(null);
@@ -103,18 +105,22 @@ const SupportWidget: React.FC = () => {
                         ) : recentTickets.length > 0 ? (
                             <div className="divide-y theme-border">
                                 {recentTickets.map(ticket => (
-                                    <div key={ticket.id} className="p-3 hover:theme-bg-tertiary transition-colors cursor-default">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize truncate max-w-[120px] bg-opacity-20">
-                                                <span className={`px-2 py-0.5 rounded-full ${getStatusColor(ticket.status)}`}>
-                                                    {ticket.status.replace('_', ' ')}
-                                                </span>
+                                    <div
+                                        key={ticket.id}
+                                        onClick={() => { setIsOpen(false); setSelectedTicketId(ticket.id); }}
+                                        className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-l-4 border-transparent hover:border-blue-500 group"
+                                    >
+                                        <div className="flex justify-between items-start mb-1.5">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
+                                                {ticket.status.replace('_', ' ')}
                                             </span>
-                                            <span className="text-xs theme-text-muted">
+                                            <span className="text-xs theme-text-muted group-hover:theme-text-primary transition-colors">
                                                 {new Date(ticket.created_at).toLocaleDateString()}
                                             </span>
                                         </div>
-                                        <p className="text-sm theme-text-primary truncate mt-1">{ticket.subject}</p>
+                                        <p className="text-sm theme-text-primary font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            {ticket.subject}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -150,6 +156,12 @@ const SupportWidget: React.FC = () => {
             )}
             {showMyTickets && (
                 <MyTicketsModal onClose={() => setShowMyTickets(false)} />
+            )}
+            {selectedTicketId && (
+                <TicketDetailsModal
+                    ticketId={selectedTicketId}
+                    onClose={() => setSelectedTicketId(null)}
+                />
             )}
         </div>
     );

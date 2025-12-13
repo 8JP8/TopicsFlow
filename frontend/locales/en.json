@@ -53,7 +53,9 @@
     "open": "Open",
     "attachFile": "Attach File",
     "done": "Done",
-    "goBackHome": "[MISSING] Gobackhome"
+    "system": "System",
+    "user": "User",
+    "goBackHome": "Go Back Home"
   },
   "auth": {
     "login": "Login",
@@ -191,9 +193,9 @@
     "actionFailed": "Action failed",
     "userNotFound": "User not found",
     "loadingFailed": "Failed to load user data",
-    "pageNotFound": "[MISSING] Pagenotfound",
-    "pageNotFoundDesc": "[MISSING] Pagenotfounddesc",
-    "whereAreWe": "[MISSING] Wherearewe"
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundDesc": "Looks like this discussion topic doesn't exist yet, or maybe it wandered off into the void.",
+    "whereAreWe": "Where are we?"
   },
   "success": {
     "emailVerified": "Email verified successfully",
@@ -234,7 +236,8 @@
     "newest": "Newest",
     "filterByTags": "Filter by tags:",
     "tryAdjustingFilters": "Try adjusting your filters",
-    "createFirstTopic": "Create the first topic to get started"
+    "createFirstTopic": "Create the first topic to get started",
+    "publicTopic": "Public Topic"
   },
   "profile": {
     "title": "Edit Profile",
@@ -481,32 +484,34 @@
     "followPublicationsHint": "Followpublicationshint",
     "followedSince": "Followedsince",
     "messages": "Messages",
-    "supportWidget": {
-      "title": "Recent Tickets",
-      "noTickets": "No recent tickets found",
-      "createTicket": "Create Ticket",
-      "viewAll": "View All Tickets",
-      "toggleLabel": "Support Button",
-      "toggleDescription": "Show the support button in the header toolbar"
-    },
-    "userMenu": {
-      "settings": "Settings",
-      "logout": "Log Out",
-      "profile": "Profile",
-      "theme": "Theme",
-      "language": "Language",
-      "twoFactorEnabled": "2FA Enabled",
-      "openTicket": "Open Support Ticket",
-      "myTickets": "My Tickets",
-      "anonymousIdentities": "Anonymous Identities",
-      "startTour": "Helper Guide"
-    },
-    "followedPublications": "Followedpublications",
-    "followedChatrooms": "Followedchatrooms",
-    "backToDashboard": "Backtodashboard",
-    "enableBrowserNotifications": "Enablebrowsernotifications",
-    "noFollowedPublications": "Nofollowedpublications"
+    "enableBrowserNotifications": "Enable Browser Notifications",
+    "noFollowedPublications": "No followed publications"
   },
+  "supportWidget": {
+    "title": "Recent Tickets",
+    "noTickets": "No recent tickets found",
+    "createTicket": "Create Ticket",
+    "viewAll": "View All Tickets",
+    "toggleLabel": "Support Button",
+    "toggleDescription": "Show the support button in the header toolbar"
+  },
+  "userMenu": {
+    "settings": "Settings",
+    "logout": "Log Out",
+    "profile": "Profile",
+    "theme": "Theme",
+    "language": "Language",
+    "twoFactorEnabled": "2FA Enabled",
+    "openTicket": "Open Support Ticket",
+    "myTickets": "My Tickets",
+    "anonymousIdentities": "Anonymous Identities",
+    "startTour": "Helper Guide"
+  },
+  "followedPublications": "Followedpublications",
+  "followedChatrooms": "Followedchatrooms",
+  "backToDashboard": "Backtodashboard",
+  "enableBrowserNotifications": "Enablebrowsernotifications",
+  "noFollowedPublications": "Nofollowedpublications",
   "anonymousIdentities": {
     "title": "Anonymous Identities",
     "subtitle": "Manage your anonymous identities across different topics. Each identity is unique to a specific topic.",
@@ -561,6 +566,9 @@
     "newMessageFrom": "New message from {username}",
     "newMessagesFrom": "{count} new messages from {username}",
     "mentionedBy": "You were mentioned by {username} in {topic}",
+    "mentionedInChat": "{username} mentioned you in {roomName}",
+    "mentionedInPost": "{username} mentioned you in {postTitle}",
+    "mentionedYou": "{username} mentioned you",
     "justNow": "Just now",
     "minutesAgo": "{count} min ago",
     "hoursAgo": "{count} h ago",
@@ -771,15 +779,6 @@
     "installInstructions": "To install: Click the install button (⊕) in your browser's address bar",
     "iosInstallInstructions": "To install: Tap the share button (□↑) and select \"Add to Home Screen\"",
     "androidInstallInstructions": "To install: Tap the menu (⋮) and select \"Install app\" or \"Add to Home screen\""
-  },
-  "userMenu": {
-    "profile": "Profile",
-    "openTicket": "Open Support Ticket",
-    "myTickets": "My Tickets",
-    "settings": "Settings",
-    "anonymousIdentities": "Anonymous Identities",
-    "twoFactorEnabled": "2FA Enabled",
-    "logout": "Logout"
   },
   "themes": {
     "title": "Themes",

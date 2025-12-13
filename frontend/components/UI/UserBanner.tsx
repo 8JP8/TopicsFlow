@@ -54,14 +54,14 @@ const UserBanner: React.FC<UserBannerProps> = ({
 
   const fetchUserData = async () => {
     // If anonymous, don't show banner at all - return early
-    if (isAnonymous || (!userId && initialUsername)) {
+    if (isAnonymous || (!userId && initialUsername && initialUsername === 'Anonymous')) {
       setError(null);
       setUser(null);
       setLoading(false);
       return;
     }
 
-    if (!userId) {
+    if (!userId && !initialUsername) {
       setError(t('errors.userNotFound') || 'User not found');
       setLoading(false);
       return;
@@ -69,15 +69,32 @@ const UserBanner: React.FC<UserBannerProps> = ({
 
     try {
       setLoading(true);
-      const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
-      if (response.data.success) {
+      let response;
+
+      if (userId) {
+        response = await api.get(API_ENDPOINTS.USERS.GET(userId));
+      } else if (initialUsername) {
+        response = await api.get(API_ENDPOINTS.USERS.GET_BY_USERNAME(initialUsername));
+      }
+
+      if (response && response.data.success) {
         setUser(response.data.data);
       } else {
         setError(t('errors.userNotFound') || 'User not found');
       }
     } catch (err) {
       console.error('Failed to fetch user data:', err);
-      setError(t('errors.loadingFailed') || 'Failed to load user data');
+      // Fallback: if we have username and it failed, maybe just show username with no extra data?
+      if (!userId && initialUsername) {
+        setUser({
+          id: '',
+          username: initialUsername,
+          created_at: new Date().toISOString(), // Mock date or hide
+        });
+        setError(null);
+      } else {
+        setError(t('errors.loadingFailed') || 'Failed to load user data');
+      }
     } finally {
       setLoading(false);
     }
@@ -111,18 +128,6 @@ const UserBanner: React.FC<UserBannerProps> = ({
 
   // Calculate position
   const hasCoordinates = x !== undefined && y !== undefined;
-  const style: React.CSSProperties = {};
-  if (hasCoordinates) {
-    style.position = 'fixed';
-    style.left = `${x}px`;
-    style.top = `${y}px`;
-    style.zIndex = 9999; // Very high to appear above everything
-  }
-
-  // Don't show banner for anonymous users
-  if (isAnonymous || (!userId && initialUsername)) {
-    return null;
-  }
 
   // Get dynamic colors
   // Ensure we use the same identifier for both to keep them consistent
@@ -130,10 +135,14 @@ const UserBanner: React.FC<UserBannerProps> = ({
   const bannerGradient = getUserBannerGradient(isAnonymous ? undefined : identifier);
   const avatarColor = getUserColorClass(isAnonymous ? undefined : identifier);
 
+  // Avatar styling adjustments
+  // Reduced inset on gray background to make margin narrower
+  const grayCircleClass = "absolute inset-0.5 bg-gray-500 dark:bg-gray-700 rounded-full -z-10";
+
   const content = (
     <div
       className="theme-bg-secondary rounded-lg shadow-xl overflow-hidden w-80 border theme-border"
-      style={style}
+      style={hasCoordinates ? { position: 'absolute', top: y, left: x } : {}}
       onClick={(e) => e.stopPropagation()}
     >
       {loading ? (
@@ -166,7 +175,7 @@ const UserBanner: React.FC<UserBannerProps> = ({
             {onClose && (
               <button
                 onClick={onClose}
-                className="absolute top-2 right-2 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition-colors"
+                className="absolute top-2 right-2 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition-colors z-20"
               >
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -180,7 +189,7 @@ const UserBanner: React.FC<UserBannerProps> = ({
             <div className="absolute -top-12 left-4 z-20">
               <div className="relative">
                 {/* Gray opaque layer behind avatar for transparent PNGs */}
-                <div className="absolute -inset-1 bg-gray-500 dark:bg-gray-700 rounded-full -z-10" />
+                <div className={grayCircleClass} />
                 {!user.id ? (
                   // Anonymous user - show default avatar with initial
                   <div className={`w-20 h-20 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold text-2xl border-4 border-white dark:border-gray-800 shadow-lg relative z-10`}>
@@ -266,19 +275,17 @@ const UserBanner: React.FC<UserBannerProps> = ({
     </div>
   );
 
-  // If no coordinates provided, show as centered modal
-  if (!hasCoordinates) {
-    return (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        onClick={onClose}
-      >
-        {content}
-      </div>
-    );
-  }
-
-  return content;
+  // Return with backdrop if we have coordinates, or as centered modal otherwise
+  // But always use a backdrop to handle outside clicks
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-transparent" // Transparent by default for popup logic, dimmed for modal logic?
+      style={!hasCoordinates ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}
+      onClick={onClose}
+    >
+      {content}
+    </div>
+  );
 };
 
 export default UserBanner;

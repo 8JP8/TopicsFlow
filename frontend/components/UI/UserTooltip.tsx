@@ -8,6 +8,7 @@ interface UserTooltipProps {
   x: number;
   y: number;
   onClose: () => void;
+  onMouseEnter?: (event: React.MouseEvent) => void;
 }
 
 interface UserInfo {
@@ -23,7 +24,7 @@ const userInfoCache = new Map<string, { data: UserInfo; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const pendingRequests = new Map<string, Promise<UserInfo | null>>();
 
-const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose }) => {
+const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose, onMouseEnter }) => {
   const { t } = useLanguage();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,10 +106,10 @@ const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose }) =>
           console.error('Failed to fetch user info:', error);
           if (mountedRef.current) {
             setLoading(false);
-            const errorMessage = error.response?.data?.errors?.[0] || 
-                               error.response?.data?.message || 
-                               error.message || 
-                               t('userTooltip.failedToLoad');
+            const errorMessage = error.response?.data?.errors?.[0] ||
+              error.response?.data?.message ||
+              error.message ||
+              t('userTooltip.failedToLoad');
             setError(errorMessage);
           }
           return null;
@@ -159,6 +160,7 @@ const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose }) =>
       onMouseEnter={(e) => {
         // Keep tooltip open when hovering over it
         e.stopPropagation();
+        onMouseEnter?.(e);
       }}
       onMouseLeave={(e) => {
         // Close when leaving tooltip

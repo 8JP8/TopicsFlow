@@ -260,9 +260,90 @@ export default function Home() {
       setActiveSidebarTab('messages');
     };
 
+    const handleOpenChatRoom = async (event: CustomEvent) => {
+      const { chatRoomId } = event.detail;
+      try {
+        const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET(chatRoomId));
+        if (response.data.success && response.data.data) {
+          const chatRoom = response.data.data;
+          const associatedTopic = topics.find(t => t.id === chatRoom.topic_id);
+
+          if (associatedTopic) {
+            setSelectedTopic(associatedTopic);
+            setSelectedChat(chatRoom);
+            setActiveContentTab('chats');
+            setSelectedPost(null);
+          } else {
+            // If topic not in current list (rare but possible), maybe fetch topic details?
+            // For now, let's try just setting the chat room if we can find topic ID from room data
+            // In the future: fetch topic if missing
+            if (chatRoom.topic_id) {
+              // Fallback: try to find topic in full list not just loaded ones? 
+              // Or trigger a topic load.
+              // For now, assume topic list is loaded or room has enough data
+              // If we can't find the topic locally, we might have issues displaying "Back" correctly or sidebar highlight
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to open chat room from notification", error);
+      }
+    };
+
+    const handleOpenPost = async (event: CustomEvent) => {
+      const { postId } = event.detail;
+      try {
+        // We need to fetch the post to know its topic
+        const response = await api.get(API_ENDPOINTS.POSTS.GET(postId));
+        if (response.data.success && response.data.data) {
+          const post = response.data.data;
+          const associatedTopic = topics.find(t => t.id === post.topic_id);
+
+          if (associatedTopic) {
+            setSelectedTopic(associatedTopic);
+            setSelectedPost(post);
+            setActiveContentTab('posts');
+            setSelectedChat(null);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to open post from notification", error);
+      }
+    };
+
     window.addEventListener('openPrivateMessage', handleOpenPrivateMessage as EventListener);
-    return () => window.removeEventListener('openPrivateMessage', handleOpenPrivateMessage as EventListener);
-  }, []);
+    window.addEventListener('openChatRoom', handleOpenChatRoom as unknown as EventListener);
+    window.addEventListener('openPost', handleOpenPost as unknown as EventListener);
+
+    return () => {
+      window.removeEventListener('openPrivateMessage', handleOpenPrivateMessage as EventListener);
+      window.removeEventListener('openChatRoom', handleOpenChatRoom as unknown as EventListener);
+      window.removeEventListener('openPost', handleOpenPost as unknown as EventListener);
+    };
+  }, [topics]); // Add topics dependency to find associated topic
+
+  // Handle deep linking via query params
+  useEffect(() => {
+    if (!router.isReady || topics.length === 0) return;
+
+    const { chatRoomId, postId } = router.query;
+
+    if (chatRoomId) {
+      // Remove query param to clean URL
+      router.replace('/', undefined, { shallow: true });
+
+      const event = new CustomEvent('openChatRoom', { detail: { chatRoomId } });
+      // Small delay to ensure listeners are ready/state is settled
+      setTimeout(() => window.dispatchEvent(event), 100);
+    } else if (postId) {
+      // Remove query param
+      router.replace('/', undefined, { shallow: true });
+
+      const event = new CustomEvent('openPost', { detail: { postId } });
+      setTimeout(() => window.dispatchEvent(event), 100);
+    }
+  }, [router.isReady, router.query, topics]);
+
 
   // Socket listeners for badge counts
   useEffect(() => {

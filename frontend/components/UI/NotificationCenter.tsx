@@ -265,11 +265,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
       let message = '';
       if (chatRoomName) {
-        message = `${senderUsername} mentioned you on "${chatRoomName}"`;
+        message = t('notifications.mentionedInChat', { username: senderUsername, roomName: chatRoomName }) || `${senderUsername} mentioned you on "${chatRoomName}"`;
       } else if (postTitle) {
-        message = `${senderUsername} mentioned you on "${postTitle}"`;
+        message = t('notifications.mentionedInPost', { username: senderUsername, postTitle: postTitle }) || `${senderUsername} mentioned you on "${postTitle}"`;
       } else {
-        message = `${senderUsername} mentioned you`;
+        message = t('notifications.mentionedYou', { username: senderUsername }) || `${senderUsername} mentioned you`;
       }
 
       const notification: Notification = {
@@ -816,9 +816,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
     aggregated.forEach(notif => {
       let key: string;
 
-      if (notif.type === 'message' && notif.sender_username) {
-        // Group private messages by sender: "1 new message from Guy" or "2 new messages from Guy"
-        key = `message-${notif.data?.from_user_id || notif.sender_username}`;
+      if (notif.type === 'message') {
+        const username = notif.sender_username || notif.data?.sender_username || notif.data?.from_username || 'unknown';
+        key = `message-${notif.data?.from_user_id || username}`;
       } else if (notif.type === 'chatroom_message' && notif.chat_room_id) {
         // Group chatroom messages by room: "1 new message in Room" or "3 new messages in Room"
         key = `chatroom-${notif.chat_room_id}`;
@@ -1019,7 +1019,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                             // Determine avatar props
                             let avatarProps = {
                               userId: 'system',
-                              username: 'System',
+                              username: t('common.system') || 'System',
                               image: null as string | null | undefined
                             };
 
@@ -1042,7 +1042,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                       const event = new CustomEvent('openPrivateMessage', {
                                         detail: {
                                           userId: notification.data.from_user_id,
-                                          username: notification.data.from_username || notification.sender_username || 'User'
+                                          username: notification.data.from_username || notification.sender_username || t('common.user') || 'User'
                                         }
                                       });
                                       window.dispatchEvent(event);
@@ -1063,7 +1063,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       group.notifications.forEach(n => markAsRead(n.id));
-                                      router.push(`/chat-room/${chatRoomId}`);
+                                      const event = new CustomEvent('openChatRoom', {
+                                        detail: { chatRoomId }
+                                      });
+                                      window.dispatchEvent(event);
                                       setIsOpen(false);
                                     }}
                                     className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
@@ -1081,7 +1084,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       group.notifications.forEach(n => markAsRead(n.id));
-                                      router.push(`/post/${postId}`);
+                                      const event = new CustomEvent('openPost', {
+                                        detail: { postId }
+                                      });
+                                      window.dispatchEvent(event);
                                       setIsOpen(false);
                                     }}
                                     className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
@@ -1248,14 +1254,26 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium theme-text-primary truncate">
-                                          {notification.title}
+                                          {t('notifications.youWereMentioned') || notification.title}
                                         </p>
                                         {!notification.read && (
                                           <div className="w-2 h-2 theme-blue-primary rounded-full" />
                                         )}
                                       </div>
                                       <p className="text-xs theme-text-secondary mt-1 whitespace-pre-wrap break-words">
-                                        {notification.message}
+                                        {(() => {
+                                          const senderUsername = notification.sender_username || notification.data?.sender_username || notification.data?.mentioned_by || notification.data?.mentioned_by_username || t('notifications.someone');
+                                          const chatRoomName = notification.data?.chat_room_name || notification.context_name;
+                                          const postTitle = notification.data?.post_title || notification.context_name;
+
+                                          if (notification.data?.chat_room_id && chatRoomName) {
+                                            return t('notifications.mentionedInChat', { username: senderUsername, roomName: chatRoomName });
+                                          } else if (notification.data?.post_id && postTitle) {
+                                            return t('notifications.mentionedInPost', { username: senderUsername, postTitle: postTitle });
+                                          } else {
+                                            return t('notifications.mentionedYou', { username: senderUsername });
+                                          }
+                                        })() || notification.message}
                                       </p>
                                       <div className="flex items-center justify-between mt-2">
                                         <p className="text-xs theme-text-muted">
@@ -1270,7 +1288,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   markAsRead(notification.id);
-                                                  router.push(`/chat-room/${chatRoomId}`);
+                                                  // router.push(`/chat-room/${chatRoomId}`);
+                                                  const event = new CustomEvent('openChatRoom', {
+                                                    detail: { chatRoomId }
+                                                  });
+                                                  window.dispatchEvent(event);
                                                   setIsOpen(false);
                                                 }}
                                                 className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -1288,7 +1310,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   markAsRead(notification.id);
-                                                  router.push(`/post/${postId}`);
+                                                  // router.push(`/post/${postId}`);
+                                                  const event = new CustomEvent('openPost', {
+                                                    detail: { postId }
+                                                  });
+                                                  window.dispatchEvent(event);
                                                   setIsOpen(false);
                                                 }}
                                                 className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -1318,10 +1344,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                   );
                 })()
               )}
-            </div>
+            </div >
 
             {/* View All Button */}
-            <div className="p-3 border-t theme-border bg-theme-bg-tertiary rounded-b-lg">
+            < div className="p-3 border-t theme-border bg-theme-bg-tertiary rounded-b-lg" >
               <button
                 onClick={() => {
                   if (onOpenNotificationsModal) {

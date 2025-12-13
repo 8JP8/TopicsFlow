@@ -3,17 +3,16 @@ import { useSocket } from '@/contexts/SocketContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
+import Avatar from '@/components/UI/Avatar';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
-import GifPicker from '@/components/Chat/GifPicker';
+import UserContextMenu from '@/components/UI/UserContextMenu';
+import FriendsDialog from '@/components/UI/FriendsDialog';
 import ContextMenu from '@/components/UI/ContextMenu';
 import UserTooltip from '@/components/UI/UserTooltip';
-import UserContextMenu from '@/components/UI/UserContextMenu';
 import UserBanner from '@/components/UI/UserBanner';
-import Avatar from '@/components/UI/Avatar';
-import { useUserBanner } from '@/hooks/useUserBanner';
-import { getUserProfilePicture } from '@/hooks/useUserProfile';
-import FriendsDialog from '@/components/UI/FriendsDialog';
+import GifPicker from '@/components/Chat/GifPicker';
 import FriendRequestsButton from '@/components/UI/FriendRequestsButton';
+import { getUserProfilePicture } from '@/hooks/useUserProfile';
 import ReportUserDialog from '@/components/Reports/ReportUserDialog';
 import FileCard from '@/components/UI/FileCard';
 import ImageViewerModal from '@/components/UI/ImageViewerModal';
@@ -87,14 +86,82 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
-  const [tooltip, setTooltip] = useState<{ username: string, x: number, y: number } | null>(null);
-  const { showBanner, bannerPos, selectedUser: bannerUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
+
   const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+
   const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
-  const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Interaction State
+  const [bannerState, setBannerState] = useState<{ userId?: string, username: string, x: number, y: number } | null>(null);
+  const [tooltipState, setTooltipState] = useState<{ username: string, x: number, y: number } | null>(null);
+
+  // Refs for timers
+  const hoverOpenTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const hoverCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = (e: React.MouseEvent, userId: string, username: string) => {
+    // If banner is already open, don't show tooltip
+    if (bannerState) return;
+
+    // Clear any pending close timer (in case moving between mentions)
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+
+    // Set timer to open tooltip after 2 seconds
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+
+    // Calculate position immediately or in timeout? 
+    // In timeout is safer for fresh position, but event is gone. Use rect now.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+
+    hoverOpenTimerRef.current = setTimeout(() => {
+      setTooltipState({ username, x, y });
+    }, 500); // 0.5 second delay
+  };
+
+  const handleMouseLeave = () => {
+    // Cancel open timer if we leave before 2s
+    if (hoverOpenTimerRef.current) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+
+    // Delay closing tooltip to allow moving mouse into it
+    if (tooltipState) {
+      if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = setTimeout(() => {
+        setTooltipState(null);
+      }, 300);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent, userId: string, username: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Clear all hover timers and states
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+    setTooltipState(null);
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    setBannerState({ userId, username, x: rect.left + rect.width / 2, y: rect.top });
+  };
+
+  const handleBannerClose = () => {
+    setBannerState(null);
+  };
+
+  const handleTooltipClose = () => {
+    setTooltipState(null);
+  };
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [areFriends, setAreFriends] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(false);
@@ -439,7 +506,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (error.response?.status !== 404) {
         console.error('Failed to load user info:', error);
       } else {
-        console.warn(`[PrivateMessages] User not found (404) for userId: ${userId}`);
+        // console.warn(`[PrivateMessages] User not found (404) for userId: ${userId}`);
       }
       return { lastLogin: null, isOnline: false };
     }
@@ -1124,34 +1191,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                                 return (
                                   <span
                                     key={partKey}
-                                    className="font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-1 rounded cursor-pointer hover:underline"
-                                    onMouseEnter={(e) => {
-                                      // Only set tooltip if it's not already set for this username
-                                      if (!tooltip || tooltip.username !== username) {
-                                        // Clear any pending timeout
-                                        if (tooltipTimeoutRef.current) {
-                                          clearTimeout(tooltipTimeoutRef.current);
-                                          tooltipTimeoutRef.current = null;
-                                        }
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        setTooltip({
-                                          username,
-                                          x: rect.left + rect.width / 2,
-                                          y: rect.top,
-                                        });
-                                      }
-                                    }}
-                                    onMouseLeave={() => {
-                                      // Clear any existing timeout
-                                      if (tooltipTimeoutRef.current) {
-                                        clearTimeout(tooltipTimeoutRef.current);
-                                      }
-                                      // Small delay to allow moving to tooltip
-                                      tooltipTimeoutRef.current = setTimeout(() => {
-                                        setTooltip(null);
-                                        tooltipTimeoutRef.current = null;
-                                      }, 200);
-                                    }}
+                                    className="font-medium text-white hover:underline cursor-pointer"
+                                    onMouseEnter={(e) => handleMouseEnter(e, '', username)}
+                                    onMouseLeave={handleMouseLeave}
+                                    onClick={(e) => handleClick(e, '', username)}
                                     onContextMenu={async (e) => {
                                       e.preventDefault();
                                       // Fetch user ID from username
@@ -1716,19 +1759,37 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         />
       )}
 
-      {/* User Tooltip */}
-      {tooltip && (
-        <UserTooltip
-          username={tooltip.username}
-          x={tooltip.x}
-          y={tooltip.y}
-          onClose={() => {
-            // Clear timeout when closing
-            if (tooltipTimeoutRef.current) {
-              clearTimeout(tooltipTimeoutRef.current);
-              tooltipTimeoutRef.current = null;
-            }
-            setTooltip(null);
+      {/* User Hover Card / Tooltip */}
+      {tooltipState && (
+        <React.Fragment>
+          {/* Wrapper to Capture Mouse Enter for Tooltip Persistence is pointless if UserTooltip stops propagation. 
+                However, I can pass a custom onClose to UserTooltip that checks timing? 
+                Actually, UserTooltip.tsx has onMouseLeave => onClose. 
+                If I modify UserTooltip to accept onMouseEnter, I can cancel the timer.
+                For now, let's assume I will modify UserTooltip.tsx next. 
+            */}
+          <UserTooltip
+            username={tooltipState.username}
+            x={tooltipState.x}
+            y={tooltipState.y}
+            onClose={() => setTooltipState(null)}
+          />
+        </React.Fragment>
+      )}
+
+      {/* User Banner (Click) */}
+      {bannerState && (
+        <UserBanner
+          userId={bannerState.userId}
+          username={bannerState.username}
+          x={bannerState.x}
+          y={bannerState.y}
+          onClose={handleBannerClose}
+          onSendMessage={(userId, username) => {
+            window.dispatchEvent(new CustomEvent('openPrivateMessage', {
+              detail: { userId, username }
+            }));
+            setBannerState(null);
           }}
         />
       )}
@@ -1787,16 +1848,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         />
       )}
 
-      {/* User Banner */}
-      {showBanner && bannerUser && bannerPos && (
-        <UserBanner
-          userId={bannerUser.userId}
-          username={bannerUser.username}
-          x={bannerPos.x}
-          y={bannerPos.y}
-          onClose={handleClose}
-        />
-      )}
+
 
       {/* Report User Dialog */}
       {showReportDialog && userToReport && (

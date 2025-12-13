@@ -9,7 +9,7 @@ interface AvatarProps {
   profilePicture?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseLeave?: () => void;
@@ -81,7 +81,7 @@ const Avatar: React.FC<AvatarProps> = ({
     >
       {/* Random color background - always visible, even behind images */}
       <div className={`absolute inset-0 ${bgColorClass} rounded-full`} style={{ zIndex: 0 }} />
-      
+
       {normalizedPicture ? (
         <img
           src={normalizedPicture}

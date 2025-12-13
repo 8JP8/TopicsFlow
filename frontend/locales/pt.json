@@ -53,7 +53,9 @@
     "open": "Open",
     "attachFile": "Attachfile",
     "done": "Concluído",
-    "goBackHome": "[MISSING] Gobackhome"
+    "system": "Sistema",
+    "user": "Utilizador",
+    "goBackHome": "Voltar para Início"
   },
   "auth": {
     "login": "Entrar",
@@ -191,9 +193,9 @@
     "actionFailed": "Ação falhou",
     "userNotFound": "Utilizador não encontrado",
     "loadingFailed": "Falha ao carregar dados do utilizador",
-    "pageNotFound": "[MISSING] Pagenotfound",
-    "pageNotFoundDesc": "[MISSING] Pagenotfounddesc",
-    "whereAreWe": "[MISSING] Wherearewe"
+    "pageNotFound": "Página Não Encontrada",
+    "pageNotFoundDesc": "Parece que este tópico de discussão ainda não existe, ou talvez tenha desaparecido no vazio.",
+    "whereAreWe": "Onde estamos?"
   },
   "success": {
     "emailVerified": "Email verificado com sucesso",
@@ -234,7 +236,8 @@
     "newest": "Mais Novo",
     "filterByTags": "Filtrar por tags:",
     "tryAdjustingFilters": "Tente ajustar os seus filtros",
-    "createFirstTopic": "Crie o primeiro tópico para começar"
+    "createFirstTopic": "Crie o primeiro tópico para começar",
+    "publicTopic": "Tópico Público"
   },
   "profile": {
     "title": "Editar Perfil",
@@ -485,27 +488,8 @@
     "enableBrowserNotifications": "Ativar Notificações do Navegador",
     "noFollowedPublications": "Sem publicações seguidas",
     "deleteAccount": "Eliminar Conta",
-    "deleteAccountDesc": "Eliminar permanentemente a sua conta e todos os dados. Esta ação não pode ser desfeita."
-  },
-  "userMenu": {
-    "startTour": "Guia de Ajuda",
-    "settings": "Definições",
-    "logout": "Terminar Sessão",
-    "profile": "Perfil",
-    "theme": "Tema",
-    "language": "Idioma",
-    "twoFactorEnabled": "2FA Ativo",
-    "openTicket": "Abrir Ticket de Suporte",
-    "myTickets": "Os Meus Tickets",
-    "anonymousIdentities": "Identidades Anónimas"
-  },
-  "supportWidget": {
-    "title": "Tickets Recentes",
-    "noTickets": "Nenhum ticket recente encontrado",
-    "createTicket": "Criar Ticket",
-    "viewAll": "Ver Todos os Tickets",
-    "toggleLabel": "Botão de Suporte",
-    "toggleDescription": "Mostrar o botão de suporte na barra de topo"
+    "deleteAccountDesc": "Eliminar permanentemente a sua conta e todos os dados. Esta ação não pode ser desfeita.",
+    "backupCodesWarning": "Guarde estes códigos agora! Cada código pode ser usado apenas uma vez. Guarde-os num local seguro."
   },
   "anonymousIdentities": {
     "title": "Identidades Anónimas",
@@ -561,6 +545,9 @@
     "newMessageFrom": "Nova mensagem de {username}",
     "newMessagesFrom": "{count} novas mensagens de {username}",
     "mentionedBy": "Foi mencionado por {username} em {topic}",
+    "mentionedInChat": "{username} mencionou-o em {roomName}",
+    "mentionedInPost": "{username} mencionou-o em {postTitle}",
+    "mentionedYou": "{username} mencionou-o",
     "justNow": "Agora mesmo",
     "minutesAgo": "há {count} min",
     "hoursAgo": "há {count} h",
@@ -772,6 +759,24 @@
     "iosInstallInstructions": "Para instalar: Toque no botão de partilha (□↑) e selecione \"Adicionar ao Ecrã Inicial\"",
     "androidInstallInstructions": "Para instalar: Toque no menu (⋮) e selecione \"Instalar aplicativo\" ou \"Adicionar ao ecrã inicial\""
   },
+  "userMenu": {
+    "startTour": "Guia de Ajuda",
+    "profile": "Perfil",
+    "openTicket": "Abrir Ticket de Suporte",
+    "myTickets": "Os Meus Tickets",
+    "settings": "Definições",
+    "anonymousIdentities": "Identidades Anónimas",
+    "twoFactorEnabled": "2FA Ativo",
+    "logout": "Terminar Sessão"
+  },
+  "supportWidget": {
+    "title": "Tickets Recentes",
+    "noTickets": "Nenhum ticket recente encontrado",
+    "createTicket": "Criar Ticket",
+    "viewAll": "Ver Todos os Tickets",
+    "toggleLabel": "Botão de Suporte",
+    "toggleDescription": "Mostrar o botão de suporte na barra de topo"
+  },
   "themes": {
     "title": "Temas",
     "createTheme": "Criar Tema",
@@ -805,6 +810,7 @@
     "title": "Publicações",
     "recentPosts": "Publicações Recentes",
     "createPost": "Criar Publicação",
+    "beTheFirst": "Seja o primeiro a iniciar a conversa neste tópico!",
     "followPost": "Seguir Publicação",
     "unfollowPost": "Deixar de Seguir Publicação",
     "enableCommentNotifications": "Ativar notificações de comentários",
@@ -1578,5 +1584,8 @@
     "messagesListDesc": "Selecione uma conversa para começar a conversar.",
     "messageInputTitle": "Enviar Mensagem",
     "messageInputDesc": "Digite a sua mensagem, envie GIFs ou anexe ficheiros aqui."
-  }
+  },
+  "next": "Próximo",
+  "refresh_invitations": "Atualizar convites",
+  "a": "A"
 }

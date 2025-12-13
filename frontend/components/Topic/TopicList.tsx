@@ -339,37 +339,41 @@ const TopicList: React.FC<TopicListProps> = ({
                         </span>
                       )}
                     </div>
-                    {/* Member count and invite button for invite-only topics */}
-                    {topic.settings?.require_approval && (
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs theme-bg-tertiary theme-text-secondary">
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                          </svg>
-                          {topic.member_count} {t('home.members')}
-                        </span>
-                        {topic.user_permission_level >= 1 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowInviteModal(true);
-                              setSelectedTopicForInvite(topic);
-                            }}
-                            className="px-2 py-1 text-xs btn btn-ghost text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-7"
-                          >
-                            <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    {/* Member count or Public status */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs theme-bg-tertiary theme-text-secondary">
+                        {!topic.settings?.require_approval ? (
+                          <>
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {t('topics.inviteUsers') || 'Invite Users'}
-                          </button>
+                            {t('home.publicTopic') || 'Public'}
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            {topic.member_count} {t('home.members')}
+                          </>
                         )}
-                      </div>
-                    )}
+                      </span>
+                      {topic.settings?.require_approval && topic.user_permission_level >= 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowInviteModal(true);
+                            setSelectedTopicForInvite(topic);
+                          }}
+                          className="px-2 py-1 text-xs btn btn-ghost text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-7"
+                        >
+                          <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          {t('topics.inviteUsers') || 'Invite Users'}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Description */}

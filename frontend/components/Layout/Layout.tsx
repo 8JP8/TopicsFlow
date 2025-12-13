@@ -66,6 +66,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             popoverClass: theme === 'dark' ? 'driver-dark-popover' : 'driver-light-popover',
             nextBtnText: t('common.next') || 'Next',
             prevBtnText: t('common.previous') || 'Previous',
+            doneBtnText: t('common.done') || 'Done',
             onDestroyed: () => {
               driverRef.current = null;
             }
