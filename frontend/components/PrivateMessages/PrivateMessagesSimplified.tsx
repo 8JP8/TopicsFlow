@@ -68,6 +68,7 @@ interface GroupChat {
   member_count: number;
   last_activity?: string;
   unread_count?: number;
+  owner_id?: string; // Owner of the group chat
 }
 
 const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
@@ -101,6 +102,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
+  const [groupChatContextMenu, setGroupChatContextMenu] = useState<{ x: number, y: number, groupId: string, groupName: string } | null>(null);
 
   const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
@@ -241,6 +243,18 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   }, [isDraggingDivider]);
 
+  // Close context menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu(null);
+      setGroupChatContextMenu(null);
+    };
+    if (contextMenu || groupChatContextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu, groupChatContextMenu]);
+
   // If expanded message is provided, use it
   useEffect(() => {
     if (expandedMessage) {
@@ -296,6 +310,18 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       }, 30000); // Refresh every 30 seconds
       return () => clearInterval(interval);
     }
+  }, [user]);
+
+  // Real-time updates via socket.io (primary)
+  // Fallback polling every 1 minute as safety net
+  useEffect(() => {
+    if (!user) return;
+
+    const pollInterval = setInterval(() => {
+      loadConversations();
+    }, 60000); // 1 minute fallback
+
+    return () => clearInterval(pollInterval);
   }, [user]);
 
   useEffect(() => {
@@ -463,6 +489,24 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
     // Listen for new group chat messages via Notifications (Global Check)
     const handleNewNotification = (notification: any) => {
+      console.log('[PrivateMessages] Notification received:', notification.type);
+
+      // Handle private message notifications
+      if (notification.type === 'message' && notification.data?.from_user_id) {
+        console.log('[PrivateMessages] Private message notification - refreshing DM list');
+        const fromUserId = String(notification.data.from_user_id);
+        const activeConversationId = String(selectedConversationRef.current || '').trim();
+
+        // Reload the conversation list to get updated last_message and unread counts
+        loadConversations();
+
+        // If viewing this conversation, also reload messages
+        if (activeConversationId === fromUserId) {
+          loadMessages(fromUserId);
+        }
+      }
+
+      // Handle chatroom message notifications
       if (notification.type === 'chatroom_message' && notification.data?.chat_room_id) {
         const chatRoomId = String(notification.data.chat_room_id);
         setGroupChats(prev => prev.map(group => {
@@ -495,12 +539,22 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       console.log('[PrivateMessages] DEBUG WHOAMI:', data);
     });
 
+    // === WINDOW EVENT LISTENERS (Reliable fallback) ===
+    // SocketContext dispatches window events which are more reliable than socket.on
+    const handleWindowPrivateMessage = (event: CustomEvent) => {
+      console.log('[PrivateMessages] Window event new_private_message received');
+      handleNewPrivateMessage(event.detail);
+    };
+
+    window.addEventListener('new_private_message', handleWindowPrivateMessage as EventListener);
+
     return () => {
       socket.off('new_private_message', handleNewPrivateMessage);
       socket.off('private_message_sent', handlePrivateMessageSent);
       socket.off('new_notification', handleNewNotification);
       socket.off('connect', handleConnect);
       socket.off('debug_whoami_response');
+      window.removeEventListener('new_private_message', handleWindowPrivateMessage as EventListener);
     };
   }, [socket, connected, user]);
 
@@ -656,6 +710,27 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     if (!userId || !friends || friends.length === 0) return false;
     const normalizedUserId = String(userId).trim();
     return friends.some(friend => String(friend.id).trim() === normalizedUserId);
+  };
+
+  // Mark conversation as read (for context menu)
+  const handleMarkConversationAsRead = (userId: string) => {
+    if (socket && connected) {
+      socket.emit('mark_messages_read', { from_user_id: userId });
+    }
+    // Optimistically update local state
+    setConversations(prev => prev.map(conv =>
+      conv.user_id === userId ? { ...conv, unread_count: 0 } : conv
+    ));
+    setContextMenu(null);
+  };
+
+  // Mark group chat as read (for context menu)
+  const handleMarkGroupChatAsRead = (groupId: string) => {
+    // Update local state
+    setGroupChats(prev => prev.map(group =>
+      group.id === groupId ? { ...group, unread_count: 0 } : group
+    ));
+    setGroupChatContextMenu(null);
   };
 
   const checkFriendship = async (userId: string) => {
@@ -1631,7 +1706,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          setContextMenu({
+                          setUserContextMenu({
                             x: e.clientX,
                             y: e.clientY,
                             userId: conversation.user_id,
@@ -1735,6 +1810,15 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                       <div
                         key={group.id}
                         onClick={() => handleGroupChatClick(group)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setGroupChatContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            groupId: group.id,
+                            groupName: group.name,
+                          });
+                        }}
                         className="w-full px-4 py-3 flex items-center space-x-3 hover:theme-bg-tertiary transition-colors cursor-pointer"
                       >
                         <div className="relative">
@@ -2124,6 +2208,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           y={userContextMenu.y}
           areFriends={areFriends}
           onClose={() => setUserContextMenu(null)}
+          onMarkAsRead={(userId) => {
+            handleMarkConversationAsRead(userId);
+            setUserContextMenu(null);
+          }}
           onSendMessage={(userId, username) => {
             window.dispatchEvent(new CustomEvent('openPrivateMessage', {
               detail: { userId, username }
@@ -2166,6 +2254,9 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
             }
           }}
+          onSilence={() => {
+            // Submenu in UserContextMenu handles mute API calls directly
+          }}
         />
       )}
 
@@ -2196,6 +2287,119 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           filename={viewingImage.filename}
           onClose={() => setViewingImage(null)}
         />
+      )}
+
+      {/* Group Chat Context Menu */}
+      {groupChatContextMenu && (
+        <div
+          className="fixed z-50 theme-bg-secondary rounded-lg shadow-xl border theme-border py-1 min-w-[180px]"
+          style={{ top: groupChatContextMenu.y, left: groupChatContextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Mark as Read */}
+          <button
+            onClick={() => handleMarkGroupChatAsRead(groupChatContextMenu.groupId)}
+            className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {t('contextMenu.markAsRead') || 'Mark as Read'}
+          </button>
+
+          {/* Silence/Mute with inline submenu */}
+          <div className="relative group/silence">
+            <button
+              className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary flex items-center gap-2 justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+                {t('contextMenu.silenceChat') || 'Silence Chat'}
+              </div>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            {/* Submenu */}
+            <div className="absolute left-full top-0 hidden group-hover/silence:block theme-bg-secondary border theme-border rounded-lg shadow-xl py-1 min-w-[150px] z-50">
+              {[
+                { label: t('mute.15minutes') || '15 minutes', minutes: 15 },
+                { label: t('mute.1hour') || '1 hour', minutes: 60 },
+                { label: t('mute.8hours') || '8 hours', minutes: 480 },
+                { label: t('mute.24hours') || '24 hours', minutes: 1440 },
+                { label: t('mute.forever') || 'Until I unmute', minutes: -1 },
+              ].map((option) => (
+                <button
+                  key={option.minutes}
+                  onClick={async () => {
+                    try {
+                      await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_CHATROOM(groupChatContextMenu.groupId), { minutes: option.minutes });
+                      const duration = option.minutes === -1 ? (t('mute.forever') || 'forever') : option.label;
+                      toast.success(t('mute.success', { name: groupChatContextMenu.groupName, duration }) || `${groupChatContextMenu.groupName} muted for ${duration}`);
+                    } catch (error) {
+                      toast.error(t('mute.error') || 'Failed to mute');
+                    }
+                    setGroupChatContextMenu(null);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t theme-border my-1" />
+
+          {/* Leave Group (for non-owners) or Delete Group (for owners) */}
+          {groupChats.find(g => g.id === groupChatContextMenu.groupId)?.owner_id === user?.id ? (
+            <button
+              onClick={async () => {
+                if (window.confirm(t('chats.confirmDeleteChatroom', { name: groupChatContextMenu.groupName }) || `Are you sure you want to delete "${groupChatContextMenu.groupName}"?`)) {
+                  try {
+                    await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(groupChatContextMenu.groupId));
+                    toast.success(t('chat.chatRoomDeleted') || 'Chat room deleted');
+                    setGroupChats(prev => prev.filter(g => g.id !== groupChatContextMenu.groupId));
+                  } catch (error) {
+                    toast.error(t('chat.failedToDelete') || 'Failed to delete chat room');
+                  }
+                }
+                setGroupChatContextMenu(null);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:theme-bg-tertiary flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {t('contextMenu.deleteChatroom') || 'Delete Chat Room'}
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                if (window.confirm(t('chat.confirmLeave', { name: groupChatContextMenu.groupName }) || `Are you sure you want to leave "${groupChatContextMenu.groupName}"?`)) {
+                  try {
+                    await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(groupChatContextMenu.groupId));
+                    toast.success(t('chat.leftChatroom') || 'Left chat room');
+                    setGroupChats(prev => prev.filter(g => g.id !== groupChatContextMenu.groupId));
+                  } catch (error) {
+                    toast.error(t('chat.failedToLeave') || 'Failed to leave chat room');
+                  }
+                }
+                setGroupChatContextMenu(null);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:theme-bg-tertiary flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {t('chats.leaveGroup') || 'Leave Group'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

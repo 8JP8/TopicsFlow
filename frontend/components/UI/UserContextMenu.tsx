@@ -1,6 +1,8 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { api, API_ENDPOINTS } from '@/utils/api';
+import toast from 'react-hot-toast';
 import ContextMenu from './ContextMenu';
 
 interface UserContextMenuProps {
@@ -14,14 +16,16 @@ interface UserContextMenuProps {
   onReportUser?: (userId: string, username: string) => void;
   onAddFriend?: (userId: string, username: string) => void;
   onRemoveFriend?: (userId: string, username: string) => void;
+  onMarkAsRead?: (userId: string) => void;
+  onSilence?: (userId: string, username: string) => void; // NEW: Open mute menu for DM
   isBlocked?: boolean;
-  areFriends?: boolean; // Whether users are already friends
+  areFriends?: boolean;
   // Chat room management actions (for private chats only)
   onPromoteToModerator?: (userId: string, username: string) => void;
   onKickUser?: (userId: string, username: string) => void;
   isModerator?: boolean;
   isOwner?: boolean;
-  canManage?: boolean; // Whether current user can manage (owner or moderator)
+  canManage?: boolean;
 }
 
 const UserContextMenu: React.FC<UserContextMenuProps> = ({
@@ -35,6 +39,8 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onReportUser,
   onAddFriend,
   onRemoveFriend,
+  onMarkAsRead,
+  onSilence,
   isBlocked = false,
   areFriends = false,
   onPromoteToModerator,
@@ -47,22 +53,76 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   const { user } = useAuth();
   const isCurrentUser = user?.id === userId;
 
-  const items = [
-    {
-      label: t('userContextMenu.sendMessage'),
+  const items = [];
+
+  // Add Mark as Read option first if available
+  if (onMarkAsRead) {
+    items.push({
+      label: t('contextMenu.markAsRead') || 'Mark as Read',
       action: () => {
-        if (onSendMessage) {
-          onSendMessage(userId, username);
-        }
+        onMarkAsRead(userId);
       },
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       ),
-      disabled: !onSendMessage,
+      disabled: false,
+    });
+  }
+
+  // Add Silence option with submenu for duration options
+  if (onSilence) {
+    const handleMute = async (minutes: number) => {
+      try {
+        const response = await api.post(API_ENDPOINTS.USERS.MUTE_CONVERSATION(userId), { minutes });
+        if (response.data.success) {
+          const duration = minutes === -1 ? (t('mute.forever') || 'forever') : `${minutes} ${t('common.minutes') || 'minutes'}`;
+          toast.success(t('mute.success', { name: username, duration }) || `${username} muted for ${duration}`);
+        } else {
+          toast.error(t('mute.error') || 'Failed to mute');
+        }
+      } catch (error) {
+        console.error('Mute error:', error);
+        toast.error(t('mute.error') || 'Failed to mute');
+      }
+    };
+
+    items.push({
+      label: t('contextMenu.silenceChat') || 'Silence Chat',
+      action: () => { }, // Parent item doesn't do anything; submenu handles it
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      ),
+      disabled: false,
+      submenu: [
+        { label: t('mute.15minutes') || '15 minutes', action: () => handleMute(15) },
+        { label: t('mute.1hour') || '1 hour', action: () => handleMute(60) },
+        { label: t('mute.8hours') || '8 hours', action: () => handleMute(480) },
+        { label: t('mute.24hours') || '24 hours', action: () => handleMute(1440) },
+        { label: t('mute.forever') || 'Until I unmute', action: () => handleMute(-1) },
+      ],
+    });
+  }
+
+  // Send Message option
+  items.push({
+    label: t('userContextMenu.sendMessage'),
+    action: () => {
+      if (onSendMessage) {
+        onSendMessage(userId, username);
+      }
     },
-  ];
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+    disabled: !onSendMessage,
+  });
 
   // Only show other options if not current user
   if (!isCurrentUser) {

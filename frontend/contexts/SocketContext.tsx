@@ -161,10 +161,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       },
 
       'new_private_message': (data: any) => {
-        // This will be handled by individual components
-        console.log('New private message received:', data);
+        // Log and show toast
+        console.log('[SocketContext] new_private_message event received:', data);
         if (data.sender_username) {
           toast.success(t('toast.newMessageFrom', { username: data.sender_username }));
+        }
+        // Dispatch window event so components can receive it reliably
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('new_private_message', { detail: data }));
         }
       },
 
@@ -185,7 +189,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
       'private_message_sent': (data: any) => {
         // Confirmation that private message was sent
-        console.log('Private message sent:', data.message_id);
+        console.log('[SocketContext] private_message_sent event received:', data);
+        // Dispatch window event so components can receive it reliably
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('private_message_sent', { detail: data }));
+        }
       },
 
       'error': (data: any) => {

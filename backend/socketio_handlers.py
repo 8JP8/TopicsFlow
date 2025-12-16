@@ -68,17 +68,18 @@ def register_socketio_handlers(socketio):
                 logger.error(f"Authentication error during connect: {auth_error}", exc_info=True)
                 return False
 
-            # Store user connection
+            # Store user connection - ALWAYS use string keys for consistency
             try:
-                connected_users[user_id] = {
+                user_id_str = str(user_id)
+                connected_users[user_id_str] = {
                     'sid': sid,
                     'username': username,
                     'connected_at': datetime.utcnow(),
                     'is_online': True
                 }
                 # Remove from disconnect tracking when user reconnects
-                if user_id in user_last_disconnect:
-                    del user_last_disconnect[user_id]
+                if user_id_str in user_last_disconnect:
+                    del user_last_disconnect[user_id_str]
             except Exception as store_error:
                 logger.error(f"Error storing user connection: {store_error}", exc_info=True)
                 return False
@@ -903,16 +904,32 @@ def register_socketio_handlers(socketio):
                 except Exception as e:
                     logger.error(f"[PRIVATE_MSG] Failed to send self-message as received: {str(e)}")
             else:
-                # Send to receiver (fire-and-forget to their room)
+                # Send to receiver - try SID first for reliable delivery, fallback to room
                 receiver_message = broadcast_message.copy()
                 receiver_message['is_from_me'] = False
-                receiver_room = f"user_{to_user_id}"
-                logger.info(f"[PRIVATE_MSG] Sending to receiver in room {receiver_room}")
-                try:
-                    emit('new_private_message', receiver_message, room=receiver_room)
-                    logger.info(f"[PRIVATE_MSG] Successfully emitted to receiver room")
-                except Exception as e:
-                    logger.error(f"[PRIVATE_MSG] Failed to send to receiver: {str(e)}")
+                
+                # Check if user is connected and get their SID
+                receiver_sid = None
+                to_user_id_str = str(to_user_id)  # Ensure string for consistent lookup
+                if to_user_id_str in connected_users:
+                    receiver_sid = connected_users[to_user_id_str].get('sid')
+                
+                if receiver_sid:
+                    logger.info(f"[PRIVATE_MSG] Sending to receiver via SID: {receiver_sid}")
+                    try:
+                        socketio.emit('new_private_message', receiver_message, to=receiver_sid)
+                        logger.info(f"[PRIVATE_MSG] Successfully emitted to receiver SID")
+                    except Exception as e:
+                        logger.error(f"[PRIVATE_MSG] Failed to send to receiver SID: {str(e)}")
+                else:
+                    # Fallback to room emission
+                    receiver_room = f"user_{to_user_id}"
+                    logger.info(f"[PRIVATE_MSG] Receiver not in connected_users, trying room: {receiver_room}")
+                    try:
+                        socketio.emit('new_private_message', receiver_message, room=receiver_room)
+                        logger.info(f"[PRIVATE_MSG] Successfully emitted to receiver room")
+                    except Exception as e:
+                        logger.error(f"[PRIVATE_MSG] Failed to send to receiver room: {str(e)}")
 
             # Confirm to sender
             try:
