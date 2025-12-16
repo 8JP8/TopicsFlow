@@ -129,7 +129,13 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
         setErrors(response.data.errors || ['Failed to create topic']);
       }
     } catch (error: any) {
-      setErrors(error.response?.data?.errors || ['Failed to create topic']);
+      // Handle 409 Conflict (duplicate topic name)
+      if (error.response?.status === 409) {
+        const errorMsg = error.response?.data?.errors?.[0] || 'A topic with this name already exists';
+        setErrors([errorMsg]);
+      } else {
+        setErrors(error.response?.data?.errors || ['Failed to create topic']);
+      }
     } finally {
       setLoading(false);
     }

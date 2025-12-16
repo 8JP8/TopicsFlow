@@ -161,14 +161,20 @@ def create_topic():
 
         # Create topic
         topic_model = Topic(current_app.db)
-        topic_id = topic_model.create_topic(
-            title=title,
-            description=description,
-            owner_id=user_id,
-            tags=cleaned_tags,
-            allow_anonymous=allow_anonymous,
-            require_approval=require_approval
-        )
+        try:
+            topic_id = topic_model.create_topic(
+                title=title,
+                description=description,
+                owner_id=user_id,
+                tags=cleaned_tags,
+                allow_anonymous=allow_anonymous,
+                require_approval=require_approval
+            )
+        except ValueError as e:
+            # Handle duplicate topic name error
+            error_message = str(e)
+            logger.warning(f"[CREATE_TOPIC] Topic creation failed: {error_message}")
+            return jsonify({'success': False, 'errors': [error_message]}), 409  # 409 Conflict
 
         logger.info(f"[CREATE_TOPIC] Topic created with ID: {topic_id}")
 

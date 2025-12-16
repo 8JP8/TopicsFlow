@@ -343,7 +343,8 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
           display_name: member.display_name,
           profile_picture: member.profile_picture,
           role: member.is_admin ? 'admin' : undefined,
-          is_owner: member.is_owner
+          is_owner: member.is_owner,
+          is_moderator: member.is_moderator
         }));
 
         // Filter for DMs (private, 2 members) - though we already have the list, no need to filter further if backend returns correct members.
@@ -664,7 +665,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                     </svg>
-                    {room.message_count} mensagens
+                    {room.message_count} {room.message_count === 1 ? t('chat.message') : t('chat.messages')}
                   </span>
                 </div>
               </div>

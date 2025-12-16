@@ -44,7 +44,7 @@ def get_user_profile():
 @require_auth()
 @log_requests
 def update_user_profile():
-    """Update current user's profile (username and/or profile picture)."""
+    """Update current user's profile (username, profile picture, banner, country)."""
     try:
         from flask import current_app
         auth_service = AuthService(current_app.db)
@@ -58,9 +58,10 @@ def update_user_profile():
         username = data.get('username')
         profile_picture = data.get('profile_picture')
         banner = data.get('banner')
+        country_code = data.get('country_code')
 
-        if not username and not profile_picture and banner is None:
-            return jsonify({'success': False, 'errors': ['Username, profile picture, or banner required']}), 400
+        if not username and not profile_picture and banner is None and country_code is None:
+            return jsonify({'success': False, 'errors': ['Username, profile picture, banner, or country required']}), 400
 
         user_model = User(current_app.db)
         update_data = {}
@@ -71,6 +72,15 @@ def update_user_profile():
             if existing_user and str(existing_user['_id']) != user_id:
                 return jsonify({'success': False, 'errors': ['Username already taken']}), 400
             update_data['username'] = username
+
+        # Handle country_code update
+        if country_code is not None:
+            if country_code == '' or country_code is None:
+                update_data['country_code'] = None
+            elif len(country_code) == 2:
+                update_data['country_code'] = country_code.upper()
+            else:
+                return jsonify({'success': False, 'errors': ['Invalid country code format']}), 400
 
         if profile_picture is not None:
             if profile_picture:
@@ -1435,6 +1445,7 @@ def get_user_by_username(username):
             'username': user['username'],
             'profile_picture': user.get('profile_picture'),
             'banner': user.get('banner'),
+            'country_code': user.get('country_code'),
             'created_at': user.get('created_at'),
             'last_login': user.get('last_login'),
             'last_seen': last_seen,
@@ -1492,6 +1503,7 @@ def get_user_by_id(user_id):
             'username': user['username'],
             'profile_picture': user.get('profile_picture'),
             'banner': user.get('banner'),
+            'country_code': user.get('country_code'),
             'created_at': user.get('created_at'),
             'last_login': user.get('last_login'),
             'last_seen': last_seen,

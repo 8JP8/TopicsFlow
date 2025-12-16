@@ -1,114 +1,394 @@
+import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Layout from '@/components/Layout/Layout';
 import FeatureCarousel from '@/components/UI/FeatureCarousel';
-import FeaturesDocumentation from '@/components/UI/FeaturesDocumentation';
-import FAQs from '@/components/UI/FAQs';
+import GlobeBackground from '@/components/UI/GlobeBackground';
+import { ChevronDown, Shield, Lock, Users, Globe, MessageCircle, Zap } from 'lucide-react';
+
+interface FAQItem {
+    question: string;
+    answer: string;
+}
 
 export default function About() {
     const { user } = useAuth();
     const { t } = useLanguage();
+    const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+
+    const faqs: FAQItem[] = [
+        {
+            question: t('about.faq.q1') || 'What is TopicsFlow?',
+            answer: t('about.faq.a1') || 'TopicsFlow is a modern discussion platform combining Reddit-style topics with real-time chat rooms, creating a seamless experience for communities.',
+        },
+        {
+            question: t('about.faq.q2') || 'Is TopicsFlow free to use?',
+            answer: t('about.faq.a2') || 'Yes! TopicsFlow is completely free to use. Create an account and start engaging with communities immediately.',
+        },
+        {
+            question: t('about.faq.q3') || 'How do I create a topic?',
+            answer: t('about.faq.a3') || 'Simply log in, navigate to the main page, and click "Create Topic". Fill in your title and content, then publish to the community.',
+        },
+        {
+            question: t('about.faq.q4') || 'Can I remain anonymous?',
+            answer: t('about.faq.a4') || 'Yes! TopicsFlow offers an anonymous mode. Toggle it in your settings to post without revealing your username.',
+        },
+        {
+            question: t('about.faq.q5') || 'How are communities moderated?',
+            answer: t('about.faq.a5') || 'We have a robust ticket system and dedicated moderators. Report inappropriate content and our team will review it promptly.',
+        },
+    ];
 
     return (
-        <Layout>
+        <Layout transparentHeader>
             <Head>
                 <title>{t('about.title') || 'About TopicsFlow - The Future of Discussion'}</title>
                 <meta name="description" content={t('about.metaDescription') || 'TopicsFlow is a modern Reddit-style discussion platform with real-time chat rooms.'} />
             </Head>
 
-            <div className="min-h-screen bg-slate-900 text-white overflow-hidden relative pb-20">
-                {/* Background Elements */}
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                    <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[120px] animate-pulse"></div>
-                    <div className="absolute top-[40%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '3s' }}></div>
-                    <div className="absolute bottom-[-10%] right-[10%] w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+            <div className="min-h-screen bg-slate-950 text-white overflow-hidden relative pb-20">
+                {/* Animated Globe Background */}
+                <GlobeBackground className="z-[2]" />
+
+                {/* Subtle accent glows - behind globe */}
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-[1] pointer-events-none">
+                    <div className="absolute top-[30%] right-[10%] w-[400px] h-[400px] bg-blue-600/5 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-[20%] left-[5%] w-[300px] h-[300px] bg-cyan-600/5 rounded-full blur-[100px]"></div>
                 </div>
 
-                <div className="relative z-10 container mx-auto px-4 pt-20">
+                <div className="relative z-10 container mx-auto px-4 pt-8">
 
                     {/* Hero Section */}
-                    <div className="text-center max-w-5xl mx-auto mb-20">
-                        <h1 className="text-6xl md:text-7xl font-extrabold mb-8 text-white tracking-tight drop-shadow-lg">
-                            {t('common.appName')}
-                        </h1>
-                        <p className="text-xl md:text-3xl text-slate-300 mb-10 leading-relaxed max-w-3xl mx-auto font-light">
+                    <div className="text-center max-w-5xl mx-auto mb-24 mt-24">
+                        <div className="relative inline-block">
+                            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black mb-6 text-white tracking-tight">
+                                <span className="bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent drop-shadow-2xl">
+                                    {t('common.appName')}
+                                </span>
+                            </h1>
+                            {/* Glow effect */}
+                            <div className="absolute -inset-4 bg-blue-500/20 blur-3xl rounded-full -z-10"></div>
+                        </div>
+                        <p className="text-lg sm:text-xl md:text-2xl text-slate-300/90 mb-12 leading-relaxed max-w-3xl mx-auto font-light">
                             {t('about.heroSubtitle') || 'Where conversations flow naturally. A real-time community platform for modern discussions.'}
                         </p>
 
                         {/* CTA Buttons */}
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8">
                             {user ? (
+                                <Link
+                                    href="/"
+                                    className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group"
+                                >
+                                    <span className="mr-2">{t('about.goToDashboard') || 'Go to Dashboard'}</span>
+                                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                </Link>
+                            ) : (
                                 <>
                                     <Link
-                                        href="/"
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group"
+                                        href="/login"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
                                     >
-                                        <span className="mr-2">{t('about.goToDashboard') || 'Go to Dashboard'}</span>
-                                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                        {t('auth.login')} / {t('auth.register')}
                                     </Link>
-                                    <button
-                                        onClick={() => {
-                                            if (typeof window !== 'undefined') {
-                                                localStorage.setItem('start_tour', 'true');
-                                                window.location.href = '/';
-                                            }
-                                        }}
-                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm cursor-pointer"
+                                    <Link
+                                        href="#tour"
+                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm"
                                     >
-                                        {t('about.tour.takeTour') || 'Take a Tour'}
-                                    </button>
+                                        {t('about.takeATour') || 'Take a Tour'}
+                                    </Link>
                                 </>
-                            ) : (
-                                <Link
-                                    href="/login"
-                                    className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
-                                >
-                                    {t('auth.login')} / {t('auth.register')}
-                                </Link>
                             )}
                         </div>
                     </div>
 
                     {/* What is TopicsFlow Section */}
                     <div id="tour" className="mb-32 text-center max-w-4xl mx-auto scroll-mt-24">
-                        <span className="text-blue-400 font-semibold tracking-wider uppercase text-sm mb-4 block">{t('about.tour.discover') || 'Discover the Platform'}</span>
-                        <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">{t('about.tour.redefining') || 'Redefining Online Communities'}</h2>
-                        <p className="text-lg text-slate-300 leading-8">
-                            {t('about.tour.redefiningDesc') || "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface."}
+                        <span className="text-blue-400 font-semibold tracking-wider uppercase text-sm mb-4 block">
+                            {t('about.discover.label') || 'Discover the Platform'}
+                        </span>
+                        <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
+                            {t('about.discover.title') || 'Redefining Online Communities'}
+                        </h2>
+                        <p className="text-lg text-slate-300 leading-8 backdrop-blur-sm bg-slate-900/20 rounded-2xl p-6">
+                            {t('about.discover.description') || "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface."}
                         </p>
+
+                        {/* Stacked Mockup Cards */}
+                        <div className="relative h-[420px] mt-12 flex items-center justify-center">
+                            {/* Chat Layout Card (Back) */}
+                            <div className="absolute w-full max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-4 shadow-2xl transform -rotate-6 translate-x-16 translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-10">
+                                <div className="flex items-center gap-2 mb-3 border-b border-slate-700/50 pb-2">
+                                    <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+                                    <span className="text-slate-400 text-xs font-medium">General Chat</span>
+                                    <span className="ml-auto text-slate-600 text-xs">3 online</span>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-blue-500 shrink-0"></div>
+                                        <div className="bg-slate-800/70 rounded-xl rounded-tl-sm px-3 py-2 max-w-[80%]">
+                                            <p className="text-slate-400 text-xs">Hey everyone! 👋</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-emerald-500 shrink-0"></div>
+                                        <div className="bg-slate-800/70 rounded-xl rounded-tl-sm px-3 py-2 max-w-[80%]">
+                                            <p className="text-slate-400 text-xs">Welcome to the channel!</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 justify-end">
+                                        <div className="bg-blue-600/80 rounded-xl rounded-tr-sm px-3 py-2 max-w-[80%]">
+                                            <p className="text-white text-xs">Thanks! Excited to be here</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex gap-2">
+                                    <div className="flex-1 bg-slate-800/50 rounded-full px-3 py-2 border border-slate-700/50">
+                                        <span className="text-slate-600 text-xs">Type a message...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Reddit Post Card (Front) */}
+                            <div className="absolute w-full max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-5 shadow-2xl transform rotate-3 -translate-x-16 -translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-20">
+                                <div className="flex gap-3">
+                                    {/* Vote buttons */}
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button className="text-slate-500 hover:text-blue-400">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                        </button>
+                                        <span className="text-cyan-400 text-sm font-bold">247</span>
+                                        <button className="text-slate-500 hover:text-red-400">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+                                    </div>
+                                    {/* Post content */}
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-6 h-6 rounded-full bg-purple-500"></div>
+                                            <span className="text-slate-400 text-xs">t/technology</span>
+                                            <span className="text-slate-600 text-xs">• 3h</span>
+                                        </div>
+                                        <h4 className="text-white font-semibold text-sm mb-2">Introducing TopicsFlow: The Future of Online Discussion</h4>
+                                        <div className="space-y-1.5">
+                                            <div className="h-2 w-full bg-slate-800 rounded"></div>
+                                            <div className="h-2 w-full bg-slate-800 rounded"></div>
+                                            <div className="h-2 w-3/4 bg-slate-800 rounded"></div>
+                                        </div>
+                                        <div className="flex items-center gap-4 mt-3 text-slate-500 text-xs">
+                                            <span className="flex items-center gap-1">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                                42
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                                Share
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Feature Carousel Section */}
                     <div className="mb-32">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t('about.tour.everything') || 'Everything You Need'}</h2>
-                            <p className="text-slate-400">{t('about.tour.everythingDesc') || 'Explore the powerful features that make TopicsFlow unique.'}</p>
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                                {t('about.features.title') || 'Everything You Need'}
+                            </h2>
+                            <p className="text-slate-400">
+                                {t('about.features.subtitle') || 'Explore the powerful features that make TopicsFlow unique.'}
+                            </p>
                         </div>
                         <FeatureCarousel />
                     </div>
 
-                    {/* Features Documentation */}
-                    <FeaturesDocumentation />
+                    {/* Trust & Security Section */}
+                    <div className="mb-32 max-w-6xl mx-auto">
+                        <div className="text-center mb-12">
+                            <span className="text-cyan-400 font-semibold tracking-wider uppercase text-sm mb-4 block">
+                                {t('about.trust.label') || 'Trust & Security'}
+                            </span>
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                                {t('about.trust.title') || 'Your Safety is Our Priority'}
+                            </h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 text-center hover:border-blue-500/50 transition-colors">
+                                <div className="w-14 h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                    <Shield className="w-7 h-7 text-blue-400" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {t('about.trust.moderation.title') || 'Active Moderation'}
+                                </h3>
+                                <p className="text-slate-400 text-sm">
+                                    {t('about.trust.moderation.desc') || 'Our dedicated team monitors content and responds to reports within hours.'}
+                                </p>
+                            </div>
+
+                            <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 text-center hover:border-blue-500/50 transition-colors">
+                                <div className="w-14 h-14 bg-cyan-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                    <Lock className="w-7 h-7 text-cyan-400" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {t('about.trust.privacy.title') || 'Privacy First'}
+                                </h3>
+                                <p className="text-slate-400 text-sm">
+                                    {t('about.trust.privacy.desc') || 'Two-factor authentication, anonymous mode, and secure encryption protect your data.'}
+                                </p>
+                            </div>
+
+                            <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 text-center hover:border-blue-500/50 transition-colors">
+                                <div className="w-14 h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                    <Users className="w-7 h-7 text-emerald-400" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {t('about.trust.community.title') || 'Community Guidelines'}
+                                </h3>
+                                <p className="text-slate-400 text-sm">
+                                    {t('about.trust.community.desc') || 'Clear rules and transparent enforcement create a respectful environment for all.'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Detailed Features Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto mb-20 p-8 bg-slate-800/30 rounded-[3rem] border border-slate-700/50 backdrop-blur-sm">
+                        {/* Text Content */}
+                        <div className="flex flex-col justify-center space-y-8 p-4">
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-3 flex items-center">
+                                    <span className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center mr-3 text-sm">✓</span>
+                                    {t('about.features.moderation.title') || 'Advanced Moderation'}
+                                </h3>
+                                <p className="text-slate-400 ml-11">
+                                    {t('about.features.moderation.desc') || 'Our built-in Ticket System ensures community safety. Users can report content or behavior, and moderators have a dedicated dashboard to handle inquiries efficiently.'}
+                                </p>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-3 flex items-center">
+                                    <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mr-3 text-sm">✓</span>
+                                    {t('about.features.sharing.title') || 'Seamless Sharing'}
+                                </h3>
+                                <p className="text-slate-400 ml-11">
+                                    {t('about.features.sharing.desc') || "Share code snippets, images, and files effortlessly. With built-in drag-and-drop attachment support, your technical discussions don't have to be text-only."}
+                                </p>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-3 flex items-center">
+                                    <span className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mr-3 text-sm">✓</span>
+                                    {t('about.features.express.title') || 'Express Yourself'}
+                                </h3>
+                                <p className="text-slate-400 ml-11">
+                                    {t('about.features.express.desc') || "Customize your profile, choose your theme, and find your community. Whether you're anonymous or a known regular, you belong here."}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Visual Card */}
+                        <div className="relative hidden md:flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-cyan-500/10 rounded-2xl blur-xl"></div>
+                            <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500"></div>
+                                    <div>
+                                        <div className="h-2 w-24 bg-slate-700 rounded mb-1"></div>
+                                        <div className="h-2 w-16 bg-slate-800 rounded"></div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="h-2 w-full bg-slate-800 rounded"></div>
+                                    <div className="h-2 w-full bg-slate-800 rounded"></div>
+                                    <div className="h-2 w-3/4 bg-slate-800 rounded"></div>
+                                </div>
+                                <div className="mt-4 flex space-x-2">
+                                    <div className="h-20 w-full bg-slate-800/50 rounded-lg border border-slate-700 border-dashed flex items-center justify-center text-slate-600 text-xs">
+                                        <Globe className="w-6 h-6 mr-2" /> Global Reach
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* FAQs Section */}
-                    <FAQs />
+                    <div className="max-w-3xl mx-auto mb-32">
+                        <div className="text-center mb-12">
+                            <span className="text-blue-400 font-semibold tracking-wider uppercase text-sm mb-4 block">
+                                {t('about.faq.label') || 'FAQ'}
+                            </span>
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                                {t('about.faq.title') || 'Frequently Asked Questions'}
+                            </h2>
+                        </div>
+
+                        <div className="space-y-4">
+                            {faqs.map((faq, index) => (
+                                <div
+                                    key={index}
+                                    className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden transition-all hover:border-slate-600"
+                                >
+                                    <button
+                                        onClick={() => setOpenFAQ(openFAQ === index ? null : index)}
+                                        className="w-full px-6 py-4 text-left flex items-center justify-between"
+                                    >
+                                        <span className="font-semibold text-white">{faq.question}</span>
+                                        <ChevronDown
+                                            className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${openFAQ === index ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    <div
+                                        className={`px-6 overflow-hidden transition-all duration-300 ${openFAQ === index ? 'pb-4 max-h-40' : 'max-h-0'}`}
+                                    >
+                                        <p className="text-slate-400">{faq.answer}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
                 </div>
 
                 {/* Footer */}
-                <footer className="w-full p-8 text-center border-t border-slate-800/50 mt-20">
-                    <p className="text-slate-500 text-sm">
-                        &copy; {new Date().getFullYear()} {t('common.appName')}. {t('about.allRightsReserved') || 'All rights reserved.'}
-                    </p>
-                    <div className="flex justify-center space-x-6 mt-4 opacity-50">
-                        {/* Dummy Social Icons */}
-                        <div className="w-6 h-6 bg-slate-700 rounded-full"></div>
-                        <div className="w-6 h-6 bg-slate-700 rounded-full"></div>
-                        <div className="w-6 h-6 bg-slate-700 rounded-full"></div>
+                <footer className="w-full py-6 px-8 mt-20 relative z-10">
+                    <div className="flex items-center justify-between">
+                        <div className="text-left">
+                            <p className="text-slate-400 text-sm font-medium">João Oliveira 1240369</p>
+                            <p className="text-slate-500 text-xs">RINTE - MEEC ISEP 2025/2026</p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <a
+                                href="https://github.com/8JP8/TopicsFlow"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+                                </svg>
+                                <span className="text-sm">GitHub</span>
+                            </a>
+                            <a
+                                href="https://www.isep.ipp.pt"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="opacity-70 hover:opacity-100 transition-opacity"
+                            >
+                                <img
+                                    src="https://www.isep.ipp.pt/img/LogoIsep.png"
+                                    alt="ISEP"
+                                    className="h-8"
+                                />
+                            </a>
+                        </div>
                     </div>
                 </footer>
+
+
+
             </div>
         </Layout>
     );

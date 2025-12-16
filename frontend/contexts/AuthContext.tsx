@@ -9,6 +9,8 @@ interface User {
   username: string;
   email: string;
   profile_picture?: string;
+  banner?: string;
+  country_code?: string;  // ISO 3166-1 alpha-2 (e.g., 'PT', 'US')
   is_admin?: boolean;
   preferences: {
     theme: 'dark' | 'light';
@@ -65,12 +67,12 @@ export const useAuth = () => {
         login: async (_identifier: string, _totpCode: string) => false,
         loginWithBackupCode: async (_identifier: string, _backupCode: string) => false,
         register: async () => false,
-        logout: () => {},
+        logout: () => { },
         updatePreferences: async () => false,
         changePassword: async () => false,
         regenerateBackupCodes: async () => [],
-        refreshUser: async () => {},
-        updateUser: () => {},
+        refreshUser: async () => { },
+        updateUser: () => { },
       } as AuthContextType;
     }
     throw new Error('useAuth must be used within an AuthProvider');
@@ -91,12 +93,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check authentication status on mount (skip on auth pages)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      // Don't check auth on login/register pages to prevent infinite loops
-      if (path === '/login' || path === '/register') {
-        setLoading(false);
-        return;
-      }
+      // We still want to check auth status even on login/register pages
+      // to allow redirecting to dashboard if already logged in
     }
     checkAuthStatus();
   }, []);
@@ -152,13 +150,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.errors 
-        ? (Array.isArray(error.response.data.errors) 
-            ? error.response.data.errors.join(', ') 
-            : error.response.data.errors)
-        : error.response?.data?.message 
-        ? error.response.data.message
-        : error.message || t('toast.loginFailedTryAgain');
+      const errorMessage = error.response?.data?.errors
+        ? (Array.isArray(error.response.data.errors)
+          ? error.response.data.errors.join(', ')
+          : error.response.data.errors)
+        : error.response?.data?.message
+          ? error.response.data.message
+          : error.message || t('toast.loginFailedTryAgain');
       toast.error(errorMessage);
       return false;
     } finally {
@@ -203,13 +201,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       console.error('Backup code login error:', error);
-      const errorMessage = error.response?.data?.errors 
-        ? (Array.isArray(error.response.data.errors) 
-            ? error.response.data.errors.join(', ') 
-            : error.response.data.errors)
-        : error.response?.data?.message 
-        ? error.response.data.message
-        : error.message || t('toast.loginFailedTryAgain');
+      const errorMessage = error.response?.data?.errors
+        ? (Array.isArray(error.response.data.errors)
+          ? error.response.data.errors.join(', ')
+          : error.response.data.errors)
+        : error.response?.data?.message
+          ? error.response.data.message
+          : error.message || t('toast.loginFailedTryAgain');
       toast.error(errorMessage);
       return false;
     } finally {

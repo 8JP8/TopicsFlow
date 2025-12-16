@@ -903,19 +903,16 @@ def register_socketio_handlers(socketio):
                 except Exception as e:
                     logger.error(f"[PRIVATE_MSG] Failed to send self-message as received: {str(e)}")
             else:
-                # Send to receiver if they're online
-                if to_user_id in connected_users:
-                    receiver_message = broadcast_message.copy()
-                    receiver_message['is_from_me'] = False
-                    receiver_room = f"user_{to_user_id}"
-                    logger.info(f"[PRIVATE_MSG] Sending to receiver in room {receiver_room}")
-                    try:
-                        emit('new_private_message', receiver_message, room=receiver_room)
-                        logger.info(f"[PRIVATE_MSG] Successfully sent to receiver")
-                    except Exception as e:
-                        logger.error(f"[PRIVATE_MSG] Failed to send to receiver: {str(e)}")
-                else:
-                    logger.info(f"[PRIVATE_MSG] Receiver {to_user_id} not online, message saved but not delivered via socket")
+                # Send to receiver (fire-and-forget to their room)
+                receiver_message = broadcast_message.copy()
+                receiver_message['is_from_me'] = False
+                receiver_room = f"user_{to_user_id}"
+                logger.info(f"[PRIVATE_MSG] Sending to receiver in room {receiver_room}")
+                try:
+                    emit('new_private_message', receiver_message, room=receiver_room)
+                    logger.info(f"[PRIVATE_MSG] Successfully emitted to receiver room")
+                except Exception as e:
+                    logger.error(f"[PRIVATE_MSG] Failed to send to receiver: {str(e)}")
 
             # Confirm to sender
             try:
@@ -1184,11 +1181,77 @@ def register_socketio_handlers(socketio):
     # Note: The actual events (new_post, post_upvoted, new_comment, comment_upvoted, 
     # new_chat_room_message, user_mentioned) are emitted from the routes/models,
     # not handled here. These are one-way broadcasts from server to clients.
+    
+    @socketio.on('get_admin_count')
+    def handle_get_admin_count():
+        """Handle request for online admin count."""
+        try:
+            admin_count = get_online_admin_count()
+            emit('admin_online_count', {'count': admin_count})
+            logger.info(f"Sent admin online count: {admin_count}")
+        except Exception as e:
+            logger.error(f"Error getting admin count: {e}")
+            emit('admin_online_count', {'count': 0})
+
+    @socketio.on('debug_whoami')
+    def handle_debug_whoami():
+        """Debug handler to verify user identity and rooms."""
+        try:
+            sid = request.sid
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            
+            user_data = "Anonymous/Not Authenticated"
+            user_id = "None"
+            
+            if current_user_result['success']:
+                user = current_user_result['user']
+                user_id = user['id']
+                user_data = f"{user['username']} ({user_id})"
+            
+            # Get rooms for this SID
+            # Note: flask_socketio doesn't expose rooms(sid) easily in all versions, 
+            # but we can try accessing the room manager or just what we tracked.
+            
+            tracked_rooms = list(user_rooms.get(user_id, set())) if user_id != "None" else []
+            
+            response = {
+                'sid': sid,
+                'user': user_data,
+                'user_id': user_id,
+                'tracked_rooms_in_memory': tracked_rooms,
+                'expected_private_room': f"user_{user_id}" if user_id != "None" else "N/A"
+            }
+            
+            logger.info(f"[DEBUG_WHOAMI] {response}")
+            emit('debug_whoami_response', response)
+            
+        except Exception as e:
+            logger.error(f"Debug whoami error: {e}")
+            emit('error', {'message': f'Debug error: {str(e)}'})
 
 
 def get_online_users_count() -> int:
     """Get count of currently online users."""
     return len([u for u in connected_users.values() if u.get('is_online', False)])
+
+
+def get_online_admin_count() -> int:
+    """Get count of currently online admins."""
+    from flask import current_app
+    from models.user import User
+    
+    try:
+        user_model = User(current_app.db)
+        count = 0
+        for user_id in connected_users:
+            user = user_model.get_user_by_id(user_id)
+            if user and user.get('is_admin', False):
+                count += 1
+        return count
+    except Exception as e:
+        logger.error(f"Error getting online admin count: {e}")
+        return 0
 
 
 def get_user_room_count(user_id: str) -> int:

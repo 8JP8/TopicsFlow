@@ -7,7 +7,7 @@ interface AvatarProps {
   userId?: string;
   username?: string;
   profilePicture?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
   onClick?: (e?: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -16,6 +16,7 @@ interface AvatarProps {
 }
 
 const sizeClasses = {
+  xs: 'w-4 h-4 text-[10px]',
   sm: 'w-6 h-6 text-xs',
   md: 'w-8 h-8 text-sm',
   lg: 'w-10 h-10 text-base',

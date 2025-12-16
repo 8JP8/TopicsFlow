@@ -29,14 +29,14 @@ export const useSocket = () => {
         socket: null,
         connected: false,
         onlineUsers: 0,
-        joinTopic: () => {},
-        leaveTopic: () => {},
-        sendMessage: () => {},
-        sendPrivateMessage: () => {},
-        typingStart: () => {},
-        typingStop: () => {},
-        markMessagesRead: () => {},
-        updateAnonymousName: () => {},
+        joinTopic: () => { },
+        leaveTopic: () => { },
+        sendMessage: () => { },
+        sendPrivateMessage: () => { },
+        typingStart: () => { },
+        typingStop: () => { },
+        markMessagesRead: () => { },
+        updateAnonymousName: () => { },
       } as SocketContextType;
     }
     throw new Error('useSocket must be used within a SocketProvider');
@@ -225,7 +225,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       'user_mentioned': (data: any) => {
         console.log('[SocketContext] user_mentioned event received:', data);
         const contentType = data.content_type || 'message';
-        toast.success(t('mentions.mentionedYou') + ' ' + t(`mentions.in${contentType.charAt(0).toUpperCase() + contentType.slice(1)}`));
+        // toast.success(t('mentions.mentionedYou') + ' ' + t(`mentions.in${contentType.charAt(0).toUpperCase() + contentType.slice(1)}`));
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('user_mentioned', { detail: data }));
         }
@@ -255,6 +255,15 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         console.log('[SocketContext] chat_room_invitation_accepted event received:', data);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('chat_room_invitation_accepted', { detail: data }));
+        }
+      },
+      'topic_invitation': (data: any) => {
+        console.log('[SocketContext] topic_invitation event received:', data);
+        toast.success(t('notifications.invitedToTopic', { topicTitle: data.topic_title || 'a topic' }) || `You've been invited to ${data.topic_title || 'a topic'}`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('topic_invitation', { detail: data }));
+          // Trigger global refresh for invitations (badges, modals)
+          window.dispatchEvent(new CustomEvent('refresh_invitations'));
         }
       },
     };
@@ -330,9 +339,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }
 
     if (!currentTopics.current.has(topicId)) {
-      console.warn('sendMessage: Topic not in currentTopics, attempting to send anyway', { 
-        topicId, 
-        currentTopics: Array.from(currentTopics.current) 
+      console.warn('sendMessage: Topic not in currentTopics, attempting to send anyway', {
+        topicId,
+        currentTopics: Array.from(currentTopics.current)
       });
       // Don't block - let the server handle it
     }

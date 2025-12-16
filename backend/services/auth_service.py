@@ -1,15 +1,64 @@
-from flask import session
+from flask import session, request
 from datetime import datetime, timedelta
 import pyotp
 import secrets
 import random
 import string
 import base64
+import requests
 from models.user import User
 from services.email_service import EmailService
 from services.passkey_service import PasskeyService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def detect_country_from_request() -> str:
+    """Detect user country from IP address and browser language.
+    
+    Returns:
+        ISO 3166-1 alpha-2 country code (e.g., 'PT', 'US') or None
+    """
+    # Try IP geolocation first
+    try:
+        # Get real IP (handle proxies)
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+        
+        # Skip localhost/private IPs
+        if ip and ip not in ('127.0.0.1', 'localhost', '::1') and not ip.startswith('192.168.') and not ip.startswith('10.'):
+            response = requests.get(
+                f'http://ip-api.com/json/{ip}?fields=countryCode',
+                timeout=2
+            )
+            if response.ok:
+                data = response.json()
+                country_code = data.get('countryCode')
+                if country_code:
+                    logger.info(f"Detected country from IP {ip}: {country_code}")
+                    return country_code
+    except Exception as e:
+        logger.warning(f"IP geolocation failed: {e}")
+    
+    # Fallback to browser Accept-Language header
+    try:
+        accept_lang = request.headers.get('Accept-Language', '')
+        if accept_lang:
+            # Parse "pt-PT,pt;q=0.9,en;q=0.8" -> extract region code
+            parts = accept_lang.split(',')[0].split('-')
+            if len(parts) > 1:
+                country = parts[1].upper()
+                if len(country) == 2:
+                    logger.info(f"Detected country from Accept-Language: {country}")
+                    return country
+    except Exception as e:
+        logger.warning(f"Language detection failed: {e}")
+    
+    return None
 
 
 class AuthService:
@@ -52,6 +101,11 @@ class AuthService:
                 phone=phone.strip() if phone else None,
                 security_questions=security_questions or []
             )
+
+            # Detect and save user's country
+            country_code = detect_country_from_request()
+            if country_code:
+                self.user_model.update_country_code(user_id, country_code)
 
             # Generate TOTP QR code data
             qr_data = self.user_model.get_totp_qr_data(user_id)
@@ -132,6 +186,13 @@ class AuthService:
             # Record IP address
             if ip_address:
                 self.user_model.add_ip_address(str(user['_id']), ip_address)
+
+            # Auto-detect country for existing users who don't have it set
+            if not user.get('country_code'):
+                detected_country = detect_country_from_request()
+                if detected_country:
+                    self.user_model.update_country_code(str(user['_id']), detected_country)
+                    logger.info(f"Auto-detected country {detected_country} for user {user['username']} on login")
 
             # Create session
             session['user_id'] = str(user['_id'])
@@ -256,6 +317,7 @@ class AuthService:
                     'phone': user.get('phone'),
                     'profile_picture': user.get('profile_picture'),
                     'banner': user.get('banner'),
+                    'country_code': user.get('country_code'),
                     'preferences': user.get('preferences', {}),
                     'totp_enabled': user.get('totp_enabled', False),
                     'is_admin': user.get('is_admin', False),
@@ -371,7 +433,7 @@ class AuthService:
         }
 
     # Passwordless Authentication Methods
-    def register_user_passwordless(self, username: str, email: str) -> dict:
+    def register_user_passwordless(self, username: str, email: str, lang: str = 'en') -> dict:
         """Register a new user without password (passwordless auth)."""
         validation_errors = []
 
@@ -425,7 +487,8 @@ class AuthService:
             email_result = self.email_service.send_verification_email(
                 email.lower().strip(),
                 username.strip(),
-                verification_code
+                verification_code,
+                lang
             )
 
             if not email_result.get('success'):
@@ -462,7 +525,7 @@ class AuthService:
             'user_id': user_id
         }
 
-    def resend_verification_code(self, user_id: str) -> dict:
+    def resend_verification_code(self, user_id: str, lang: str = 'en') -> dict:
         """Resend email verification code."""
         try:
             user = self.user_model.get_user_by_id(user_id)
@@ -480,7 +543,8 @@ class AuthService:
             email_result = self.email_service.send_verification_email(
                 user['email'],
                 user['username'],
-                verification_code
+                verification_code,
+                lang
             )
 
             if not email_result.get('success'):
@@ -569,6 +633,13 @@ class AuthService:
             if ip_address:
                 self.user_model.add_ip_address(str(user['_id']), ip_address)
 
+            # Auto-detect country for existing users who don't have it set
+            if not user.get('country_code'):
+                detected_country = detect_country_from_request()
+                if detected_country:
+                    self.user_model.update_country_code(str(user['_id']), detected_country)
+                    logger.info(f"Auto-detected country {detected_country} for user {user['username']} on login")
+
             # Create session
             session['user_id'] = str(user['_id'])
             session['username'] = user['username']
@@ -644,7 +715,7 @@ class AuthService:
             return {'success': False, 'errors': ['Login failed. Please try again.']}
 
     # Account Recovery Methods
-    def initiate_recovery_passwordless(self, email: str) -> dict:
+    def initiate_recovery_passwordless(self, email: str, lang: str = 'en') -> dict:
         """Initiate account recovery by sending recovery code to email."""
         if not email or not validate_email(email):
             return {'success': False, 'errors': ['Valid email is required']}
@@ -663,7 +734,8 @@ class AuthService:
             email_result = self.email_service.send_recovery_email(
                 email.lower().strip(),
                 user['username'],
-                recovery_code
+                recovery_code,
+                lang
             )
 
             return {
@@ -763,7 +835,7 @@ class AuthService:
         except Exception as e:
             return {'success': False, 'errors': ['Failed to set recovery code']}
 
-    def verify_user_recovery_code_for_reset(self, email: str, recovery_code: str) -> dict:
+    def verify_user_recovery_code_for_reset(self, email: str, recovery_code: str, lang: str = 'en') -> dict:
         """Verify user recovery code for account recovery (email already verified)."""
         try:
             user = self.user_model.get_user_by_email(email.lower().strip())
@@ -780,7 +852,7 @@ class AuthService:
             qr_data = self.user_model.get_totp_qr_data(user_id)
 
             # Send notification email
-            self.email_service.send_2fa_reset_notification(user['email'], user['username'])
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'], lang)
 
             return {
                 'success': True,

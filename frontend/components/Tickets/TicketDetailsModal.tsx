@@ -157,8 +157,8 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticketId, onClo
                     <div
                       key={msg.id}
                       className={`p-4 rounded-lg ${msg.is_admin
-                          ? 'bg-blue-100 dark:bg-blue-900/30 ml-8'
-                          : 'theme-bg-tertiary mr-8'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 ml-8'
+                        : 'theme-bg-tertiary mr-8'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-2">

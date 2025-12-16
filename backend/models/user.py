@@ -101,7 +101,8 @@ class User:
             'passkey_credentials': [],  # WebAuthn/Passkey credentials for biometric auth
             'blocked_users': [],  # Array of user_ids that this user has blocked
             'active_warning': None,  # Current active warning: {message, warned_at, warned_by, dismissed_at}
-            'warning_history': []  # Array of past warnings
+            'warning_history': [],  # Array of past warnings
+            'country_code': None  # ISO 3166-1 alpha-2 country code (e.g., 'PT', 'US')
         }
 
         result = self.collection.insert_one(user_data)
@@ -192,6 +193,16 @@ class User:
         result = self.collection.update_one(
             {'_id': ObjectId(user_id)},
             {'$set': {'totp_enabled': True}}
+        )
+        return result.modified_count > 0
+
+    def update_country_code(self, user_id: str, country_code: str) -> bool:
+        """Update user's country code."""
+        if not country_code or len(country_code) != 2:
+            return False
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'country_code': country_code.upper()}}
         )
         return result.modified_count > 0
 
@@ -827,6 +838,15 @@ class User:
         
         result = self.collection.delete_one({'_id': ObjectId(user_id)})
         return result.deleted_count > 0
+
+    def set_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:
+        """Set user-defined recovery code (hashed)."""
+        recovery_code_hash = generate_password_hash(recovery_code)
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'user_recovery_code_hash': recovery_code_hash}}
+        )
+        return result.modified_count > 0 or result.matched_count > 0
 
 
 

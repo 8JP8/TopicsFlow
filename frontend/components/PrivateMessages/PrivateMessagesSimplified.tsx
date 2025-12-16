@@ -18,6 +18,7 @@ import FileCard from '@/components/UI/FileCard';
 import ImageViewerModal from '@/components/UI/ImageViewerModal';
 import VideoPlayer from '@/components/UI/VideoPlayer';
 import toast from 'react-hot-toast';
+import GroupChatCreateModal from '@/components/Chat/GroupChatCreateModal';
 
 interface Conversation {
   id: string;
@@ -55,6 +56,18 @@ interface PrivateMessagesSimplifiedProps {
   expandedMessage?: { userId: string, username: string } | null;
   onCloseExpanded?: () => void;
   isExpanded?: boolean;
+  onGroupSelect?: (group: any) => void;
+  unreadGroupCounts?: { [chatId: string]: number };
+}
+
+interface GroupChat {
+  id: string;
+  name: string;
+  description: string;
+  picture?: string;
+  member_count: number;
+  last_activity?: string;
+  unread_count?: number;
 }
 
 const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
@@ -62,6 +75,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   expandedMessage,
   onCloseExpanded,
   isExpanded = false,
+  onGroupSelect,
+  unreadGroupCounts = {},
 }) => {
   const { t } = useLanguage();
   const { socket, connected } = useSocket();
@@ -91,8 +106,17 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showGroupChatCreate, setShowGroupChatCreate] = useState(false);
+  const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
 
   const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
+
+  // Resizable Divider State
+  const [dividerPosition, setDividerPosition] = useState<number>(() => {
+    const saved = localStorage.getItem('messagesDividerPosition');
+    return saved ? parseFloat(saved) : 50; // Default to 50% split
+  });
+  const [isDraggingDivider, setIsDraggingDivider] = useState(false);
 
   // Interaction State
   const [bannerState, setBannerState] = useState<{ userId?: string, username: string, x: number, y: number } | null>(null);
@@ -100,6 +124,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   // Refs for timers
   const hoverOpenTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Safe Socket State Ref for Stable Listeners
+  const selectedConversationRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation || null;
+  }, [selectedConversation]);
   const hoverCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = (e: React.MouseEvent, userId: string, username: string) => {
@@ -169,6 +199,48 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
   const [conversationStatuses, setConversationStatuses] = useState<Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>>(new Map());
 
+  // Divider drag handlers
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingDivider(true);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingDivider) return;
+
+      const container = document.getElementById('messages-container');
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const percentage = (y / rect.height) * 100;
+
+      // Constrain between 20% and 80%
+      const newPosition = Math.max(20, Math.min(80, percentage));
+      setDividerPosition(newPosition);
+      localStorage.setItem('messagesDividerPosition', String(newPosition));
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingDivider(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    if (isDraggingDivider) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDraggingDivider]);
+
   // If expanded message is provided, use it
   useEffect(() => {
     if (expandedMessage) {
@@ -186,6 +258,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       // Load friends first, then conversations will use friends list
       loadFriends().then(() => {
         loadConversations();
+        loadGroupChats();
       });
     }
   }, [user]);
@@ -243,34 +316,20 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         messageId: data.id,
         fromUserId: data.from_user_id,
         toUserId: data.to_user_id,
-        currentUserId: user.id,
-        selectedConversation,
+        currentSelection: selectedConversationRef.current
       });
 
-      // Check if this message is for the currently selected conversation
-      // Ensure all comparisons use String() to avoid type coercion issues
       const fromUserId = String(data.from_user_id || '').trim();
-      const toUserId = String(data.to_user_id || '').trim();
-      const currentUserId = String(user.id || '').trim();
-      const selectedUserId = String(selectedConversation || '').trim();
+      const currentUserId = String(user?.id || '').trim();
 
-      // Message is for current conversation if:
-      // - It's from the selected user (they sent it to me)
-      // - Or it's to the selected user (I sent it to them)
-      // - Or it's a self-message (from me to me)
-      const isForCurrentConversation = selectedConversation && (
-        (fromUserId === selectedUserId && toUserId === currentUserId) ||
-        (toUserId === selectedUserId && fromUserId === currentUserId) ||
-        (fromUserId === currentUserId && toUserId === currentUserId && selectedUserId === currentUserId)
+      // Use REF for current selection to avoid stale closures
+      const activeConversationId = String(selectedConversationRef.current || '').trim();
+
+      // Check if message is for current conversation
+      const isForCurrentConversation = activeConversationId && (
+        fromUserId === activeConversationId ||
+        (String(data.to_user_id).trim() === activeConversationId && fromUserId === currentUserId)
       );
-
-      console.log('[PrivateMessages] Message check:', {
-        isForCurrentConversation,
-        fromUserId,
-        toUserId,
-        currentUserId,
-        selectedUserId,
-      });
 
       if (isForCurrentConversation) {
         const newMessage: Message = {
@@ -282,44 +341,72 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           sender_username: data.sender_username || t('privateMessages.unknown'),
           gif_url: data.gif_url,
         };
-        console.log('[PrivateMessages] Adding message to current conversation:', {
-          messageId: newMessage.id,
-          isFromMe: newMessage.is_from_me,
-        });
+
         setMessages(prev => {
-          // Check for duplicates
           const exists = prev.some(m => m.id === newMessage.id);
-          if (exists) {
-            console.log('[PrivateMessages] Message already exists, skipping');
-            return prev;
-          }
+          if (exists) return prev;
           return [...prev, newMessage];
         });
+
+        if (socket && connected) {
+          socket.emit('mark_messages_read', { from_user_id: fromUserId });
+        }
       }
 
-      // Reload conversations to update unread count and sort by most recent
-      loadConversations();
+      // Optimistic update for conversation list
+      setConversations(prev => {
+        const fromId = String(data.from_user_id || '').trim();
+        const existingConvIndex = prev.findIndex(c => String(c.user_id).trim() === fromId);
+
+        console.log('[PrivateMessages] Updating conversations list:', {
+          activeConversationId,
+          fromId,
+          match: activeConversationId === fromId,
+          existingIndex: existingConvIndex
+        });
+
+        let newConvList = [...prev];
+        if (existingConvIndex >= 0) {
+          const conv = newConvList[existingConvIndex];
+          const currentUnread = Number(conv.unread_count || 0);
+          const newUnread = activeConversationId === fromId ? 0 : currentUnread + 1;
+
+          console.log('[PrivateMessages] Incrementing unread:', {
+            prev: currentUnread,
+            new: newUnread
+          });
+
+          newConvList.splice(existingConvIndex, 1);
+          newConvList.unshift({
+            ...conv,
+            last_message: {
+              id: String(data.id),
+              content: data.content,
+              created_at: data.created_at,
+              is_from_me: false
+            },
+            unread_count: newUnread
+          });
+        } else {
+          console.log('[PrivateMessages] New conversation detected, reloading...');
+          loadConversations();
+          return newConvList;
+        }
+        return newConvList;
+      });
     };
 
     const handlePrivateMessageSent = (data: any) => {
-      console.log('[PrivateMessages] Private message sent confirmation:', {
-        messageId: data.id,
-        fromUserId: data.from_user_id,
-        toUserId: data.to_user_id,
-        selectedConversation,
-      });
-      // If this is for the current conversation, add it to messages
-      // Ensure all comparisons use String() and trim() to avoid type coercion issues
+      // Use REF for current selection
+      const activeConversationId = String(selectedConversationRef.current || '').trim();
       const toUserId = String(data.to_user_id || '').trim();
       const fromUserId = String(data.from_user_id || '').trim();
       const currentUserId = String(user?.id || '').trim();
-      const selectedUserId = String(selectedConversation || '').trim();
 
-      // Check if message is for current conversation (including self-messages)
-      const isForCurrentConversation = selectedConversation && (
-        toUserId === selectedUserId ||
-        fromUserId === selectedUserId ||
-        (fromUserId === currentUserId && toUserId === currentUserId && selectedUserId === currentUserId)
+      const isForCurrentConversation = activeConversationId && (
+        toUserId === activeConversationId ||
+        fromUserId === activeConversationId ||
+        (fromUserId === currentUserId && toUserId === currentUserId && activeConversationId === currentUserId)
       );
 
       if (isForCurrentConversation) {
@@ -344,18 +431,78 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         });
       }
 
-      // Reload conversations to update order
-      loadConversations();
+      // Optimistic update for conversation list (Outgoing)
+      setConversations(prev => {
+        const toId = String(data.to_user_id || '').trim();
+        const existingConvIndex = prev.findIndex(c => String(c.user_id).trim() === toId);
+
+        let newConvList = [...prev];
+        if (existingConvIndex >= 0) {
+          const conv = newConvList[existingConvIndex];
+          // Update existing conversation
+          newConvList.splice(existingConvIndex, 1);
+          newConvList.unshift({
+            ...conv,
+            last_message: {
+              id: String(data.id),
+              content: data.content,
+              created_at: data.created_at,
+              is_from_me: true
+            },
+            // Do not change unread count for outgoing messages
+          });
+        }
+        return newConvList;
+      });
+
+      // REMOVED: loadConversations() to prevent UI jitter/stale data
     };
 
     socket.on('new_private_message', handleNewPrivateMessage);
     socket.on('private_message_sent', handlePrivateMessageSent);
 
+    // Listen for new group chat messages via Notifications (Global Check)
+    const handleNewNotification = (notification: any) => {
+      if (notification.type === 'chatroom_message' && notification.data?.chat_room_id) {
+        const chatRoomId = String(notification.data.chat_room_id);
+        setGroupChats(prev => prev.map(group => {
+          if (group.id === chatRoomId) {
+            return {
+              ...group,
+              unread_count: (group.unread_count || 0) + 1
+            };
+          }
+          return group;
+        }));
+      }
+    };
+
+
+
+    // Requested: Sync on connect
+    const handleConnect = () => {
+      console.log('[PrivateMessages] Reconnected - syncing messages...');
+      loadConversations();
+      loadGroupChats();
+    };
+
+    socket.on('new_notification', handleNewNotification);
+    socket.on('connect', handleConnect);
+
+    // Debug: Check who I am according to server
+    socket.emit('debug_whoami');
+    socket.on('debug_whoami_response', (data: any) => {
+      console.log('[PrivateMessages] DEBUG WHOAMI:', data);
+    });
+
     return () => {
       socket.off('new_private_message', handleNewPrivateMessage);
       socket.off('private_message_sent', handlePrivateMessageSent);
+      socket.off('new_notification', handleNewNotification);
+      socket.off('connect', handleConnect);
+      socket.off('debug_whoami_response');
     };
-  }, [socket, connected, user, selectedConversation]);
+  }, [socket, connected, user]);
 
   const loadConversations = async () => {
     try {
@@ -402,6 +549,61 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       console.error('Failed to load conversations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGroupChats = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.LIST_GROUP);
+      if (response.data.success) {
+        let loadedGroups: GroupChat[] = response.data.data || [];
+
+        // Merge with initial unread counts if available
+        if (unreadGroupCounts && Object.keys(unreadGroupCounts).length > 0) {
+          loadedGroups = loadedGroups.map(group => ({
+            ...group,
+            unread_count: unreadGroupCounts[group.id] || group.unread_count || 0
+          }));
+        }
+
+        setGroupChats(loadedGroups);
+      }
+    } catch (error) {
+      console.error('Failed to load group chats:', error);
+    }
+  };
+
+  // Sync with unreadGroupCounts prop changes
+  useEffect(() => {
+    if (Object.keys(unreadGroupCounts || {}).length > 0 && groupChats.length > 0) {
+      setGroupChats(prev => prev.map(group => {
+        const propCount = unreadGroupCounts?.[group.id];
+        // Only update if prop has a value and it's different/greater
+        if (propCount !== undefined && propCount !== group.unread_count) {
+          return { ...group, unread_count: propCount };
+        }
+        return group;
+      }));
+    }
+  }, [unreadGroupCounts]);
+
+  const handleGroupCreated = (newGroup: any) => {
+    setGroupChats(prev => [newGroup, ...prev]);
+    // Notify parent to open the new group chat
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('openChatRoom', { detail: { chatRoomId: newGroup.id } }));
+    }
+  };
+
+  const handleGroupChatClick = (group: any) => {
+    // If prop is provided, let parent handle it (preferred for split view)
+    if (onGroupSelect) {
+      onGroupSelect(group);
+    } else {
+      // Fallback to global event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('openChatRoom', { detail: { chatRoomId: group.id } }));
+      }
     }
   };
 
@@ -1368,119 +1570,238 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </button>
-                <button
-                  onClick={() => setShowAddFriendModal(true)}
-                  className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
-                  title={t('privateMessages.startNewConversation')}
-                >
-                  <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
 
-          {/* Conversations List */}
-          <div id="conversations-list" className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 h-full">
-                <svg className="w-16 h-16 theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <h3 className="text-lg font-medium theme-text-primary mb-2">
-                  {t('privateMessages.noConversations')}
+
+          <div id="messages-container" className="flex-1 flex flex-col overflow-hidden">
+            {/* Private Messages Section */}
+            <div
+              className="flex flex-col overflow-hidden"
+              style={{ height: `${dividerPosition}%` }}
+            >
+              <div className="px-4 py-2 mt-2 flex items-center justify-between flex-shrink-0">
+                <h3 className="text-xs font-semibold theme-text-secondary uppercase tracking-wider">
+                  {t('privateMessages.directMessages') || 'Direct Messages'}
                 </h3>
-                <p className="theme-text-secondary text-center mb-6">
-                  {t('privateMessages.startNewConversation')}
-                </p>
                 <button
                   onClick={() => setShowAddFriendModal(true)}
-                  className="px-4 py-2 btn btn-primary"
+                  className="p-1 hover:theme-bg-tertiary rounded-full transition-colors"
+                  title={t('privateMessages.startNewConversation')}
                 >
-                  <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  <svg className="w-4 h-4 theme-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  {t('privateMessages.startNewConversation')}
                 </button>
               </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation.user_id}
-                    onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        userId: conversation.user_id,
-                        username: conversation.username,
-                      });
-                    }}
-                    className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
-                  >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <Avatar
-                        userId={conversation.user_id}
-                        username={conversation.username}
-                        size="md"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium theme-text-primary truncate">{conversation.username}</h4>
-                          {(() => {
-                            const status = conversationStatuses.get(conversation.user_id);
-                            if (!status) return null;
-                            const { isOnline, lastLogin, areFriends } = status;
-                            if (!areFriends) return null;
-                            if (isOnline) {
-                              return (
-                                <span className="text-xs text-green-500 flex items-center gap-1 flex-shrink-0">
-                                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                  {t('privateMessages.online') || 'Online'}
+
+              {/* Conversations List */}
+              <div id="conversations-list">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <LoadingSpinner size="lg" />
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8">
+                    <svg className="w-16 h-16 theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
+                    </svg>
+                    <h3 className="text-lg font-medium theme-text-primary mb-2">
+                      {t('privateMessages.noConversations')}
+                    </h3>
+                    <p className="theme-text-secondary text-center mb-6">
+                      {t('privateMessages.startConversationHint') || 'Search for users to start a conversation'}
+                    </p>
+                    <button
+                      onClick={() => setShowAddFriendModal(true)}
+                      className="px-4 py-2 btn btn-primary"
+                    >
+                      <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      {t('privateMessages.startNewConversation')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1 p-2">
+                    {conversations.map((conversation) => (
+                      <div
+                        key={conversation.user_id}
+                        onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            userId: conversation.user_id,
+                            username: conversation.username,
+                          });
+                        }}
+                        className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
+                      >
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <Avatar
+                            userId={conversation.user_id}
+                            username={conversation.username}
+                            size="md"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium theme-text-primary truncate">{conversation.username}</h4>
+                              {(() => {
+                                const status = conversationStatuses.get(conversation.user_id);
+                                if (!status) return null;
+                                const { isOnline, lastLogin, areFriends } = status;
+                                if (!areFriends) return null;
+                                if (isOnline) {
+                                  return (
+                                    <span className="text-xs text-green-500 flex items-center gap-1 flex-shrink-0">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                      {t('privateMessages.online') || 'Online'}
+                                    </span>
+                                  );
+                                }
+                                if (lastLogin && formatLastSeen(lastLogin)) {
+                                  return (
+                                    <span className="text-xs theme-text-muted flex-shrink-0">
+                                      {formatLastSeen(lastLogin)}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <p className="text-sm theme-text-secondary truncate flex-1 min-w-0">
+                                {conversation.last_message?.is_from_me ? `${t('common.you')}: ` : ''}
+                                {conversation.last_message?.content || t('privateMessages.noMessages')}
+                              </p>
+                              {conversation.last_message?.created_at && (
+                                <span className="text-xs theme-text-muted flex-shrink-0 whitespace-nowrap">
+                                  {formatTimestamp(conversation.last_message.created_at)}
                                 </span>
-                              );
-                            }
-                            if (lastLogin && formatLastSeen(lastLogin)) {
-                              return (
-                                <span className="text-xs theme-text-muted flex-shrink-0">
-                                  {formatLastSeen(lastLogin)}
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()}
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <p className="text-sm theme-text-secondary truncate flex-1 min-w-0">
-                            {conversation.last_message?.is_from_me ? `${t('common.you')}: ` : ''}
-                            {conversation.last_message?.content || t('privateMessages.noMessages')}
-                          </p>
-                          {conversation.last_message?.created_at && (
-                            <span className="text-xs theme-text-muted flex-shrink-0 whitespace-nowrap">
-                              {formatTimestamp(conversation.last_message.created_at)}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {conversation.unread_count > 0 && (
+                            <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full">
+                              {conversation.unread_count}
                             </span>
                           )}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {conversation.unread_count > 0 && (
-                        <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full">
-                          {conversation.unread_count}
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Resizable Divider */}
+            <div
+              className={`h-1 border-t theme-border cursor-row-resize hover:bg-blue-500 hover:border-transparent transition-colors ${isDraggingDivider ? 'bg-blue-500 border-transparent' : ''
+                }`}
+              onMouseDown={handleDividerMouseDown}
+              style={{ userSelect: 'none' }}
+            />
+
+            {/* Group Chats Section */}
+            <div
+              className="flex flex-col overflow-hidden"
+              style={{ height: `${100 - dividerPosition}%` }}
+            >
+              <div className="px-4 py-2 flex items-center justify-between flex-shrink-0">
+
+                <h3 className="text-xs font-semibold theme-text-secondary uppercase tracking-wider">
+                  {t('chats.groupChats') || 'Group Chats'}
+                </h3>
+                <button
+                  onClick={() => setShowGroupChatCreate(true)}
+                  className="p-1 hover:theme-bg-tertiary rounded-full transition-colors"
+                  title={t('chats.createGroup') || 'Create Group'}
+                >
+                  <svg className="w-4 h-4 theme-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {groupChats.length > 0 ? (
+                  <div>
+                    {groupChats.map(group => (
+                      <div
+                        key={group.id}
+                        onClick={() => handleGroupChatClick(group)}
+                        className="w-full px-4 py-3 flex items-center space-x-3 hover:theme-bg-tertiary transition-colors cursor-pointer"
+                      >
+                        <div className="relative">
+                          {group.picture ? (
+                            <img src={group.picture} alt={group.name} className="w-10 h-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold">
+                              {group.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <div className="flex items-center gap-2 min-w-0 overflow-hidden mr-2">
+                              <h4 className="text-sm font-semibold theme-text-primary truncate">{group.name}</h4>
+
+                              {/* Consolidated Unread Count Bubble */}
+                              {group.unread_count && group.unread_count > 0 && (
+                                <div className="relative flex items-center justify-center">
+                                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-bounce-in flex-shrink-0 min-w-[18px] text-center shadow-sm">
+                                    {group.unread_count > 99 ? '99+' : group.unread_count}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {group.last_activity && (
+                              <span className="text-[10px] theme-text-muted flex-shrink-0">
+                                {formatTimestamp(group.last_activity)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs theme-text-secondary truncate mr-2">
+                              {group.description || t('chats.noDescription')}
+                            </p>
+                            <span className="text-[10px] theme-text-muted whitespace-nowrap">
+                              {group.member_count} {group.member_count === 1 ? (t('chats.member') || 'Member') : (t('chats.members') || 'Members')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8">
+                    <svg className="w-16 h-16 theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <h3 className="text-lg font-medium theme-text-primary mb-2">
+                      {t('chats.noGroupChats') || 'No group chats yet'}
+                    </h3>
+                    <p className="theme-text-secondary text-center mb-6">
+                      {t('chats.startGroupHint') || 'Create a new group to start chatting with friends'}
+                    </p>
+                    <button
+                      onClick={() => setShowGroupChatCreate(true)}
+                      className="px-4 py-2 btn btn-primary"
+                    >
+                      <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      {t('chats.createGroup') || 'Create Group'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1848,8 +2169,6 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         />
       )}
 
-
-
       {/* Report User Dialog */}
       {showReportDialog && userToReport && (
         <ReportUserDialog
@@ -1860,6 +2179,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             setUserToReport(null);
           }}
           includeMessageHistory={true}
+        />
+      )}
+
+      {showGroupChatCreate && (
+        <GroupChatCreateModal
+          onClose={() => setShowGroupChatCreate(false)}
+          onGroupCreated={handleGroupCreated}
         />
       )}
 

@@ -67,6 +67,101 @@ def get_topic_conversations(topic_id):
         return jsonify({'success': False, 'errors': [f'Failed to get chat rooms: {str(e)}']}), 500
 
 
+@chat_rooms_bp.route('/group', methods=['POST'])
+@require_json
+@require_auth()
+@log_requests
+def create_group_chat():
+    """Create a new group chat (no topic)."""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        invited_users = data.get('invited_users', [])  # List of user IDs
+        
+        if not name:
+            return jsonify({'success': False, 'errors': ['Group chat name is required']}), 400
+
+        if len(name) > 100:
+            return jsonify({'success': False, 'errors': ['Name must be 100 characters or less']}), 400
+
+        if len(description) > 500:
+            return jsonify({'success': False, 'errors': ['Description must be 500 characters or less']}), 400
+
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        chat_room_model = ChatRoom(current_app.db)
+        
+        # Check for unique name globally for group chats
+        if not chat_room_model.check_name_unique(name, topic_id=None):
+             return jsonify({'success': False, 'errors': ['A group chat with this name already exists']}), 409
+
+        # Create group chat
+        room_id = chat_room_model.create_chat_room(
+            topic_id=None,
+            name=name,
+            description=description,
+            owner_id=user_id,
+            is_public=False, # Group chats are private by default usually, or invite only
+            tags=[],
+            picture=data.get('picture'),
+            background_picture=data.get('background_picture')
+        )
+
+        # Invite users
+        if invited_users:
+            for invited_id in invited_users:
+                if invited_id != user_id:
+                    try:
+                        chat_room_model.invite_user(room_id, invited_id, user_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to invite user {invited_id} to group chat {room_id}: {str(e)}")
+
+        # Get created chat room
+        new_room = chat_room_model.get_chat_room_by_id(room_id)
+        if not new_room:
+            return jsonify({'success': False, 'errors': ['Failed to create group chat']}), 500
+
+        return jsonify({
+            'success': True,
+            'message': 'Group chat created successfully',
+            'data': new_room
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Create group chat error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to create group chat: {str(e)}']}), 500
+
+
+@chat_rooms_bp.route('/group/list', methods=['GET'])
+@require_auth()
+@log_requests
+def get_user_group_chats():
+    """Get all group chats for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+        
+        chat_room_model = ChatRoom(current_app.db)
+        rooms = chat_room_model.get_group_chats(user_id)
+
+        return jsonify({
+            'success': True,
+            'data': rooms
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get group chats error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to get group chats: {str(e)}']}), 500
+
+
 @chat_rooms_bp.route('/topics/<topic_id>/conversations', methods=['POST'])
 @require_json
 @require_auth()
@@ -415,7 +510,15 @@ def create_chat_room_message(room_id):
         from models.topic import Topic
         topic_model = Topic(current_app.db)
         topic_id = room.get('topic_id')
-        topic = topic_model.get_topic_by_id(topic_id) if topic_id else None
+        topic = None
+        # Check for various forms of "no topic"
+        if topic_id and str(topic_id) not in ['None', 'null', 'undefined']:
+             try:
+                 topic = topic_model.get_topic_by_id(topic_id)
+             except:
+                 topic = None
+        else:
+            topic_id = None
 
         # Handle anonymous identity
         anonymous_identity = None
@@ -775,17 +878,23 @@ def get_chat_room_members(room_id):
         user_model = User(current_app.db)
         members = []
         
+        # Get moderators and owner for comparison
+        moderator_ids = set(str(mod_id) for mod_id in room.get('moderators', []))
+        owner_id = str(room.get('owner_id', ''))
+        
         for member_id in member_ids:
             try:
                 user = user_model.get_user_by_id(member_id)
                 if user:
+                    user_id_str = str(user['_id'])
                     members.append({
-                        'id': str(user['_id']),
+                        'id': user_id_str,
                         'username': user.get('username', 'Unknown'),
                         'display_name': user.get('display_name'),
                         'profile_picture': user.get('profile_picture'),
                         'is_admin': user.get('is_admin', False),
-                        'is_owner': str(user['_id']) == str(room.get('owner_id'))
+                        'is_owner': user_id_str == owner_id,
+                        'is_moderator': user_id_str in moderator_ids
                     })
             except Exception as e:
                 logger.warning(f"Failed to get user {member_id}: {str(e)}")

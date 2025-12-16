@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union
 from bson import ObjectId
 
 
@@ -10,13 +10,13 @@ class ChatRoom:
         self.db = db
         self.collection = db.chat_rooms
 
-    def create_chat_room(self, topic_id: str, name: str, description: str, owner_id: str,
+    def create_chat_room(self, topic_id: Optional[str], name: str, description: str, owner_id: str,
                         is_public: bool = True, tags: Optional[List[str]] = None,
                         picture: Optional[str] = None,
                         background_picture: Optional[str] = None) -> str:
-        """Create a new conversation (chat room) in a topic."""
+        """Create a new conversation (chat room) in a topic or a group chat."""
         chat_room_data = {
-            'topic_id': ObjectId(topic_id),  # Conversation belongs to a Topic
+            'topic_id': ObjectId(topic_id) if topic_id else None,  # Conversation belongs to a Topic or None for Group Chat
             'name': name,
             'description': description,
             'owner_id': ObjectId(owner_id),
@@ -36,10 +36,11 @@ class ChatRoom:
         result = self.collection.insert_one(chat_room_data)
         conversation_id = str(result.inserted_id)
         
-        # Update topic conversation count
-        from .topic import Topic
-        topic_model = Topic(self.db)
-        topic_model.increment_conversation_count(topic_id)
+        # Update topic conversation count if topic_id is present
+        if topic_id:
+            from .topic import Topic
+            topic_model = Topic(self.db)
+            topic_model.increment_conversation_count(topic_id)
 
         return conversation_id
 
@@ -144,6 +145,103 @@ class ChatRoom:
             
             # Convert moderators list ObjectIds to strings
             # Handle both simple ObjectId list and complex objects with user_id/added_by
+            if 'moderators' in room and room['moderators']:
+                converted_moderators = []
+                for mod in room['moderators']:
+                    if isinstance(mod, ObjectId):
+                        converted_moderators.append(str(mod))
+                    elif isinstance(mod, dict):
+                        # Handle moderator objects with nested ObjectIds
+                        converted_mod = {}
+                        for key, value in mod.items():
+                            if isinstance(value, ObjectId):
+                                converted_mod[key] = str(value)
+                            else:
+                                converted_mod[key] = value
+                        converted_moderators.append(converted_mod)
+                    else:
+                        converted_moderators.append(mod)
+                room['moderators'] = converted_moderators
+            
+            # Convert banned_users list ObjectIds to strings if present
+            if 'banned_users' in room and room['banned_users']:
+                room['banned_users'] = [str(ban_id) if isinstance(ban_id, ObjectId) else ban_id for ban_id in room['banned_users']]
+            
+            # Convert datetime to ISO string
+            if 'created_at' in room and isinstance(room['created_at'], datetime):
+                room['created_at'] = room['created_at'].isoformat()
+            if 'last_activity' in room and isinstance(room['last_activity'], datetime):
+                room['last_activity'] = room['last_activity'].isoformat()
+            if 'deleted_at' in room and room['deleted_at'] and isinstance(room['deleted_at'], datetime):
+                room['deleted_at'] = room['deleted_at'].isoformat()
+            if 'permanent_delete_at' in room and room['permanent_delete_at'] and isinstance(room['permanent_delete_at'], datetime):
+                room['permanent_delete_at'] = room['permanent_delete_at'].isoformat()
+            
+            # Get owner details
+            from .user import User
+            user_model = User(self.db)
+            owner = user_model.get_user_by_id(room['owner_id'])
+            if owner:
+                room['owner'] = {
+                    'id': str(owner['_id']),
+                    'username': owner['username']
+                }
+
+        return rooms
+
+    def get_group_chats(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all group chats (no topic) for a user."""
+        query = {
+            'topic_id': None,
+            'members': ObjectId(user_id),
+            'is_deleted': {'$ne': True}
+        }
+        
+        rooms = list(self.collection.find(query)
+                    .sort([('last_activity', -1)]))
+        
+        return self._process_rooms_list(rooms, user_id)
+
+    def check_name_unique(self, name: str, topic_id: Optional[str] = None) -> bool:
+        """Check if a chat room name is unique within a topic or globally for group chats."""
+        query = {
+            'name': {'$regex': f'^{name}$', '$options': 'i'},
+            'is_deleted': {'$ne': True}
+        }
+        
+        if topic_id:
+            query['topic_id'] = ObjectId(topic_id)
+        else:
+            query['topic_id'] = None
+            
+        existing = self.collection.find_one(query)
+        return existing is None
+
+    def _process_rooms_list(self, rooms: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Helper to process a list of room documents."""
+        for room in rooms:
+            room['_id'] = str(room['_id'])
+            room['id'] = str(room['_id'])
+            room['topic_id'] = str(room['topic_id']) if room.get('topic_id') else None
+            room['owner_id'] = str(room['owner_id'])
+            
+            # Convert deleted_by ObjectId to string if present
+            if 'deleted_by' in room and room['deleted_by']:
+                if isinstance(room['deleted_by'], ObjectId):
+                    room['deleted_by'] = str(room['deleted_by'])
+            
+            # Check if user is member (before converting members to strings)
+            if user_id:
+                original_members = room.get('members', [])
+                room['user_is_member'] = ObjectId(user_id) in original_members
+            else:
+                room['user_is_member'] = False
+            
+            # Convert members list ObjectIds to strings
+            if 'members' in room and room['members']:
+                room['members'] = [str(member_id) if isinstance(member_id, ObjectId) else member_id for member_id in room['members']]
+            
+            # Convert moderators list ObjectIds to strings
             if 'moderators' in room and room['moderators']:
                 converted_moderators = []
                 for mod in room['moderators']:
@@ -629,12 +727,35 @@ class ChatRoom:
                 from .user import User
                 user_model = User(self.db)
                 inviter = user_model.get_user_by_id(str(inv['invited_by']))
+                
+                # Fetch topic data if topic_id exists and is valid
+                topic_data = None
+                topic_id = room.get('topic_id')
+                # Check if topic_id is truthy and not the string 'None'
+                if topic_id and topic_id != 'None' and str(topic_id) != 'None':
+                    from .topic import Topic
+                    topic_model = Topic(self.db)
+                    try:
+                        topic = topic_model.get_topic_by_id(topic_id)
+                        if topic:
+                            topic_data = {
+                                'id': str(topic.get('_id', topic.get('id', ''))),
+                                'title': topic.get('title', 'Unknown Topic')
+                            }
+                    except Exception:
+                        pass  # Invalid topic_id, skip
+                
+                # Determine if this is a group chat (no topic_id) or a chatroom belonging to a topic
+                is_group_chat = not topic_id or topic_id == 'None' or str(topic_id) == 'None'
+                
                 result.append({
                     'id': str(inv['_id']),
                     'room_id': str(inv['room_id']),
                     'room_name': room.get('name'),
                     'room_description': room.get('description'),
-                    'topic_id': str(room.get('topic_id')) if room.get('topic_id') else None,
+                    'topic_id': None if is_group_chat else str(topic_id),
+                    'topic': topic_data,  # Include topic object with title
+                    'is_group_chat': is_group_chat,  # Flag to distinguish group chats from topic chatrooms
                     'status': inv.get('status', 'pending'),
                     'invited_by': {
                         'id': str(inv['invited_by']),
@@ -644,4 +765,5 @@ class ChatRoom:
                 })
 
         return result
+
 

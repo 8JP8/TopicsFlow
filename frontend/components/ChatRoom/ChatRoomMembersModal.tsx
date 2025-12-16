@@ -743,6 +743,41 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
                 </div>
               )}
 
+              {/* Delete Chatroom Button (Owner only, manage mode only) - Added per user request */}
+              {isOwner && mode === 'manage' && (
+                <div className="mb-6 p-4 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/10">
+                  <h4 className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                    {t('chat.dangerZone') || 'Danger Zone'}
+                  </h4>
+                  <p className="text-xs text-red-600 dark:text-red-300 mb-3">
+                    {t('chat.deleteChatroomWarning') || 'Deleting this chatroom is permanent and cannot be undone.'}
+                  </p>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(t('chat.confirmDeleteChatroom') || 'Are you sure you want to delete this chatroom?')) {
+                        return;
+                      }
+
+                      try {
+                        const response = await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(roomId));
+                        if (response.data.success) {
+                          toast.success(t('chat.deletionRequested') || 'Chatroom deletion requested');
+                          window.location.reload(); // Refresh to update list
+                          onClose();
+                        } else {
+                          toast.error(response.data.errors?.[0] || t('errors.generic'));
+                        }
+                      } catch (error: any) {
+                        toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors w-full sm:w-auto"
+                  >
+                    {t('chat.deleteChatroom') || 'Delete Chatroom'}
+                  </button>
+                </div>
+              )}
+
               {/* Members List */}
               <div className="space-y-2">
                 <h4 className="text-sm font-medium theme-text-primary mb-3">

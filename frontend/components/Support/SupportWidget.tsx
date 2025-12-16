@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import TicketDetailsModal from '@/components/Tickets/TicketDetailsModal';
+import LoadingSpinner from '@/components/UI/LoadingSpinner';
 
 interface Ticket {
     id: string;
@@ -16,12 +18,14 @@ interface Ticket {
 const SupportWidget: React.FC = () => {
     const { t } = useLanguage();
     const { user } = useAuth();
+    const { socket } = useSocket();
     const [isOpen, setIsOpen] = useState(false);
     const [showCreateTicket, setShowCreateTicket] = useState(false);
     const [showMyTickets, setShowMyTickets] = useState(false);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(false);
+    const [onlineAdminCount, setOnlineAdminCount] = useState(0);
     const widgetRef = useRef<HTMLDivElement>(null);
 
     // Close when clicking outside
@@ -57,9 +61,33 @@ const SupportWidget: React.FC = () => {
         }
     };
 
+    // Listen for online admin count updates via WebSocket
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleAdminCountUpdate = (data: { count: number }) => {
+            setOnlineAdminCount(data.count || 0);
+        };
+
+        socket.on('admin_online_count', handleAdminCountUpdate);
+
+        // Request initial count when widget opens
+        if (isOpen) {
+            socket.emit('get_admin_count');
+        }
+
+        return () => {
+            socket.off('admin_online_count', handleAdminCountUpdate);
+        };
+    }, [socket, isOpen]);
+
     const handleToggle = () => {
         if (!isOpen) {
             fetchRecentTickets();
+            // Request admin count via socket
+            if (socket) {
+                socket.emit('get_admin_count');
+            }
         }
         setIsOpen(!isOpen);
     };
@@ -94,13 +122,18 @@ const SupportWidget: React.FC = () => {
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-80 theme-bg-secondary border theme-border rounded-lg shadow-xl overflow-hidden z-50 animate-fade-in origin-top-right">
                     <div className="p-3 border-b theme-border flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                        <h3 className="font-semibold text-sm theme-text-primary">{t('supportWidget.title')}</h3>
+                        <h3 className="font-semibold text-sm theme-text-primary">{t('supportWidget.title') || 'Suporte'}</h3>
+                        {onlineAdminCount > 0 && (
+                            <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded-full">
+                                {onlineAdminCount} {onlineAdminCount === 1 ? t('supportWidget.adminOnline') : t('supportWidget.adminsOnline')}
+                            </span>
+                        )}
                     </div>
 
                     <div className="max-h-[300px] overflow-y-auto">
                         {loading ? (
                             <div className="p-8 flex justify-center">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                                <LoadingSpinner />
                             </div>
                         ) : recentTickets.length > 0 ? (
                             <div className="divide-y theme-border">
@@ -127,7 +160,7 @@ const SupportWidget: React.FC = () => {
                         ) : (
                             <div className="p-8 text-center flex flex-col items-center justify-center text-sm theme-text-secondary">
                                 <svg className="w-10 h-10 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                                 </svg>
                                 <p>{t('supportWidget.noTickets')}</p>
                             </div>

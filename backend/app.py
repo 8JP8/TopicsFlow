@@ -5,6 +5,7 @@ from flask_session import Session
 from pymongo import MongoClient
 import os
 import sys
+import time
 import logging
 # Import config from config.py (avoiding conflict with config/ directory)
 # Import directly from the file using importlib to avoid package conflict
@@ -69,35 +70,38 @@ def create_app(config_name=None):
                      cors_credentials=True)  # Enable credentials for session cookies
 
     # Database connection
-    try:
-        # Configure MongoDB/CosmosDB connection based on environment
-        mongo_options = {}
+    while True:
+        try:
+            # Configure MongoDB/CosmosDB connection based on environment
+            mongo_options = {}
 
-        if app.config.get('IS_AZURE'):
-            # Azure CosmosDB specific options
-            mongo_options = {
-                'ssl': app.config.get('COSMOS_SSL', True),
-                'retryWrites': app.config.get('COSMOS_RETRY_WRITES', False),
-                'serverSelectionTimeoutMS': 30000,
-                'connectTimeoutMS': 30000,
-                'socketTimeoutMS': 30000,
-            }
-            logger.info("Connecting to Azure CosmosDB...")
-        else:
-            # Local MongoDB options
-            logger.info("Connecting to local MongoDB...")
+            if app.config.get('IS_AZURE'):
+                # Azure CosmosDB specific options
+                mongo_options = {
+                    'ssl': app.config.get('COSMOS_SSL', True),
+                    'retryWrites': app.config.get('COSMOS_RETRY_WRITES', False),
+                    'serverSelectionTimeoutMS': 30000,
+                    'connectTimeoutMS': 30000,
+                    'socketTimeoutMS': 30000,
+                }
+                logger.info("Connecting to Azure CosmosDB...")
+            else:
+                # Local MongoDB options
+                logger.info("Connecting to local MongoDB...")
 
-        client = MongoClient(app.config['MONGO_URI'], **mongo_options)
-        app.db = client[app.config['MONGO_DB_NAME']]
+            client = MongoClient(app.config['MONGO_URI'], **mongo_options)
+            app.db = client[app.config['MONGO_DB_NAME']]
 
-        # Test connection
-        client.admin.command('ping')
+            # Test connection
+            client.admin.command('ping')
 
-        db_type = "Azure CosmosDB" if app.config.get('IS_AZURE') else "MongoDB"
-        logger.info(f"Connected to {db_type} successfully")
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        raise
+            db_type = "Azure CosmosDB" if app.config.get('IS_AZURE') else "MongoDB"
+            logger.info(f"Connected to {db_type} successfully")
+            break  # Exit loop if successful
+        except Exception as e:
+            logger.warning(f"Database connection failed: {e}")
+            logger.info("Retrying in 30 seconds...")
+            time.sleep(30)
 
     # Register blueprints
     from routes.auth import auth_bp

@@ -13,6 +13,7 @@ interface ChatRoomContextMenuProps {
   onUnfollow?: (chatId: string) => void;
   onHide?: (chatId: string) => void;
   onDelete?: (chatId: string) => void;
+  onLeave?: (chatId: string) => void;
   isFollowing?: boolean;
   isHidden?: boolean;
   hasBackground?: boolean;
@@ -31,6 +32,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   onUnfollow,
   onHide,
   onDelete,
+  onLeave,
   isFollowing = true, // Default to true (following) for backward compatibility
   isHidden = false,
   hasBackground = false,
@@ -38,7 +40,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   isOwner = false,
 }) => {
   const { t } = useLanguage();
-  
+
   const items = [
     {
       label: t('reports.reportChatroom') || 'Report Chatroom',
@@ -56,7 +58,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
       disabled: !onReport,
     },
     {
-      label: isFollowing ? (t('contextMenu.unfollowChatroom') || 'Unfollow Chatroom') : (t('contextMenu.followChatroom') || 'Follow Chatroom'),
+      label: isFollowing ? (t('chats.unfollow') || 'Unfollow Chatroom') : (t('contextMenu.followChatroom') || 'Follow Chatroom'),
       action: () => {
         if (isFollowing && onUnfollow) {
           onUnfollow(chatId);
@@ -114,6 +116,25 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
         </svg>
       ),
       disabled: !onDelete,
+    });
+  }
+
+  // Add leave option for members (non-owners)
+  if (!isOwner && onLeave) {
+    items.push({
+      label: t('chat.leaveChatroom') || 'Leave Chatroom',
+      action: () => {
+        if (onLeave) {
+          onLeave(chatId);
+        }
+        onClose();
+      },
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      disabled: !onLeave,
     });
   }
 

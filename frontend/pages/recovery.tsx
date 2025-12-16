@@ -37,7 +37,7 @@ const RecoveryPage: React.FC = () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/initiate-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, language: t('common.languageCode') || 'en' }),
       });
 
       const result = await response.json();
@@ -100,7 +100,7 @@ const RecoveryPage: React.FC = () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/verify-user-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, recovery_code: recoveryCode }),
+        body: JSON.stringify({ email, recovery_code: recoveryCode, language: t('common.languageCode') || 'en' }),
       });
 
       const result = await response.json();
@@ -162,7 +162,7 @@ const RecoveryPage: React.FC = () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/initiate-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, language: t('common.languageCode') || 'en' }),
       });
 
       const result = await response.json();

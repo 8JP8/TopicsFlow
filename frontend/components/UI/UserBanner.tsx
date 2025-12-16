@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useRouter } from 'next/router';
 import Avatar from './Avatar';
 import UserBadges from './UserBadges';
+import CountryFlag from './CountryFlag';
 import { getUserBannerGradient, getUserColorClass } from '@/utils/colorUtils';
 
 interface UserBannerProps {
@@ -25,13 +26,16 @@ interface UserData {
   email?: string;
   created_at: string;
   banner?: string;
+  country_code?: string;  // ISO 3166-1 alpha-2 (e.g., 'PT', 'US')
   preferences?: {
     theme?: string;
     language?: string;
   };
 }
 
+
 const UserBanner: React.FC<UserBannerProps> = ({
+
   userId,
   username: initialUsername,
   isAnonymous = false,
@@ -210,8 +214,13 @@ const UserBanner: React.FC<UserBannerProps> = ({
 
             {/* User Info */}
             <div className="pt-10">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold theme-text-primary">{user.username}</h3>
+                {user.country_code && (
+                  <CountryFlag countryCode={user.country_code} size="md" showName={true} />
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
                 {(isAnonymous || !user.id) && (
                   <UserBadges isAnonymous={true} />
                 )}

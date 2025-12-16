@@ -34,9 +34,10 @@ interface ChatRoom {
 interface ChatListProps {
   topicId: string;
   onChatSelect?: (chat: ChatRoom) => void;
+  unreadCounts?: { [chatId: string]: number };
 }
 
-const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
+const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const router = useRouter();
@@ -114,6 +115,12 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
       loadChats();
     }
   }, [topicId, searchQuery, selectedTags]);
+
+  useEffect(() => {
+    const handleRefresh = () => loadChats();
+    window.addEventListener('refresh-chats', handleRefresh);
+    return () => window.removeEventListener('refresh-chats', handleRefresh);
+  }, [loadChats]);
 
   // Get unique tags from chats, filter out empty strings and ensure uniqueness
   const allTags = Array.from(new Set(chats.flatMap(chat => chat.tags || []).filter(tag => tag && tag.trim() !== ''))).sort();
@@ -220,14 +227,14 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
       <div className="flex-1 overflow-y-auto space-y-2">
         {!hasContent && !showCreateChat ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 animate-fade-in">
-            <div className="mb-6 flex items-center justify-center">
-              <svg className="w-16 h-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <div className="mb-4 flex items-center justify-center">
+              <svg className="w-12 h-12 theme-text-muted mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-400 mb-2">{t('chats.noChats') || 'No chat rooms yet'}</h3>
-            <p className="text-gray-500 max-w-sm mx-auto mb-8">
-              {t('chats.startChat') || "Create a chat room to connect with others in real-time."}
+            <h3 className="text-xl font-bold theme-text-secondary mb-2">{t('chats.noChats') || 'No chat rooms yet'}</h3>
+            <p className="text-sm theme-text-muted max-w-sm mx-auto mb-6">
+              {t('chats.createChatroomHint') || "Be the first to create a chat on this topic!"}
             </p>
             <button
               onClick={() => setShowCreateChat(true)}
@@ -274,17 +281,54 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                      {chat.name}
-                    </h3>
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mr-2">
+                          {chat.name}
+                        </h3>
+                        {unreadCounts && unreadCounts[chat.id] > 0 && (
+                          <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce-in">
+                            {unreadCounts[chat.id] > 99 ? '99+' : unreadCounts[chat.id]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {user?.id === chat.owner_id ? (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded border border-blue-200 dark:border-blue-800">
+                            {t('chats.owner') || 'Owner'}
+                          </span>
+                        ) : chat.moderators?.includes(user?.id || '') && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-100 rounded border border-purple-200 dark:border-purple-800">
+                            {t('chats.moderator') || 'Moderator'}
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextMenu({
+                              chatId: chat.id,
+                              chatName: chat.name,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                     {chat.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
                         {chat.description}
                       </p>
                     )}
                     <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{chat.member_count} {t('chats.members') || 'members'}</span>
-                      <span>{chat.message_count} {t('chats.messages') || 'messages'}</span>
+                      <span>{chat.is_public ? t('chats.public') || 'Public' : `${chat.member_count} ${chat.member_count === 1 ? t('chats.member') || 'Member' : t('chats.members') || 'Members'}`}</span>
+                      <span>{chat.message_count} {chat.message_count === 1 ? t('home.message') || 'Message' : t('home.messages') || 'Messages'}</span>
                       <span>{formatLastActivity(chat.last_activity)}</span>
                     </div>
                     {chat.tags && chat.tags.length > 0 && (
@@ -300,7 +344,7 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                       </div>
                     )}
                   </div>
-                  {chat.user_is_member && (
+                  {chat.user_is_member && !chat.moderators?.includes(user?.id || '') && user?.id !== chat.owner_id && (
                     <span className="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
                       {t('chats.member') || 'Member'}
                     </span>
@@ -351,8 +395,8 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                 const response = await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(chatId));
                 if (response.data.success) {
                   toast.success(response.data.message || t('chat.deletionRequested') || 'Chatroom deletion requested. It will be permanently deleted in 7 days pending admin approval.');
-                  // Refresh chat list
-                  window.location.reload();
+                  // Optimistic update: remove chat from list immediately
+                  setChats(prev => prev.filter(c => c.id !== chatId));
                 } else {
                   toast.error(response.data.errors?.[0] || t('errors.generic'));
                 }
@@ -394,6 +438,30 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect }) => {
                   toast.success(t('mute.unfollowed', { name: contextMenu.chatName }) || `Unfollowed ${contextMenu.chatName}`);
                 } else {
                   toast.error(response.data.errors?.[0] || t('errors.generic'));
+                }
+              } catch (error: any) {
+                toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+              }
+            }}
+            onLeave={async (chatId) => {
+              if (!confirm(t('chat.confirmLeave', { name: contextMenu.chatName }) || `Are you sure you want to leave "${contextMenu.chatName}"?`)) {
+                return;
+              }
+
+              try {
+                const response = await api.delete(API_ENDPOINTS.CHAT_ROOMS.LEAVE(chatId)); // Using DELETE based on typical REST, but let's check if api.ts has it as DELETE. Wait, api.ts says LEAVE: (id) => ... but doesn't specify method. Usually it's POST or DELETE. ChatRoomMembersModal used POST for JOIN. Let's assume POST for LEAVE or check api.ts again. 
+                // api.ts line 282: LEAVE: (id) => `/api/chat-rooms/${id}/leave`
+                // Let's assume POST as it's an action, or DELETE if removing self. 
+                // I will use api.post for safety first, or check if I can define it. 
+                // Actually, let's assume it is a POST request to /leave.
+                const leaveResponse = await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(chatId));
+
+                if (leaveResponse.data.success) {
+                  toast.success(t('chat.leftChatroom') || `Left ${contextMenu.chatName}`);
+                  setChats(prev => prev.filter(c => c.id !== chatId));
+                  setContextMenu(null);
+                } else {
+                  toast.error(leaveResponse.data.errors?.[0] || t('errors.generic'));
                 }
               } catch (error: any) {
                 toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));

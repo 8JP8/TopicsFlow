@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LoadingSpinner from './LoadingSpinner';
+import CountryFlag from './CountryFlag';
 
 interface UserTooltipProps {
   username: string;
@@ -16,10 +17,13 @@ interface UserInfo {
   username: string;
   email: string;
   profile_picture?: string;
+  country_code?: string;  // ISO 3166-1 alpha-2 (e.g., 'PT', 'US')
   created_at?: string;
 }
 
+
 // Cache for user info to avoid duplicate requests
+
 const userInfoCache = new Map<string, { data: UserInfo; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const pendingRequests = new Map<string, Promise<UserInfo | null>>();
@@ -202,7 +206,13 @@ const UserTooltip: React.FC<UserTooltipProps> = ({ username, x, y, onClose, onMo
 
           {/* Username */}
           <div className="text-center">
-            <p className="text-sm font-semibold theme-text-primary">{userInfo.username}</p>
+            <p className="text-sm font-semibold theme-text-primary flex items-center justify-center gap-1">
+              {userInfo.username}
+              {userInfo.country_code && (
+                <CountryFlag countryCode={userInfo.country_code} size="sm" />
+              )}
+
+            </p>
             {userInfo.created_at && (
               <p className="text-xs theme-text-muted mt-1">
                 {t('userTooltip.joined')} {formatDate(userInfo.created_at)}

@@ -53,6 +53,7 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
         body: JSON.stringify({
           username: formData.username,
           email: formData.email,
+          language: t('common.languageCode') || 'en',
         }),
       });
 
@@ -67,7 +68,7 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
         toast.success(t('registration.emailSent'));
         onNext();
       } else {
-        const errorMessage = result.error || t('errors.generic');
+        const errorMessage = result.errors?.[0] || result.error || t('errors.generic');
         if (errorMessage.includes('username')) {
           setErrors({ username: t('errors.usernameTaken') });
         } else if (errorMessage.includes('email')) {

@@ -15,6 +15,15 @@ class Topic:
                     allow_anonymous: bool = True,
                     require_approval: bool = False) -> str:
         """Create a new chat topic."""
+        # Check if topic with same title already exists (case-insensitive)
+        existing_topic = self.collection.find_one({
+            'title': {'$regex': f'^{title}$', '$options': 'i'},
+            'is_deleted': {'$ne': True}  # Exclude deleted topics
+        })
+        
+        if existing_topic:
+            raise ValueError(f'Topic with title "{title}" already exists')
+        
         topic_data = {
             'title': title,
             'description': description,

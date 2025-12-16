@@ -272,7 +272,9 @@ export const API_ENDPOINTS = {
   // Chat Rooms / Conversations (within Topics, Discord-style)
   CHAT_ROOMS: {
     LIST_BY_TOPIC: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
+    LIST_GROUP: '/api/chat-rooms/group/list',
     CREATE: (topicId: string) => `/api/chat-rooms/topics/${topicId}/conversations`,
+    CREATE_GROUP: '/api/chat-rooms/group',
     GET: (id: string) => `/api/chat-rooms/${id}`,
     UPDATE: (id: string) => `/api/chat-rooms/${id}`,
     DELETE: (id: string) => `/api/chat-rooms/${id}`,

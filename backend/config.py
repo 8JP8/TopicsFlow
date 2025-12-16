@@ -87,7 +87,7 @@ class Config:
     MESSAGE_RATE_LIMIT = os.getenv('MESSAGE_RATE_LIMIT', '30/minute')
 
     # File Upload Config
-    MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25MB
+    MAX_CONTENT_LENGTH = 1 * 1024 * 1024 * 1024  # 1GB
     
     # File Storage Config
     USE_AZURE_STORAGE = os.getenv('USE_AZURE_STORAGE', 'false').lower() == 'true'

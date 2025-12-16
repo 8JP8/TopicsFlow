@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
-  
+
   // Check passkey support on client-side only to prevent hydration mismatch
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -156,7 +156,9 @@ const LoginPage: React.FC = () => {
       const verifyResult = await verifyResponse.json();
 
       if (verifyResponse.ok && verifyResult.success) {
-        login(verifyResult.user, verifyResult.token);
+        // Fix: Passkey login already sets the cookie, just refresh the user state
+        // The verify endpoint returns a token but for cookie-based auth we just need to refresh context
+        await useAuth().refreshUser();
         toast.success(t('success.loginSuccess'));
         router.push('/');
       } else {
@@ -209,16 +211,16 @@ const LoginPage: React.FC = () => {
         {/* Fixed Header with Controls */}
         <div className="fixed top-0 left-0 right-0 z-50 p-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
+            <Link href="/about" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline">
               <img
                 src="https://i.postimg.cc/FY5shL9w/chat.png"
                 alt="TopicsFlow Logo"
                 className="h-10 w-10"
               />
-              <span className="text-xl font-bold theme-text-primary">
+              <span className="text-xl font-bold theme-text-primary no-underline">
                 {t('common.appName')}
               </span>
-            </div>
+            </Link>
             <div className="flex items-center space-x-3">
               <LanguageToggle />
               <ThemeToggle />
@@ -227,204 +229,248 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Login Card */}
-        <div className="w-full max-w-md">
+        < div className="w-full max-w-md" >
           <div className="theme-bg-secondary rounded-2xl shadow-xl p-8 border theme-border">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <img
-                src="https://i.postimg.cc/52jHqBD9/chat.png"
-                alt="TopicsFlow Logo"
-                className="h-16 w-16 mx-auto mb-4"
-              />
-              <h1 className="text-3xl font-bold theme-text-primary mb-2">
-                {t('login.title')}
-              </h1>
-              <p className="theme-text-secondary">
-                {t('login.subtitle')}
-              </p>
-            </div>
-
-            {/* Passkey Login Button */}
-            {passkeySupported && (
-              <div className="mb-6">
-                <button
-                  type="button"
-                  onClick={handlePasskeyLogin}
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400
-                    text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
-                >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>{t('common.loading')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      <span>{t('login.loginWithPasskey')}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* Divider */}
-            {passkeySupported && (
-              <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t theme-border"></div>
+            {useAuth().user && loading ? (
+              // Showing Success/Redirect state immediately after login
+              <div className="text-center py-8">
+                <div className="mb-4 flex justify-center">
+                  <svg className="w-16 h-16 text-green-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 theme-bg-secondary theme-text-secondary">
-                    {t('login.orLoginWith')}
-                  </span>
-                </div>
+                <h2 className="text-2xl font-bold theme-text-primary mb-2">
+                  {t('success.loginSuccess') || 'Login Successful'}
+                </h2>
+                <p className="theme-text-secondary">
+                  {t('common.loading') || 'Redirecting...'}
+                </p>
               </div>
-            )}
-
-            {/* TOTP Login Form */}
-            <form onSubmit={handleIdentifierSubmit} className="space-y-6">
-              {/* Username/Email Input */}
-              <div>
-                <label htmlFor="identifier" className="block text-sm font-medium theme-text-primary mb-2">
-                  {t('login.usernameOrEmail')}
-                </label>
-                <input
-                  type="text"
-                  id="identifier"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg theme-bg-primary theme-text-primary border-2 theme-border
-                    focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder={t('login.usernameOrEmail')}
-                  disabled={loading || showCodeInput}
-                  autoFocus={!showCodeInput}
+            ) : useAuth().user ? (
+              <div className="text-center">
+                <img
+                  src="https://i.postimg.cc/52jHqBD9/chat.png"
+                  alt="TopicsFlow Logo"
+                  className="h-16 w-16 mx-auto mb-4"
                 />
-              </div>
-
-              {/* TOTP Code Input */}
-              {showCodeInput && !useBackupCode && (
+                <h2 className="text-2xl font-bold theme-text-primary mb-2">
+                  {t('common.welcomeBack') || 'Welcome Back'},
+                </h2>
+                <p className="text-xl theme-text-primary font-semibold mb-6">
+                  {useAuth().user?.username}
+                </p>
                 <div className="space-y-4">
-                  <label className="block text-sm font-medium theme-text-primary text-center">
-                    {t('auth.authenticatorCode')}
-                  </label>
-                  <TOTPInput
-                    length={6}
-                    onComplete={handleTOTPLogin}
-                    disabled={loading}
-                    autoFocus={true}
-                  />
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setUseBackupCode(true)}
-                      className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      {t('login.useBackupCode')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCodeInput(false);
-                        setTotpCode('');
-                      }}
-                      className="w-full text-sm theme-text-secondary hover:theme-text-primary"
-                    >
-                      {t('common.change')} {t('login.usernameOrEmail')}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Backup Code Input */}
-              {showCodeInput && useBackupCode && (
-                <div className="space-y-4">
-                  <label className="block text-sm font-medium theme-text-primary text-center">
-                    {t('login.backupCode')}
-                  </label>
-                  <input
-                    type="text"
-                    value={backupCode}
-                    onChange={(e) => setBackupCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
-                    maxLength={8}
-                    className="w-full px-4 py-3 rounded-lg theme-bg-primary theme-text-primary border-2 theme-border
-                      focus:outline-none focus:border-blue-500 transition-colors text-center text-xl font-mono tracking-widest"
-                    placeholder="XXXXXXXX"
-                    disabled={loading}
-                    autoFocus={true}
-                  />
+                  <Link href="/" className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors no-underline">
+                    {t('common.dashboard') || 'Go to Dashboard'}
+                  </Link>
                   <button
-                    type="button"
-                    onClick={handleBackupCodeLogin}
-                    disabled={loading || backupCode.length !== 8}
-                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400
-                      text-white font-medium rounded-lg transition-colors"
+                    onClick={useAuth().logout}
+                    className="w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 theme-text-primary font-medium rounded-lg transition-colors"
                   >
-                    {loading ? t('common.loading') : t('common.login')}
+                    {t('auth.logout') || 'Logout'}
                   </button>
-                  <div className="space-y-2">
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <img
+                    src="https://i.postimg.cc/52jHqBD9/chat.png"
+                    alt="TopicsFlow Logo"
+                    className="h-16 w-16 mx-auto mb-4"
+                  />
+                  <h1 className="text-3xl font-bold theme-text-primary mb-2">
+                    {t('login.title')}
+                  </h1>
+                  <p className="theme-text-secondary">
+                    {t('login.subtitle')}
+                  </p>
+                </div>
+
+                {/* Passkey Login Button */}
+                {passkeySupported && (
+                  <div className="mb-6">
                     <button
                       type="button"
-                      onClick={() => {
-                        setUseBackupCode(false);
-                        setBackupCode('');
-                      }}
-                      className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      onClick={handlePasskeyLogin}
+                      disabled={loading}
+                      className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400
+                    text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
                     >
-                      {t('login.useTOTPInstead')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCodeInput(false);
-                        setUseBackupCode(false);
-                        setTotpCode('');
-                        setBackupCode('');
-                      }}
-                      className="w-full text-sm theme-text-secondary hover:theme-text-primary"
-                    >
-                      {t('common.change')} {t('login.usernameOrEmail')}
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>{t('common.loading')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          <span>{t('login.loginWithPasskey')}</span>
+                        </>
+                      )}
                     </button>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Submit Button */}
-              {!showCodeInput && (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400
+                {/* Divider */}
+                {passkeySupported && (
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t theme-border"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-4 theme-bg-secondary theme-text-secondary">
+                        {t('login.orLoginWith')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* TOTP Login Form */}
+                <form onSubmit={handleIdentifierSubmit} className="space-y-6">
+                  {/* Username/Email Input */}
+                  <div>
+                    <label htmlFor="identifier" className="block text-sm font-medium theme-text-primary mb-2">
+                      {t('login.usernameOrEmail')}
+                    </label>
+                    <input
+                      type="text"
+                      id="identifier"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg theme-bg-primary theme-text-primary border-2 theme-border
+                    focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder={t('login.usernameOrEmail')}
+                      disabled={loading || showCodeInput}
+                      autoFocus={!showCodeInput}
+                    />
+                  </div>
+
+                  {/* TOTP Code Input */}
+                  {showCodeInput && !useBackupCode && (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium theme-text-primary text-center">
+                        {t('auth.authenticatorCode')}
+                      </label>
+                      <TOTPInput
+                        length={6}
+                        onComplete={handleTOTPLogin}
+                        disabled={loading}
+                        autoFocus={true}
+                      />
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => setUseBackupCode(true)}
+                          className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          {t('login.useBackupCode')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCodeInput(false);
+                            setTotpCode('');
+                          }}
+                          className="w-full text-sm theme-text-secondary hover:theme-text-primary"
+                        >
+                          {t('common.change')} {t('login.usernameOrEmail')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Backup Code Input */}
+                  {showCodeInput && useBackupCode && (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium theme-text-primary text-center">
+                        {t('login.backupCode')}
+                      </label>
+                      <input
+                        type="text"
+                        value={backupCode}
+                        onChange={(e) => setBackupCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+                        maxLength={8}
+                        className="w-full px-4 py-3 rounded-lg theme-bg-primary theme-text-primary border-2 theme-border
+                      focus:outline-none focus:border-blue-500 transition-colors text-center text-xl font-mono tracking-widest"
+                        placeholder="XXXXXXXX"
+                        disabled={loading}
+                        autoFocus={true}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleBackupCodeLogin}
+                        disabled={loading || backupCode.length !== 8}
+                        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400
+                      text-white font-medium rounded-lg transition-colors"
+                      >
+                        {loading ? t('common.loading') : t('common.login')}
+                      </button>
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseBackupCode(false);
+                            setBackupCode('');
+                          }}
+                          className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          {t('login.useTOTPInstead')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCodeInput(false);
+                            setUseBackupCode(false);
+                            setTotpCode('');
+                            setBackupCode('');
+                          }}
+                          className="w-full text-sm theme-text-secondary hover:theme-text-primary"
+                        >
+                          {t('common.change')} {t('login.usernameOrEmail')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  {!showCodeInput && (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400
                     text-white font-medium rounded-lg transition-colors"
-                >
-                  {loading ? t('common.loading') : t('common.next')}
-                </button>
-              )}
-            </form>
+                    >
+                      {loading ? t('common.loading') : t('common.next')}
+                    </button>
+                  )}
+                </form>
 
-            {/* Links */}
-            <div className="mt-6 space-y-3 text-center text-sm">
-              <div>
-                <Link href="/recovery" className="text-blue-600 hover:text-blue-700 font-medium">
-                  {t('login.forgotAccess')}
-                </Link>
-              </div>
-              <div className="theme-text-secondary">
-                {t('login.needAccount')}{' '}
-                <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                  {t('auth.signUp')}
-                </Link>
-              </div>
-            </div>
+                {/* Links */}
+                <div className="mt-6 space-y-3 text-center text-sm">
+                  <div>
+                    <Link href="/recovery" className="text-blue-600 hover:text-blue-700 font-medium">
+                      {t('login.forgotAccess')}
+                    </Link>
+                  </div>
+                  <div className="theme-text-secondary">
+                    {t('login.needAccount')}{' '}
+                    <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                      {t('auth.signUp')}
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
     </>
   );
 };

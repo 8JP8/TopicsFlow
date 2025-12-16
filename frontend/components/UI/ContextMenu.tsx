@@ -20,6 +20,31 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuOpen, setSubmenuOpen] = useState<number | null>(null);
   const [submenuPosition, setSubmenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [position, setPosition] = useState({ x, y });
+
+  // Handle smart positioning
+  React.useLayoutEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let newX = x;
+      let newY = y;
+
+      // Check right edge
+      if (x + rect.width > viewportWidth) {
+        newX = x - rect.width;
+      }
+
+      // Check bottom edge
+      if (y + rect.height > viewportHeight) {
+        newY = y - rect.height;
+      }
+
+      setPosition({ x: newX, y: newY });
+    }
+  }, [x, y]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -69,8 +94,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
         ref={menuRef}
         className="fixed z-50 theme-bg-secondary border theme-border rounded-lg shadow-xl py-1 min-w-[180px]"
         style={{
-          left: `${x}px`,
-          top: `${y}px`,
+          left: `${position.x}px`,
+          top: `${position.y}px`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -79,11 +104,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
             <button
               onClick={(e) => handleItemClick(item, index, e)}
               disabled={item.disabled}
-              className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${
-                item.danger
+              className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${item.danger
                   ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                   : 'theme-text-primary hover:theme-bg-tertiary'
-              } ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {item.icon && <span className="w-4 h-4">{item.icon}</span>}
               <span className="flex-1">{item.label}</span>
@@ -107,11 +131,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
                     key={subIndex}
                     onClick={() => handleSubmenuItemClick(subItem)}
                     disabled={subItem.disabled}
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${
-                      subItem.danger
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${subItem.danger
                         ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                         : 'theme-text-primary hover:theme-bg-tertiary'
-                    } ${subItem.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      } ${subItem.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     {subItem.icon && <span className="w-4 h-4">{subItem.icon}</span>}
                     <span>{subItem.label}</span>

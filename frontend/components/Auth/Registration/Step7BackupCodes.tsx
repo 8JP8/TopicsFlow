@@ -14,6 +14,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [downloaded, setDownloaded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
 
   useEffect(() => {
     // Use backup codes from registration data (returned from TOTP setup)
@@ -74,6 +75,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
     URL.revokeObjectURL(url);
 
     setDownloaded(true);
+    setHasSaved(true);
     toast.success(t('success.codesDownloaded'));
   };
 
@@ -82,6 +84,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
+      setHasSaved(true);
       toast.success(t('success.copiedToClipboard'));
       setTimeout(() => setCopied(false), 3000);
     } catch (error) {
@@ -202,7 +205,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
       <button
         type="button"
         onClick={onComplete}
-        disabled={!downloaded && !copied}
+        disabled={!hasSaved}
         className="w-full py-4 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400
           text-white font-bold rounded-lg transition-colors text-lg flex items-center justify-center space-x-2"
       >
@@ -212,7 +215,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
         <span>{t('common.finish')}</span>
       </button>
 
-      {!downloaded && !copied && (
+      {!hasSaved && (
         <p className="text-center text-sm theme-text-secondary">
           {t('registration.mustSaveCodes')}
         </p>

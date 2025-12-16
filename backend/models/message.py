@@ -51,8 +51,12 @@ class Message:
         }
         
         # Support both old (topic_id) and new (chat_room_id) formats
-        if topic_id:
-            message_data['topic_id'] = ObjectId(topic_id)
+        if topic_id and str(topic_id) not in ['None', 'null', 'undefined']:
+            try:
+                message_data['topic_id'] = ObjectId(topic_id)
+            except:
+                # If invalid ObjectId, just ignore it (treat as None)
+                pass
         if chat_room_id:
             message_data['chat_room_id'] = ObjectId(chat_room_id)
         if post_id:

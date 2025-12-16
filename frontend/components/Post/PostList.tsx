@@ -257,8 +257,8 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
               </svg>
             </div>
             <h3 className="text-xl font-bold text-gray-400 mb-2">{t('posts.noPosts') || 'No posts yet'}</h3>
-            <p className="text-gray-500 max-w-sm mx-auto mb-8">
-              {t('posts.beTheFirst') || "Be the first to start the conversation in this topic!"}
+            <p className="text-sm theme-text-muted max-w-sm mx-auto mb-6">
+              {t('posts.beTheFirst') || "Be the first to post in this topic!"}
             </p>
             <button
               onClick={() => setShowCreatePost(true)}

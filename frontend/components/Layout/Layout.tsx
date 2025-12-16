@@ -17,9 +17,10 @@ import SupportWidget from '@/components/Support/SupportWidget';
 
 interface LayoutProps {
   children: ReactNode;
+  transparentHeader?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) => {
   const router = useRouter();
   const { user } = useAuth();
   const { connected } = useSocket();
@@ -103,10 +104,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className={`min-h-screen theme-bg-primary ${theme}`} data-theme={theme} suppressHydrationWarning>
       {/* Header */}
-      <header className="h-16 border-b theme-border flex items-center justify-between px-6">
+      <header className={`h-16 flex items-center justify-between px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
         {/* ... header content ... */}
         <div className="flex items-center space-x-3">
-          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity no-underline text-decoration-none">
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline">
             <img
               src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"

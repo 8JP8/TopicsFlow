@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
@@ -7,504 +7,515 @@ import Avatar from './Avatar';
 import useEscapeKey from '@/hooks/useEscapeKey';
 
 interface ChatInvitation {
-  id: string;
-  room_id: string;
-  room_name: string;
-  room_description?: string;
-  topic_id?: string;
-  background_picture?: string;
-  invited_by: {
     id: string;
-    username: string;
-  };
-  created_at: string;
+    room_id: string;
+    room_name: string;
+    room_description?: string;
+    topic_id?: string;
+    topic?: {
+        id: string;
+        title: string;
+    };
+    is_group_chat?: boolean;  // Flag from backend to distinguish group chats from topic chatrooms
+    invited_by: {
+        id: string;
+        username: string;
+    };
+    created_at: string;
 }
 
 interface TopicInvitation {
-  id: string;
-  topic_id: string;
-  topic: {
     id: string;
-    title: string;
-    description: string;
-    member_count: number;
-  };
-  inviter: {
-    id: string;
-    username: string;
-    profile_picture?: string;
-  };
-  created_at: string;
+    topic_id: string;
+    topic: {
+        id: string;
+        title: string;
+        description: string;
+    };
+    inviter: {
+        id: string;
+        username: string;
+        profile_picture?: string;
+    };
+    created_at: string;
 }
 
 interface InvitationsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onInvitationHandled?: () => void;
+    isOpen: boolean;
+    onClose: () => void;
+    onInvitationHandled?: () => void;
 }
 
 const InvitationsModal: React.FC<InvitationsModalProps> = ({
-  isOpen,
-  onClose,
-  onInvitationHandled,
+    isOpen,
+    onClose,
+    onInvitationHandled,
 }) => {
-  const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'chats' | 'topics'>('chats');
-  const [chatInvitations, setChatInvitations] = useState<ChatInvitation[]>([]);
-  const [topicInvitations, setTopicInvitations] = useState<TopicInvitation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<string | null>(null);
+    const { t } = useLanguage();
+    useEscapeKey(onClose);
 
+    const [activeTab, setActiveTab] = useState<'chats' | 'topics'>('chats');
+    const [chatInvitations, setChatInvitations] = useState<ChatInvitation[]>([]);
+    const [topicInvitations, setTopicInvitations] = useState<TopicInvitation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState<string | null>(null);
+    const [selectedTopicFilter, setSelectedTopicFilter] = useState<string | null>(null);
 
+    // Resizable sidebar
+    const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80 = 20rem = 320px)
+    const [isResizing, setIsResizing] = useState(false);
+    const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Selected topic filter for chat invitations
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+    // Selection state
+    const [selectedChatCategory, setSelectedChatCategory] = useState<string>('groups'); // 'groups' or topic_id
+    const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
 
-  useEscapeKey(onClose);
+    const fetchInvitations = useCallback(async () => {
+        try {
+            setLoading(true);
+            const [chatRes, topicRes] = await Promise.all([
+                api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS),
+                api.get(API_ENDPOINTS.TOPICS.GET_INVITATIONS)
+            ]);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchInvitations();
-    }
-  }, [isOpen]);
+            if (chatRes.data.success) {
+                const pending = (chatRes.data.data || []).filter((inv: any) => !inv.status || inv.status === 'pending');
+                setChatInvitations(pending);
+            }
 
-  const fetchInvitations = async () => {
-    try {
-      setLoading(true);
-      const [chatRes, topicRes] = await Promise.all([
-        api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS),
-        api.get(API_ENDPOINTS.TOPICS.GET_INVITATIONS)
-      ]);
+            if (topicRes.data.success) {
+                setTopicInvitations(topicRes.data.data || []);
+            }
 
-      if (chatRes.data.success) {
-        const pending = (chatRes.data.data || []).filter((inv: any) => !inv.status || inv.status === 'pending');
-        setChatInvitations(pending);
-      }
+        } catch (error) {
+            console.error('Failed to fetch invitations:', error);
+            toast.error(t('invitations.failedToLoad') || 'Failed to load invitations');
+        } finally {
+            setLoading(false);
+        }
+    }, [t]);
 
-      if (topicRes.data.success) {
-        const pending = (topicRes.data.data || []);
-        setTopicInvitations(pending);
-      }
+    useEffect(() => {
+        if (isOpen) {
+            fetchInvitations();
+        }
+    }, [isOpen, fetchInvitations]);
 
-    } catch (error: any) {
-      console.error('Failed to fetch invitations:', error);
-      toast.error(error.response?.data?.errors?.[0] || t('invitations.failedToLoad') || 'Failed to load invitations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAcceptChat = async (invitationId: string, roomId: string) => {
-    try {
-      setProcessing(invitationId);
-      const response = await api.post(API_ENDPOINTS.CHAT_ROOMS.ACCEPT_INVITATION(invitationId));
-      if (response.data.success) {
-        toast.success(t('invitations.accepted') || 'Invitation accepted');
-        setChatInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-        onInvitationHandled?.();
-      } else {
-        toast.error(response.data.errors?.[0] || t('invitations.failedToAccept') || 'Failed to accept invitation');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.errors?.[0] || t('invitations.failedToAccept') || 'Failed to accept invitation');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const handleDeclineChat = async (invitationId: string) => {
-    try {
-      setProcessing(invitationId);
-      const response = await api.post(API_ENDPOINTS.CHAT_ROOMS.DECLINE_INVITATION(invitationId));
-      if (response.data.success) {
-        toast.success(t('invitations.declined') || 'Invitation declined');
-        setChatInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-        onInvitationHandled?.();
-      } else {
-        toast.error(response.data.errors?.[0] || t('invitations.failedToDecline') || 'Failed to decline invitation');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.errors?.[0] || t('invitations.failedToDecline') || 'Failed to decline invitation');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const handleAcceptTopic = async (invitationId: string) => {
-    try {
-      setProcessing(invitationId);
-      const response = await api.post(API_ENDPOINTS.TOPICS.ACCEPT_INVITATION(invitationId));
-      if (response.data.success) {
-        toast.success(t('invitations.accepted') || 'Invitation accepted');
-        setTopicInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-        onInvitationHandled?.();
-      } else {
-        toast.error(response.data.errors?.[0] || t('invitations.failedToAccept') || 'Failed to accept invitation');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.errors?.[0] || t('invitations.failedToAccept') || 'Failed to accept invitation');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const handleDeclineTopic = async (invitationId: string) => {
-    try {
-      setProcessing(invitationId);
-      const response = await api.post(API_ENDPOINTS.TOPICS.DECLINE_INVITATION(invitationId));
-      if (response.data.success) {
-        toast.success(t('invitations.declined') || 'Invitation declined');
-        setTopicInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-        onInvitationHandled?.();
-      } else {
-        toast.error(response.data.errors?.[0] || t('invitations.failedToDecline') || 'Failed to decline invitation');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.errors?.[0] || t('invitations.failedToDecline') || 'Failed to decline invitation');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return t('notifications.justNow') || 'Just now';
-    if (minutes < 60) return `${minutes} ${t('posts.minutes')} ${t('posts.ago')}`;
-    if (hours < 24) return `${hours} ${t('posts.hours')} ${t('posts.ago')}`;
-    if (days < 7) return `${days} ${t('posts.days')} ${t('posts.ago')}`;
-    return date.toLocaleDateString();
-  };
-
-  // Group chat invitations by topic
-  const groupedChatInvitations = React.useMemo(() => {
-    const groups: Record<string, { topicName: string; invitations: ChatInvitation[] }> = {};
-    chatInvitations.forEach((inv) => {
-      // Use inv.topic_id if available, otherwise 'general' or 'unknown'
-      const topicId = inv.topic_id || 'general';
-
-      if (!groups[topicId]) {
-        groups[topicId] = {
-          // We might not have topic name in invitation data efficiently, 
-          // but strictly following requirement "topics that the chatrooms im invited too belong"
-          // Ideally backend sends topic_title. If not, we fallback.
-          topicName: (inv as any).topic_title || (topicId === 'general' ? (t('common.general') || 'General') : `Topic ${topicId.substring(0, 8)}...`),
-          invitations: [],
+    // Listen for real-time updates
+    useEffect(() => {
+        const handleRefresh = () => {
+            if (isOpen) {
+                fetchInvitations();
+            }
         };
-      }
-      groups[topicId].invitations.push(inv);
-    });
-    return groups;
-  }, [chatInvitations, t]);
 
-  const groupKeys = Object.keys(groupedChatInvitations);
+        window.addEventListener('refresh_invitations', handleRefresh);
+        return () => window.removeEventListener('refresh_invitations', handleRefresh);
+    }, [isOpen, fetchInvitations]);
 
-  // Auto-select first topic group when in 'chats' tab
-  useEffect(() => {
-    if (activeTab === 'chats' && groupKeys.length > 0 && !selectedTopicId) {
-      setSelectedTopicId(groupKeys[0]);
-    }
-  }, [activeTab, groupKeys, selectedTopicId]);
+    // Grouping Logic for Chat Invites
+    const { groupChatInvites, topicChatInvitesByTopic } = useMemo(() => {
+        const groupChats: ChatInvitation[] = [];
+        const topicChats: Record<string, { title: string, invites: ChatInvitation[] }> = {};
 
-  if (!isOpen) return null;
+        chatInvitations.forEach(inv => {
+            // Use is_group_chat flag from backend for reliable separation
+            if (inv.is_group_chat || !inv.topic_id) {
+                groupChats.push(inv);
+            } else {
+                if (!topicChats[inv.topic_id]) {
+                    // Use provided topic title from backend
+                    const title = inv.topic?.title || 'Unknown Topic';
+                    topicChats[inv.topic_id] = { title, invites: [] };
+                }
+                topicChats[inv.topic_id].invites.push(inv);
+            }
+        });
 
-  const activeChatGroup = selectedTopicId ? groupedChatInvitations[selectedTopicId] : null;
+        return { groupChatInvites: groupChats, topicChatInvitesByTopic: topicChats };
+    }, [chatInvitations]);
 
-  return (
-    <>
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity"
-        onClick={onClose}
-      />
+    // Group topic invitations by topic for the sidebar
+    const topicInvitationsByTopic = useMemo(() => {
+        const grouped: Record<string, { title: string, invites: TopicInvitation[] }> = {};
+        topicInvitations.forEach(inv => {
+            if (!grouped[inv.topic_id]) {
+                grouped[inv.topic_id] = {
+                    title: inv.topic.title,
+                    invites: []
+                };
+            }
+            grouped[inv.topic_id].invites.push(inv);
+        });
+        return grouped;
+    }, [topicInvitations]);
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div
-          className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col pointer-events-auto overflow-hidden animate-in zoom-in-95 duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b theme-border bg-gray-50 dark:bg-gray-800/50">
-            <div>
-              <h2 className="text-xl font-bold theme-text-primary">
-                {t('invitations.title') || 'Invitations'}
-              </h2>
-              <p className="text-sm theme-text-secondary">
-                {t('invitations.manage') || 'Manage your pending invitations'}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+    // Derived list of invites to show in right column
+    const displayedChatInvites = useMemo(() => {
+        if (selectedChatCategory === 'groups') {
+            return groupChatInvites;
+        }
+        return topicChatInvitesByTopic[selectedChatCategory]?.invites || [];
+    }, [selectedChatCategory, groupChatInvites, topicChatInvitesByTopic]);
 
-          {/* Navigation Tabs */}
-          <div className="flex border-b theme-border bg-white dark:bg-gray-800 px-6">
-            <button
-              onClick={() => setActiveTab('chats')}
-              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'chats'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-            >
-              {t('invitations.chats') || 'Chat Invitations'}
-              {chatInvitations.length > 0 && (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'chats' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                  }`}>
-                  {chatInvitations.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('topics')}
-              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'topics'
-                ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-            >
-              {t('invitations.topics') || 'Topic Invitations'}
-              {topicInvitations.length > 0 && (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'topics' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                  }`}>
-                  {topicInvitations.length}
-                </span>
-              )}
-            </button>
-          </div>
+    const displayedTopicInvites = useMemo(() => {
+        if (!selectedTopicFilter) return topicInvitations; // Show all if none selected
+        return topicInvitationsByTopic[selectedTopicFilter]?.invites || [];
+    }, [selectedTopicFilter, topicInvitations, topicInvitationsByTopic]);
 
-          {/* Content Area */}
-          <div className="flex flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900/50">
-            {loading ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : (
-              activeTab === 'chats' ? (
-                // CHATS VIEW (2-Column)
-                <div className="flex w-full h-full">
-                  {/* Left Column: Topics List */}
-                  <div className="w-1/3 border-r theme-border overflow-y-auto bg-white dark:bg-gray-800 p-2 space-y-1">
-                    {groupKeys.length === 0 ? (
-                      <div className="p-4 text-center text-gray-400">
-                        <p className="text-sm italic">{t('invitations.noChatInvitations') || 'No chat invitations'}</p>
-                      </div>
-                    ) : (
-                      groupKeys.map(key => (
-                        <button
-                          key={key}
-                          onClick={() => setSelectedTopicId(key)}
-                          className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors flex justify-between items-center ${selectedTopicId === key
-                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 border border-transparent'
-                            }`}
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            {/* Minimalist Icon Style - No background circle */}
-                            <svg className={`w-4 h-4 flex-shrink-0 ${selectedTopicId === key ? 'text-blue-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                            </svg>
-                            <span className="truncate">{groupedChatInvitations[key].topicName}</span>
-                          </div>
-                          <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${selectedTopicId === key ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
-                            {groupedChatInvitations[key].invitations.length}
-                          </span>
+
+
+    // Handlers (Accept/Decline) - Copied from Popup logic
+    const handleAction = async (
+        id: string,
+        endpoint: (id: string) => string,
+        onSuccess: () => void
+    ) => {
+        setProcessing(id);
+        try {
+            const response = await api.post(endpoint(id));
+            if (response.data.success) {
+                toast.success(t('invitations.accepted') || 'Success');
+                onSuccess();
+                onInvitationHandled?.();
+            } else {
+                toast.error(response.data.errors?.[0] || 'Failed');
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.errors?.[0] || 'Failed');
+        } finally {
+            setProcessing(null);
+        }
+    };
+
+    const handleAcceptChat = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleAction(id, API_ENDPOINTS.CHAT_ROOMS.ACCEPT_INVITATION, () => {
+            setChatInvitations(prev => prev.filter(i => i.id !== id));
+        });
+    };
+
+    const handleDeclineChat = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleAction(id, API_ENDPOINTS.CHAT_ROOMS.DECLINE_INVITATION, () => {
+            setChatInvitations(prev => prev.filter(i => i.id !== id));
+        });
+    };
+
+    const handleAcceptTopic = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleAction(id, API_ENDPOINTS.TOPICS.ACCEPT_INVITATION, () => {
+            setTopicInvitations(prev => prev.filter(i => i.id !== id));
+        });
+    };
+
+    const handleDeclineTopic = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleAction(id, API_ENDPOINTS.TOPICS.DECLINE_INVITATION, () => {
+            setTopicInvitations(prev => prev.filter(i => i.id !== id));
+        });
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now.getTime() - date.getTime();
+        if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+        return date.toLocaleDateString();
+    };
+
+    // Mouse event handlers for resizing
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            const newWidth = e.clientX - (sidebarRef.current?.getBoundingClientRect().left || 0);
+            // Constrain width between 200px and 500px
+            if (newWidth >= 200 && newWidth <= 500) {
+                setSidebarWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isResizing]);
+
+    if (!isOpen) return null;
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black/50 z-50 transition-opacity" onClick={onClose} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <div
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[600px] flex flex-col pointer-events-auto overflow-hidden border theme-border"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b theme-border bg-gray-50 dark:bg-gray-800/50">
+                        <div>
+                            <h2 className="text-xl font-bold theme-text-primary">{t('invitations.title') || 'Invitations'}</h2>
+                            <p className="text-sm theme-text-secondary">{t('invitations.manage') || 'Manage your pending invitations'}</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                            <svg className="w-5 h-5 theme-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Right Column: Invitations List */}
-                  <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900/50">
-                    {!activeChatGroup ? (
-                      <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                        {/* Minimalist Empty State Icon */}
-                        <svg className="w-16 h-16 mb-4 opacity-50 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        <p>{t('invitations.selectTopic') || 'Select a topic to view invitations'}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-bold theme-text-primary flex items-center gap-2">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                            </svg>
-                            {activeChatGroup.topicName}
-                          </h3>
-                          <span className="text-sm text-gray-500">
-                            {activeChatGroup.invitations.length} {t('invitations.pending') || 'pending'}
-                          </span>
-                        </div>
-
-                        {activeChatGroup.invitations.map((invitation) => (
-                          <div
-                            key={invitation.id}
-                            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border theme-border overflow-hidden hover:shadow-md transition-shadow"
-                          >
-                            <div className="p-4">
-                              <div className="flex items-start gap-4">
-                                {/* Room Icon - Minimalist */}
-                                <div className="flex-shrink-0 pt-1">
-                                  {invitation.background_picture ? (
-                                    <img
-                                      src={invitation.background_picture}
-                                      alt={invitation.room_name}
-                                      className="w-10 h-10 rounded-lg object-cover"
-                                    />
-                                  ) : (
-                                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-                                    </svg>
-                                  )}
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h4 className="text-lg font-semibold theme-text-primary mb-1">
-                                        {invitation.room_name}
-                                      </h4>
-                                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                        <Avatar
-                                          userId={invitation.invited_by.id}
-                                          username={invitation.invited_by.username}
-                                          size="sm"
-                                        />
-                                        <span>
-                                          Invited by <span className="font-medium text-gray-700 dark:text-gray-300">{invitation.invited_by.username}</span>
-                                        </span>
-                                        <span>•</span>
-                                        <span>{formatDate(invitation.created_at)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {invitation.room_description && (
-                                    <p className="text-sm theme-text-secondary mb-4 line-clamp-2">
-                                      {invitation.room_description}
-                                    </p>
-                                  )}
-
-                                  <div className="flex items-center gap-3">
-                                    <button
-                                      onClick={() => handleAcceptChat(invitation.id, invitation.room_id)}
-                                      disabled={processing === invitation.id}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-                                    >
-                                      {processing === invitation.id ? <LoadingSpinner size="sm" /> : (t('invitations.accept') || 'Accept')}
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeclineChat(invitation.id)}
-                                      disabled={processing === invitation.id}
-                                      className="theme-text-secondary hover:text-red-500 px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-                                    >
-                                      {processing === invitation.id ? <LoadingSpinner size="sm" /> : (t('invitations.decline') || 'Decline')}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                // TOPICS VIEW (Single Column Grid/List)
-                <div className="w-full h-full overflow-y-auto p-6">
-                  {topicInvitations.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                      <svg className="w-16 h-16 mb-4 opacity-50 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                      </svg>
-                      <p>{t('invitations.noTopicInvitations') || 'No topic invitations'}</p>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {topicInvitations.map((invitation) => (
+
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Sidebar (Left Column) */}
                         <div
-                          key={invitation.id}
-                          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border theme-border p-5 hover:shadow-md transition-shadow"
+                            ref={sidebarRef}
+                            style={{ width: `${sidebarWidth}px` }}
+                            className="border-r theme-border bg-gray-50/50 dark:bg-gray-800/30 flex flex-col relative"
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              {/* Minimalist Topic Icon */}
-                              <svg className="w-10 h-10 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                              </svg>
-                              <div>
-                                <h3 className="font-bold theme-text-primary text-lg">
-                                  {invitation.topic.title}
-                                </h3>
-                                <p className="text-xs theme-text-secondary">
-                                  {invitation.topic.member_count} {t('common.members') || 'members'}
-                                </p>
-                              </div>
+                            {/* Tabs */}
+                            <div className="flex p-2 gap-1 border-b theme-border">
+                                <button
+                                    onClick={() => setActiveTab('chats')}
+                                    className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'chats'
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                >
+                                    {t('invitations.chats') || 'Chats'}
+                                    {chatInvitations.length > 0 && (
+                                        <span className={`ml-2 text-xs px-1.5 rounded-full ${activeTab === 'chats' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                                            {chatInvitations.length}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('topics')}
+                                    className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'topics'
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                >
+                                    {t('invitations.topics') || 'Topics'}
+                                    {topicInvitations.length > 0 && (
+                                        <span className={`ml-2 text-xs px-1.5 rounded-full ${activeTab === 'topics' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                                            {topicInvitations.length}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
-                            <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
-                              {formatDate(invitation.created_at)}
-                            </span>
-                          </div>
 
-                          {invitation.topic.description && (
-                            <p className="text-sm theme-text-secondary mb-4 line-clamp-2">
-                              {invitation.topic.description}
-                            </p>
-                          )}
+                            {/* Sidebar List */}
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                {loading ? (
+                                    <div className="flex justify-center p-4"><LoadingSpinner size="sm" /></div>
+                                ) : activeTab === 'chats' ? (
+                                    <>
+                                        {/* Group Invites Item */}
+                                        <button
+                                            onClick={() => setSelectedChatCategory('groups')}
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedChatCategory === 'groups'
+                                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                }`}
+                                        >
+                                            <span className="font-medium">{t('invitations.groupInvites') || 'Group Chats'}</span>
+                                            {groupChatInvites.length > 0 && <span className="bg-gray-200 dark:bg-gray-700 px-1.5 rounded text-xs">{groupChatInvites.length}</span>}
+                                        </button>
 
-                          <div className="flex items-center gap-2 mb-4 text-xs theme-text-muted bg-gray-50 dark:bg-gray-700/30 p-2 rounded-lg">
-                            <Avatar
-                              userId={invitation.inviter.id}
-                              username={invitation.inviter.username}
-                              profilePicture={invitation.inviter.profile_picture}
-                              size="sm"
-                            />
-                            <span>
-                              Invited by <span className="font-medium">{invitation.inviter.username}</span>
-                            </span>
-                          </div>
+                                        {/* Separator */}
+                                        {Object.keys(topicChatInvitesByTopic).length > 0 && (
+                                            <div className="my-2 border-t theme-border mx-2" />
+                                        )}
 
-                          <div className="flex gap-3">
-                            <button
-                              onClick={() => handleAcceptTopic(invitation.id)}
-                              disabled={processing === invitation.id}
-                              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center"
+                                        {/* Topic List */}
+                                        {Object.entries(topicChatInvitesByTopic).map(([topicId, { title, invites }]) => (
+                                            <button
+                                                key={topicId}
+                                                onClick={() => setSelectedChatCategory(topicId)}
+                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedChatCategory === topicId
+                                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 theme-text-secondary'
+                                                    }`}
+                                            >
+                                                <span className="truncate pr-2">Tópico #{title}</span>
+                                                <span className="bg-gray-200 dark:bg-gray-700 px-1.5 rounded text-xs">{invites.length}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                ) : (
+                                    // Topics Tab Sidebar
+                                    <div className="space-y-1">
+                                        {Object.keys(topicInvitationsByTopic).length === 0 ? (
+                                            <div className="p-4 text-xs text-center theme-text-muted">{t('invitations.noTopicInvitations')}</div>
+                                        ) : (
+                                            Object.entries(topicInvitationsByTopic).map(([topicId, data]) => (
+                                                <button
+                                                    key={topicId}
+                                                    onClick={() => setSelectedTopicFilter(curr => curr === topicId ? null : topicId)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedTopicFilter === topicId
+                                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 theme-text-secondary'
+                                                        }`}
+                                                >
+                                                    <span className="truncate pr-2">Tópico #{data.title}</span>
+                                                    <span className="bg-gray-200 dark:bg-gray-700 px-1.5 rounded text-xs">{data.invites.length}</span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Resize Handle */}
+                            <div
+                                onMouseDown={handleMouseDown}
+                                className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors group"
+                                style={{ zIndex: 10 }}
                             >
-                              {processing === invitation.id ? <LoadingSpinner size="sm" /> : (t('invitations.accept') || 'Accept')}
-                            </button>
-                            <button
-                              onClick={() => handleDeclineTopic(invitation.id)}
-                              disabled={processing === invitation.id}
-                              className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex justify-center items-center"
-                            >
-                              {processing === invitation.id ? <LoadingSpinner size="sm" /> : (t('invitations.decline') || 'Decline')}
-                            </button>
-                          </div>
+                            </div>
                         </div>
-                      ))}
+
+                        {/* Right Column (Content) */}
+                        <div className="flex-1 bg-white dark:bg-gray-800 p-6 overflow-y-auto">
+                            {activeTab === 'chats' ? (
+                                <>
+                                    <h3 className="text-lg font-bold theme-text-primary mb-4 flex items-center gap-2">
+                                        {selectedChatCategory === 'groups' ? (
+                                            <>{t('invitations.groupInvites')} <span className="text-sm font-normal theme-text-muted">({groupChatInvites.length} {t('invitations.pending') || 'Pending'})</span></>
+                                        ) : (
+                                            <>{t('invitations.invitesForTopicChats', { topic: topicChatInvitesByTopic[selectedChatCategory]?.title || 'Topic' }) || `Convites para Chats do Tópico #${topicChatInvitesByTopic[selectedChatCategory]?.title || 'Topic'}`} <span className="text-sm font-normal theme-text-muted">({(topicChatInvitesByTopic[selectedChatCategory]?.invites || []).length} {t('invitations.pending')})</span></>
+                                        )}
+                                    </h3>
+
+                                    <div className="space-y-3">
+                                        {displayedChatInvites.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-400">
+                                                {t('invitations.noChatInvitations')}
+                                            </div>
+                                        ) : (
+                                            displayedChatInvites.map(inv => (
+                                                <div key={inv.id} className="p-4 rounded-xl border theme-border bg-gray-50 dark:bg-gray-800/50 hover:border-blue-300 transition-colors">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="mt-1">
+                                                            {inv.topic_id ? (
+                                                                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold theme-text-primary text-base">{inv.room_name}</h4>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <Avatar userId={inv.invited_by.id} username={inv.invited_by.username} size="xs" />
+                                                                <p className="text-sm text-gray-500">
+                                                                    {t('invitations.invitedBy') || 'Invited by'} <span className="font-medium theme-text-primary">{inv.invited_by.username}</span> • {formatDate(inv.created_at)}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex gap-3 mt-4">
+                                                                <button
+                                                                    onClick={(e) => handleAcceptChat(inv.id, e)}
+                                                                    disabled={processing === inv.id}
+                                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                                                >
+                                                                    {t('invitations.accept') || 'Accept'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleDeclineChat(inv.id, e)}
+                                                                    disabled={processing === inv.id}
+                                                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                                                >
+                                                                    {t('invitations.decline') || 'Decline'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                // Topic Invites Content
+                                <>
+
+                                    <h3 className="text-lg font-bold theme-text-primary mb-4">
+                                        {selectedTopicFilter ? (
+                                            <>{t('invitations.invitesForTopic', { topic: topicInvitationsByTopic[selectedTopicFilter]?.title }) || `Convites para o Tópico #${topicInvitationsByTopic[selectedTopicFilter]?.title}`} <span className="text-sm font-normal theme-text-muted">({(topicInvitationsByTopic[selectedTopicFilter]?.invites || []).length} {t('invitations.pending')})</span></>
+                                        ) : (
+                                            <>{t('invitations.topicInvites') || 'Convites para Tópicos'} <span className="text-sm font-normal theme-text-muted">({topicInvitations.length} {t('invitations.pending')})</span></>
+                                        )}
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {displayedTopicInvites.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-400">
+                                                {t('invitations.noTopicInvitations')}
+                                            </div>
+                                        ) : (
+                                            displayedTopicInvites.map(inv => (
+                                                <div key={inv.id} className="p-4 rounded-xl border theme-border bg-gray-50 dark:bg-gray-800/50 hover:border-blue-300 transition-colors">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="mt-1">
+                                                            <span className="w-10 h-10 flex items-center justify-center text-gray-400 text-3xl font-bold">#</span>
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold theme-text-primary text-base">{inv.topic.title}</h4>
+                                                            <p className="text-xs text-gray-500 line-clamp-1 mb-2">{inv.topic.description}</p>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <Avatar userId={inv.inviter.id} username={inv.inviter.username} profilePicture={inv.inviter.profile_picture} size="xs" />
+                                                                <p className="text-sm text-gray-500">
+                                                                    {t('invitations.invitedBy') || 'Invited by'} <span className="font-medium theme-text-primary">{inv.inviter.username}</span> • {formatDate(inv.created_at)}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex gap-3 mt-4">
+                                                                <button
+                                                                    onClick={(e) => handleAcceptTopic(inv.id, e)}
+                                                                    disabled={processing === inv.id}
+                                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                                                >
+                                                                    {t('invitations.accept') || 'Accept'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleDeclineTopic(inv.id, e)}
+                                                                    disabled={processing === inv.id}
+                                                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                                                >
+                                                                    {t('invitations.decline') || 'Decline'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
-                  )}
                 </div>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
+            </div>
+        </>
+    );
 };
 
 export default InvitationsModal;
-

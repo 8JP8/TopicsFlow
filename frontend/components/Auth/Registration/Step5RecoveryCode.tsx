@@ -51,6 +51,7 @@ const Step5RecoveryCode: React.FC<Step5Props> = ({ data, onNext, onBack }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: data.email,
+          user_id: data.userId,
           recovery_code: recoveryCode,
         }),
       });
@@ -161,23 +162,21 @@ const Step5RecoveryCode: React.FC<Step5Props> = ({ data, onNext, onBack }) => {
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="theme-text-secondary">{t('common.strength')}:</span>
-            <span className={`font-medium ${
-              recoveryCode.length < 8 ? 'text-red-500' :
-              recoveryCode.length < 12 ? 'text-yellow-500' :
-              recoveryCode.length < 16 ? 'text-blue-500' : 'text-green-500'
-            }`}>
+            <span className={`font-medium ${recoveryCode.length < 8 ? 'text-red-500' :
+                recoveryCode.length < 12 ? 'text-yellow-500' :
+                  recoveryCode.length < 16 ? 'text-blue-500' : 'text-green-500'
+              }`}>
               {recoveryCode.length < 8 ? t('common.weak') :
-               recoveryCode.length < 12 ? t('common.fair') :
-               recoveryCode.length < 16 ? t('common.good') : t('common.strong')}
+                recoveryCode.length < 12 ? t('common.fair') :
+                  recoveryCode.length < 16 ? t('common.good') : t('common.strong')}
             </span>
           </div>
           <div className="h-2 theme-bg-primary rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all ${
-                recoveryCode.length < 8 ? 'bg-red-500 w-1/4' :
-                recoveryCode.length < 12 ? 'bg-yellow-500 w-1/2' :
-                recoveryCode.length < 16 ? 'bg-blue-500 w-3/4' : 'bg-green-500 w-full'
-              }`}
+              className={`h-full transition-all ${recoveryCode.length < 8 ? 'bg-red-500 w-1/4' :
+                  recoveryCode.length < 12 ? 'bg-yellow-500 w-1/2' :
+                    recoveryCode.length < 16 ? 'bg-blue-500 w-3/4' : 'bg-green-500 w-full'
+                }`}
             />
           </div>
         </div>

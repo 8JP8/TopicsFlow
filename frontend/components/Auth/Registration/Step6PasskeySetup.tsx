@@ -32,6 +32,7 @@ const Step6PasskeySetup: React.FC<Step6Props> = ({ data, updateData, onNext, onS
       const optionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/passkey/register-options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include session cookies for authentication
         body: JSON.stringify({ email: data.email }),
       });
 
@@ -84,6 +85,7 @@ const Step6PasskeySetup: React.FC<Step6Props> = ({ data, updateData, onNext, onS
       const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/passkey/register-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include session cookies for verification
         body: JSON.stringify({
           email: data.email,
           credential: credentialData,

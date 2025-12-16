@@ -11,6 +11,7 @@ interface MentionUser {
     is_guest?: boolean; // For anonymous
     role?: string; // For Admin/Owner tags
     is_owner?: boolean;
+    is_moderator?: boolean;
 }
 
 interface MentionListProps {
@@ -38,7 +39,7 @@ const MentionList: React.FC<MentionListProps> = ({ users, selectedIndex, onSelec
 
     // Helper to get tag config
     const getTag = (user: MentionUser) => {
-        // Priority: You > Owner > Admin > Anonymous > Bot (if any)
+        // Priority: You > Owner > Moderator > Admin > Anonymous > Bot (if any)
         if (currentUser && user.id === currentUser.id) {
             return { label: t('chat.tagYou') || 'You', color: 'bg-blue-600 text-white' };
         }
@@ -47,6 +48,9 @@ const MentionList: React.FC<MentionListProps> = ({ users, selectedIndex, onSelec
         }
         if (user.is_owner) {
             return { label: t('chat.tagOwner') || 'Owner', color: 'bg-amber-500 text-white' };
+        }
+        if (user.is_moderator) {
+            return { label: t('chat.tagModerator') || 'Moderator', color: 'bg-purple-600 text-white' };
         }
         if (user.role === 'admin') {
             return { label: t('chat.tagAdmin') || 'Admin', color: 'bg-red-500 text-white' };
@@ -71,8 +75,8 @@ const MentionList: React.FC<MentionListProps> = ({ users, selectedIndex, onSelec
                         key={user.id}
                         onClick={() => onSelect(user.username)}
                         className={`w-full flex items-center px-3 py-2 text-left transition-colors ${isSelected
-                                ? 'theme-bg-tertiary bg-opacity-100'
-                                : 'hover:theme-bg-tertiary bg-opacity-50'
+                            ? 'theme-bg-tertiary bg-opacity-100'
+                            : 'hover:theme-bg-tertiary bg-opacity-50'
                             }`}
                     >
                         <div className="mr-3 flex-shrink-0">

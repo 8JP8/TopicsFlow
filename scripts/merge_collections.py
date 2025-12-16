@@ -6,7 +6,7 @@ from datetime import datetime
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOPICSFLOW_COLLECTION_PATH = os.path.join(BASE_DIR, 'TopicsFlow_API.postman_collection.json')
-BACKEND_API_COLLECTION_PATH = os.path.join(BASE_DIR, 'tests', 'postman', 'ChatHub_Backend_API.postman_collection.json')
+BACKEND_API_COLLECTION_PATH = os.path.join(BASE_DIR, 'tests', 'postman', 'TopicsFlow_Backend_API.postman_collection.json')
 OUTPUT_PATH = os.path.join(BASE_DIR, 'tests', 'TopicsFlow_API.postman_collection.json')
 
 def load_json(path):

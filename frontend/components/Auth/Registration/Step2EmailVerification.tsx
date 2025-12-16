@@ -58,6 +58,7 @@ const Step2EmailVerification: React.FC<Step2Props> = ({ data, updateData, onNext
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: data.email,
+          language: t('common.languageCode') || 'en',
         }),
       });
 

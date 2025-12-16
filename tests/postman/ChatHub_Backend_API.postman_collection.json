@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "ChatHub Backend API - Complete Test Suite",
-    "_postman_id": "chathub-backend-api-complete",
+    "name": "TopicsFlow Backend API - Complete Test Suite",
+    "_postman_id": "topicsflow-backend-api-complete",
     "description": "Comprehensive test suite with all 217+ API endpoints covering authentication, topics, messages, private messages, posts, comments, chat rooms, users, friends, reports, tickets, GIFs, content settings, admin, and attachments.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "2.0.0"

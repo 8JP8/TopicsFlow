@@ -56,17 +56,37 @@ def get_user_ids_from_mentions(db, usernames: List[str]) -> List[ObjectId]:
     return mentioned_user_ids
 
 
-def extract_mentions_as_user_ids(db, content: str) -> List[ObjectId]:
+def extract_mentions_as_user_ids(db, content: str, chat_room_id: Optional[str] = None) -> List[ObjectId]:
     """
     Extract @username mentions from content and return list of user IDs.
+    Supports special mentions @everyone and @todos to mention all chat room members.
     
     Args:
         db: Database connection
         content: The text content to parse
+        chat_room_id: Optional chat room ID for @everyone/@todos mentions
         
     Returns:
         List of user ObjectIds mentioned in the content
     """
+    if not content:
+        return []
+    
+    # Check for special mentions: @everyone or @todos
+    if chat_room_id and (re.search(r'@(everyone|todos)\b', content, re.IGNORECASE)):
+        # Get all members of the chat room
+        try:
+            from models.chat_room import ChatRoom
+            chat_room_model = ChatRoom(db)
+            chat_room = chat_room_model.get_chat_room_by_id(chat_room_id)
+            if chat_room and 'members' in chat_room:
+                # Return all member IDs (they're already ObjectIds)
+                return [ObjectId(member_id) if not isinstance(member_id, ObjectId) else member_id 
+                        for member_id in chat_room.get('members', [])]
+        except Exception as e:
+            logger.error(f"Failed to get chat room members for @everyone/@todos mention: {str(e)}")
+    
+    # Fall back to regular username mentions
     usernames = extract_mentions(content)
     return get_user_ids_from_mentions(db, usernames)
 

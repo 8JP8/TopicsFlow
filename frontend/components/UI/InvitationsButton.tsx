@@ -23,16 +23,29 @@ const InvitationsButton: React.FC = () => {
     return () => window.removeEventListener('tour:open-invitations', handleOpenInvitations);
   }, []);
 
-  // Fetch pending invitations count
+  // Fetch pending invitations count (chat + topics)
   const fetchInvitationCount = async () => {
     if (!user) return;
 
     try {
-      const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS);
-      if (response.data.success) {
-        const pendingInvitations = (response.data.data || []).filter((inv: any) => !inv.status || inv.status === 'pending');
-        setInvitationCount(pendingInvitations.length);
+      const [chatRes, topicRes] = await Promise.all([
+        api.get(API_ENDPOINTS.CHAT_ROOMS.GET_INVITATIONS),
+        api.get(API_ENDPOINTS.TOPICS.GET_INVITATIONS)
+      ]);
+
+      let total = 0;
+
+      if (chatRes.data.success) {
+        const pendingChatInvitations = (chatRes.data.data || []).filter((inv: any) => !inv.status || inv.status === 'pending');
+        total += pendingChatInvitations.length;
       }
+
+      if (topicRes.data.success) {
+        const pendingTopicInvitations = (topicRes.data.data || []);
+        total += pendingTopicInvitations.length;
+      }
+
+      setInvitationCount(total);
     } catch (error) {
       console.error('Failed to fetch invitation count:', error);
     }

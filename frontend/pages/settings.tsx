@@ -236,17 +236,7 @@ const Settings: React.FC = () => {
     router.push({ pathname: '/settings', query: { tab } }, undefined, { shallow: true });
   }
 
-  if (authLoading || !user) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <LoadingSpinner size="lg" />
-        </div>
-      </Layout>
-    );
-  }
-
-  // Continue tour from dashboard
+  // Continue tour from dashboard (must be before any conditional returns)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const shouldContinueTour = localStorage.getItem('continue_tour_settings');
@@ -261,6 +251,16 @@ const Settings: React.FC = () => {
       }
     }
   }, []);
+
+  if (authLoading || !user) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <LoadingSpinner size="lg" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -7,6 +7,24 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import toast from 'react-hot-toast';
 import Avatar from '@/components/UI/Avatar';
 
+// LocalStorage utilities for dismissed invitations
+const DISMISSED_NOTIFICATION_INVITATIONS_KEY = 'dismissed_notification_invitations';
+
+const getDismissedNotificationInvitations = (): Set<string> => {
+  try {
+    const stored = localStorage.getItem(DISMISSED_NOTIFICATION_INVITATIONS_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const dismissNotificationInvitation = (invitationId: string) => {
+  const dismissed = getDismissedNotificationInvitations();
+  dismissed.add(invitationId);
+  localStorage.setItem(DISMISSED_NOTIFICATION_INVITATIONS_KEY, JSON.stringify(Array.from(dismissed)));
+};
+
 interface Notification {
   id: string;
   type: 'message' | 'mention' | 'report' | 'system' | 'invitation' | 'friend_request' | 'comment' | 'chatroom_message';
@@ -540,6 +558,38 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       } else if (notification.type === 'chatroom_message' && notification.context_name) {
         title = t('notifications.newMessageInRoom', { roomName: notification.context_name });
         body = `${notification.sender_username || t('notifications.someone')}: ${notification.message}`;
+      } else if (notification.type === 'mention') {
+        title = t('notifications.youWereMentioned');
+        const sender = notification.sender_username || t('notifications.someone');
+        if (notification.data?.chat_room_name) {
+          body = t('notifications.mentionedInChat', { username: sender, roomName: notification.data.chat_room_name }) + (notification.data?.content_preview ? `: ${notification.data.content_preview}` : '');
+        } else if (notification.data?.post_title) {
+          body = t('notifications.mentionedInPost', { username: sender, postTitle: notification.data.post_title }) + (notification.data?.content_preview ? `: ${notification.data.content_preview}` : '');
+        } else {
+          body = t('notifications.mentionedYou', { username: sender }) + (notification.data?.content_preview ? `: ${notification.data.content_preview}` : '');
+        }
+      } else if (notification.type === 'invitation') {
+        if (notification.data?.room_name) {
+          title = t('notifications.chatInvitation') || 'Chat Room Invitation';
+          body = t('notifications.invitedToChat', {
+            inviter: notification.data?.invited_by_username || t('notifications.someone'),
+            roomName: notification.data.room_name
+          });
+        } else if (notification.data?.topic_title) {
+          title = t('notifications.topicInvitation') || 'Topic Invitation';
+          body = t('notifications.invitedToTopic', {
+            inviter: notification.data?.invited_by_username || t('notifications.someone'),
+            topicTitle: notification.data.topic_title
+          });
+        }
+      } else if (notification.type === 'friend_request') {
+        title = t('notifications.friendRequestReceived') || 'New Friend Request';
+        body = t('notifications.friendRequestFrom', {
+          username: notification.data?.from_username || t('notifications.someone')
+        });
+      } else if (notification.type === 'comment' && notification.data?.post_title) {
+        title = t('notifications.newCommentOnPost', { postTitle: notification.data.post_title });
+        body = notification.message;
       }
 
       showBrowserNotification(title, body, notification.id);
@@ -599,24 +649,29 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         }
 
         if (topicRes.data.success && topicRes.data.data) {
-          const topicInvites = topicRes.data.data.map((inv: any) => ({
-            id: `topic_invitation-${inv.topic_id}-${inv.id}`,
-            type: 'invitation' as const,
-            title: t('notifications.topicInvitation') || 'Topic Invitation',
-            message: t('notifications.invitedToTopic', {
-              inviter: inv.inviter?.username || t('notifications.someone'),
-              topicTitle: inv.topic?.title || t('notifications.aTopic')
-            }),
-            timestamp: inv.created_at,
-            read: false,
-            data: {
-              invitation_id: inv.id,
-              topic_id: inv.topic_id,
-              topic_title: inv.topic?.title,
-              invited_by: inv.inviter?.id,
-              invited_by_username: inv.inviter?.username
-            }
-          }));
+          const dismissedInvitations = localStorage.getItem('dismissed_invitations');
+          const dismissedIds = dismissedInvitations ? new Set(JSON.parse(dismissedInvitations)) : new Set();
+
+          const topicInvites = topicRes.data.data
+            .filter((inv: any) => !dismissedIds.has(inv.id)) // Filter dismissed
+            .map((inv: any) => ({
+              id: `topic_invitation-${inv.topic_id}-${inv.id}`,
+              type: 'invitation' as const,
+              title: t('notifications.topicInvitation') || 'Topic Invitation',
+              message: t('notifications.invitedToTopic', {
+                inviter: inv.inviter?.username || t('notifications.someone'),
+                topicTitle: inv.topic?.title || t('notifications.aTopic')
+              }),
+              timestamp: inv.created_at,
+              read: false,
+              data: {
+                invitation_id: inv.id,
+                topic_id: inv.topic_id,
+                topic_title: inv.topic?.title,
+                invited_by: inv.inviter?.id,
+                invited_by_username: inv.inviter?.username
+              }
+            }));
           newNotifications.push(...topicInvites);
         }
 
@@ -649,6 +704,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
 
   const deleteNotification = async (id: string) => {
     try {
+      // Find the notification to check its type
+      const notification = notifications.find(n => n.id === id);
+
+      // For invitation notifications, just remove from local state without API call
+      // since they're managed through the invitations system
+      if (notification?.type === 'invitation') {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        return;
+      }
+
+      // For other notification types, use the API
       await api.delete(API_ENDPOINTS.NOTIFICATIONS.DELETE(id));
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
@@ -749,7 +815,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       case 'message':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
           </svg>
         );
       case 'mention':
@@ -773,7 +839,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
       case 'invitation':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
           </svg>
         );
       default:
@@ -968,11 +1034,16 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 mx-4 mt-3 mb-2 p-1 rounded-lg border theme-border">
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 mx-4 mt-3 mb-2 p-1 rounded-lg border theme-border relative">
+              {/* Animated sliding indicator */}
+              <div
+                className={`absolute top-1 bottom-1 w-[calc(50%-0.375rem)] bg-white dark:bg-neutral-700 rounded-md shadow-sm transition-all duration-300 ease-in-out ${activeTab === 'general' ? 'left-1' : 'left-[calc(50%+0.125rem)]'
+                  }`}
+              />
               <button
                 onClick={() => setActiveTab('general')}
-                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${activeTab === 'general'
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all relative z-10 ${activeTab === 'general'
+                  ? 'text-gray-900 dark:text-white'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
               >
@@ -980,17 +1051,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
               </button>
               <button
                 onClick={() => setActiveTab('mentions')}
-                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${activeTab === 'mentions'
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all relative z-10 ${activeTab === 'mentions'
+                  ? 'text-gray-900 dark:text-white'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
               >
                 {t('notifications.mentions') || 'Mentions'}
-                {notifications.filter(n => n.type === 'mention' && !n.read).length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 text-[10px] rounded-full">
-                    {notifications.filter(n => n.type === 'mention' && !n.read).length}
-                  </span>
-                )}
               </button>
             </div>
 
@@ -1135,7 +1201,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    group.notifications.forEach(n => deleteNotification(n.id));
+                                    // Save to localStorage if it's an invitation
+                                    group.notifications.forEach(n => {
+                                      if (n.type === 'invitation' && n.data?.invitation_id) {
+                                        dismissNotificationInvitation(n.data.invitation_id);
+                                      }
+                                      deleteNotification(n.id);
+                                    });
                                   }}
                                   className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                                   title={t('notifications.delete') || 'Delete'}

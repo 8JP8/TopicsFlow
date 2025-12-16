@@ -56,7 +56,7 @@ export default function FeatureCarousel() {
 
     return (
         <div className="relative w-full max-w-4xl mx-auto mt-16 px-4">
-            <div className="relative bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-3xl overflow-hidden shadow-2xl min-h-[400px]">
+            <div className="relative bg-slate-800/20 backdrop-blur-xl border border-slate-600/30 rounded-3xl overflow-hidden shadow-2xl min-h-[400px]">
 
                 {/* Slide Content */}
                 <div className="absolute inset-0 transition-all duration-700 ease-in-out">
@@ -69,7 +69,7 @@ export default function FeatureCarousel() {
                         <h3 className="text-3xl font-bold text-white mb-4 text-center">
                             {features[currentSlide].title}
                         </h3>
-                        <p className="text-lg text-gray-300 text-center max-w-lg leading-relaxed">
+                        <p className="text-lg text-slate-300 text-center max-w-lg leading-relaxed">
                             {features[currentSlide].description}
                         </p>
                     </div>
@@ -78,13 +78,13 @@ export default function FeatureCarousel() {
                 {/* Navigation Buttons */}
                 <button
                     onClick={prevSlide}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-gray-900/50 hover:bg-blue-600/80 text-white transition-all backdrop-blur-sm z-10"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-900/30 hover:bg-cyan-600/50 text-white transition-all backdrop-blur-md border border-slate-600/30 z-10"
                 >
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <button
                     onClick={nextSlide}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-gray-900/50 hover:bg-blue-600/80 text-white transition-all backdrop-blur-sm z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-900/30 hover:bg-cyan-600/50 text-white transition-all backdrop-blur-md border border-slate-600/30 z-10"
                 >
                     <ChevronRight className="w-6 h-6" />
                 </button>
@@ -95,7 +95,7 @@ export default function FeatureCarousel() {
                         <button
                             key={index}
                             onClick={() => setCurrentSlide(index)}
-                            className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide ? 'bg-blue-500 w-8' : 'bg-gray-600 hover:bg-gray-500'
+                            className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide ? 'bg-cyan-400 w-8' : 'bg-slate-500/50 hover:bg-slate-400'
                                 }`}
                         />
                     ))}
@@ -104,3 +104,4 @@ export default function FeatureCarousel() {
         </div>
     );
 }
+

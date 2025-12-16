@@ -26,7 +26,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -174,27 +174,69 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </button>
 
           {/* Bottom Controls Bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            {/* Progress Bar */}
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={handleSeek}
-              className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer mb-2"
-              style={{
-                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentTime / duration) * 100}%, #4b5563 ${(currentTime / duration) * 100}%, #4b5563 100%)`
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent pt-8 pb-3 px-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Custom Progress Bar */}
+            <div
+              className="relative w-full h-1 group/progress cursor-pointer mb-4 flex items-center"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = Math.max(0, Math.min(1, x / rect.width));
+                if (videoRef.current) {
+                  videoRef.current.currentTime = percentage * duration;
+                  setCurrentTime(percentage * duration);
+                }
               }}
-            />
+              onMouseMove={(e) => {
+                // Potential hover preview logic here
+              }}
+            >
+              {/* Hit Area (Invisible but larger) */}
+              <div className="absolute -top-2 -bottom-2 left-0 right-0" />
+
+              {/* Background Track */}
+              <div className="w-full h-1 group-hover/progress:h-2 bg-gray-600/60 rounded-full transition-all duration-200" />
+
+              {/* Progress Fill */}
+              <div
+                className="absolute left-0 top-0 bottom-0 h-1 group-hover/progress:h-2 bg-blue-500 rounded-full transition-all duration-200"
+                style={{ width: `${(currentTime / duration) * 100}%` }}
+              />
+
+              {/* Thumb / Ball */}
+              <div
+                className="absolute h-3 w-3 bg-blue-500 rounded-full shadow transform scale-0 group-hover/progress:scale-100 transition-transform duration-200"
+                style={{
+                  left: `${(currentTime / duration) * 100}%`,
+                  transform: `translateX(-50%) scale(${0})`, // Logic handled by CSS hover on group/progress
+                }}
+              >
+                {/* Inner styling to be specific about the YouTube look */}
+                <div className="w-full h-full bg-blue-500 rounded-full transform scale-0 group-hover/progress:scale-100 transition-transform" />
+              </div>
+
+              {/* Override transform for the thumb directly with class since inline style has issues with group-hover logic sometimes if not careful */}
+              <style jsx>{`
+                .group\\/progress:hover .thumb-ball {
+                    transform: translateX(-50%) scale(1);
+                }
+                .thumb-ball {
+                    transform: translateX(-50%) scale(0);
+                }
+              `}</style>
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-500 rounded-full shadow thumb-ball transition-transform duration-200"
+                style={{ left: `${(currentTime / duration) * 100}%` }}
+              />
+            </div>
 
             {/* Time, Download, and Fullscreen */}
             <div className="flex items-center justify-between text-white text-sm">
-              <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
-              <div className="flex items-center gap-2">
+              <span className="font-medium text-xs">{formatTime(currentTime)} / {formatTime(duration)}</span>
+              <div className="flex items-center gap-3">
                 <button
                   onClick={handleDownload}
-                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded"
+                  className="hover:text-blue-400 transition-colors"
                   title={t('common.download') || 'Download'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +245,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </button>
                 <button
                   onClick={toggleFullscreen}
-                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded"
+                  className="hover:text-blue-400 transition-colors"
                   title={t('common.fullscreen') || 'Fullscreen'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,6 +256,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           </div>
         </div>
+
       )}
 
       {/* Context Menu */}
