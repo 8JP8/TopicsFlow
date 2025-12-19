@@ -42,14 +42,20 @@ def create_app(config_name=None):
     logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
     logger.info("="*60)
 
-    # Initialize extensions with CORS restricted to localhost only
+    # Initialize extensions with CORS restricted to localhost and configured frontend URL
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
         "http://127.0.0.1:5000",
     ]
-    logger.info(f"CORS: Configured for localhost only - Allowed origins: {allowed_origins}")
+    
+    # Add configured frontend URL if it's not already in the list
+    configured_frontend = app.config.get('FRONTEND_URL')
+    if configured_frontend and configured_frontend not in allowed_origins:
+        allowed_origins.append(configured_frontend)
+        
+    logger.info(f"CORS: Allowed origins: {allowed_origins}")
     cors.init_app(app,
                  resources={r"/*": {"origins": allowed_origins}},
                  allow_headers=["Content-Type", "Authorization", "X-Requested-With"],

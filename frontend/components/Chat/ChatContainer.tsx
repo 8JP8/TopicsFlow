@@ -671,8 +671,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     // Determine message type and content
     // If there's both text and GIF, use 'gif' type but include the text content
-    let messageType = selectedGifUrl ? 'gif' : 'text';
-    let gifUrl: string | undefined = selectedGifUrl || undefined;
+    const messageType = selectedGifUrl ? 'gif' : 'text';
+    const gifUrl: string | undefined = selectedGifUrl || undefined;
 
     // Clear selected GIF after using it
     if (selectedGifUrl) {
@@ -1118,11 +1118,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
               // Determine if message is from current user
               // Check by user_id first (most reliable), then by username
-              const isFromMe = user && (
+              const isFromMe = !!(user && (
                 (messageUserId && currentUserId && messageUserId === currentUserId) ||
                 (messageUsername && currentUsername && messageUsername === currentUsername) ||
                 (!message.is_anonymous && messageDisplayName && messageDisplayName.toLowerCase() === currentUsername)
-              );
+              ));
 
               // For anonymous messages from current user, show "Você" instead of anonymous name
               const displayNameForAnonymous = isFromMe && message.is_anonymous

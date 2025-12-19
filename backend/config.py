@@ -33,15 +33,21 @@ class Config:
     # Database Config
     # If Azure environment detected, use CosmosDB connection string
     if IS_AZURE:
-        # Azure CosmosDB (MongoDB API)
-        MONGO_URI = os.getenv('AZURE_COSMOS_CONNECTIONSTRING')
-        MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'chatapp')
+        # Check for user-provided COSMOS keys first (Standardized names)
+        if os.getenv('COSMOS_DB_URI'):
+            MONGO_URI = os.getenv('COSMOS_DB_URI')
+            MONGO_DB_NAME = os.getenv('COSMOS_DB_NAME', 'topicsflow')
+        else:
+            # Azure App Service default connection strings
+            MONGO_URI = os.getenv('AZURE_COSMOS_CONNECTIONSTRING')
+            MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'chatapp')
+            
         # CosmosDB specific settings
         COSMOS_SSL = True
         COSMOS_RETRY_WRITES = False  # CosmosDB doesn't support retryWrites
     else:
         # Local MongoDB
-        MONGO_URI = os.getenv('DATABASE_URL', 'mongodb://localhost:27017/chatapp')
+        MONGO_URI = os.getenv('DATABASE_URL', os.getenv('MONGO_URI', 'mongodb://localhost:27017/chatapp'))
         MONGO_DB_NAME = os.getenv('DB_NAME', 'chatapp')
         COSMOS_SSL = False
         COSMOS_RETRY_WRITES = True
@@ -90,9 +96,15 @@ class Config:
     MAX_CONTENT_LENGTH = 1 * 1024 * 1024 * 1024  # 1GB
     
     # File Storage Config
-    USE_AZURE_STORAGE = os.getenv('USE_AZURE_STORAGE', 'false').lower() == 'true'
     AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    AZURE_STORAGE_CONTAINER = os.getenv('AZURE_STORAGE_CONTAINER', 'attachments')
+    AZURE_STORAGE_CONTAINER = os.getenv('AZURE_STORAGE_CONTAINER', os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'uploads'))
+    
+    # Auto-enable Azure Storage if running in Azure or if connection string is present
+    if (IS_AZURE and AZURE_STORAGE_CONNECTION_STRING) or (os.getenv('USE_AZURE_STORAGE', 'false').lower() == 'true'):
+        USE_AZURE_STORAGE = True
+    else:
+        USE_AZURE_STORAGE = False
+        
     UPLOADS_DIR = os.getenv('UPLOADS_DIR', os.path.join(os.path.dirname(__file__), 'uploads'))
     FILE_ENCRYPTION_KEY = os.getenv('FILE_ENCRYPTION_KEY', SECRET_KEY)  # Use SECRET_KEY as default
 

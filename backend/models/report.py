@@ -196,6 +196,12 @@ class Report:
                 reported_message = message_model.get_message_by_id(content_id)
                 if reported_message:
                     report['reported_content'] = reported_message
+            elif report.get('content_type') == 'private_message':
+                from .private_message import PrivateMessage
+                pm_model = PrivateMessage(self.db)
+                reported_message = pm_model.get_message_by_id(content_id)
+                if reported_message:
+                    report['reported_content'] = reported_message
             # TODO: Add support for posts and comments
         
         # Get reported user details

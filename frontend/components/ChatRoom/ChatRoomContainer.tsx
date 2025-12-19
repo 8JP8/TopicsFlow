@@ -20,6 +20,7 @@ import MessageDeleteDialog from '@/components/UI/MessageDeleteDialog';
 import MessageContextMenu from '@/components/UI/MessageContextMenu';
 import ChatIcon from '@/components/UI/ChatIcon';
 import ChatRoomContextMenu from '@/components/UI/ChatRoomContextMenu';
+import { VoipButton, VoipControlBar } from '@/components/Voip';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName } from '@/utils/anonymousStorage';
@@ -671,7 +672,12 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-
+              {/* VOIP Button for voice calls */}
+              <VoipButton
+                roomId={room.id}
+                roomType="group"
+                roomName={room.name}
+              />
               {isOwner && (
                 <button
                   onClick={() => {

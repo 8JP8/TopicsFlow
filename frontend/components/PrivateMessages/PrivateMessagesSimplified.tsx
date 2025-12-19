@@ -19,6 +19,7 @@ import ImageViewerModal from '@/components/UI/ImageViewerModal';
 import VideoPlayer from '@/components/UI/VideoPlayer';
 import toast from 'react-hot-toast';
 import GroupChatCreateModal from '@/components/Chat/GroupChatCreateModal';
+import { VoipButton } from '@/components/Voip';
 
 interface Conversation {
   id: string;
@@ -102,6 +103,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
+  const [messageContextMenu, setMessageContextMenu] = useState<{ x: number, y: number, messageId: string, content: string, userId: string, username: string, isFromMe: boolean } | null>(null);
   const [groupChatContextMenu, setGroupChatContextMenu] = useState<{ x: number, y: number, groupId: string, groupName: string } | null>(null);
 
   const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
@@ -359,7 +361,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
       if (isForCurrentConversation) {
         const newMessage: Message = {
-          id: String(data.id),
+          id: String(data.id || data._id),
           content: data.content,
           message_type: data.message_type || 'text',
           created_at: data.created_at,
@@ -391,7 +393,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           existingIndex: existingConvIndex
         });
 
-        let newConvList = [...prev];
+        const newConvList = [...prev];
         if (existingConvIndex >= 0) {
           const conv = newConvList[existingConvIndex];
           const currentUnread = Number(conv.unread_count || 0);
@@ -406,7 +408,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           newConvList.unshift({
             ...conv,
             last_message: {
-              id: String(data.id),
+              id: String(data.id || data._id),
               content: data.content,
               created_at: data.created_at,
               is_from_me: false
@@ -437,7 +439,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
       if (isForCurrentConversation) {
         const newMessage: Message = {
-          id: String(data.id),
+          id: String(data.id || data._id),
           content: data.content,
           message_type: data.message_type || 'text',
           created_at: data.created_at,
@@ -462,7 +464,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         const toId = String(data.to_user_id || '').trim();
         const existingConvIndex = prev.findIndex(c => String(c.user_id).trim() === toId);
 
-        let newConvList = [...prev];
+        const newConvList = [...prev];
         if (existingConvIndex >= 0) {
           const conv = newConvList[existingConvIndex];
           // Update existing conversation
@@ -649,6 +651,40 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   };
 
+  const handleDeleteMessage = async (messageId: string, mode: 'soft' | 'hard' = 'soft') => {
+    const confirmMessage = mode === 'hard'
+      ? (t('privateMessages.unsendMessageConfirm') || 'Are you sure you want to unsend this message? It will be removed for everyone.')
+      : (t('privateMessages.deleteMessageConfirm') || 'Are you sure you want to delete this message? It will be removed for you.');
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      await api.delete(`${API_ENDPOINTS.MESSAGES.DELETE_PRIVATE(messageId)}?mode=${mode}`);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      toast.success(mode === 'hard' ? (t('privateMessages.messageUnsent') || 'Message unsent') : (t('privateMessages.messageDeleted') || 'Message deleted'));
+    } catch (error: any) {
+      console.error('Failed to delete message:', error);
+      toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToDeleteMessage') || 'Failed to delete message');
+    }
+    setMessageContextMenu(null);
+  };
+
+  const handleReportMessage = async (messageId: string) => {
+    const reason = window.prompt(t('reports.enterReason') || 'Please enter a reason for reporting this message:');
+    if (!reason) return;
+
+    try {
+      await api.post(API_ENDPOINTS.MESSAGES.REPORT_PRIVATE(messageId), { reason });
+      toast.success(t('reports.reportSubmitted') || 'Report submitted successfully');
+    } catch (error: any) {
+      console.error('Failed to report message:', error);
+      toast.error(error.response?.data?.errors?.[0] || t('reports.reportFailed') || 'Failed to submit report');
+    }
+    setMessageContextMenu(null);
+  };
+
   const handleGroupChatClick = (group: any) => {
     // If prop is provided, let parent handle it (preferred for split view)
     if (onGroupSelect) {
@@ -817,7 +853,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       const response = await api.get(API_ENDPOINTS.USERS.PRIVATE_CONVERSATION(userId));
 
       if (response.data.success) {
-        setMessages(response.data.data || []);
+        // Map _id to id to ensure compatibility with Message interface
+        const loadedMessages = (response.data.data || []).map((msg: any) => ({
+          ...msg,
+          id: msg.id || msg._id
+        }));
+        setMessages(loadedMessages);
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -856,7 +897,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
       if (response.data.success) {
         const newMessage: Message = {
-          id: response.data.data.id,
+          id: response.data.data.id || response.data.data._id,
           content: '',
           message_type: 'gif',
           created_at: response.data.data.created_at,
@@ -928,7 +969,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       // Determine message type
       let messageType = 'text';
       let gifUrl: string | undefined = undefined;
-      let content = messageInput.trim();
+      const content = messageInput.trim();
 
       if (selectedGifUrl) {
         messageType = 'gif';
@@ -955,7 +996,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (response.data.success) {
         // Add message to local state
         const newMessage: Message = {
-          id: response.data.data.id,
+          id: response.data.data.id || response.data.data._id,
           content: content || (messageType === 'gif' ? '[GIF]' : '') || (attachments.length > 0 ? attachmentPlaceholder : ''),
           message_type: messageType,
           created_at: response.data.data.created_at || new Date().toISOString(),
@@ -1303,17 +1344,26 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                 <p className="text-sm theme-text-secondary">{t('privateMessages.privateConversation')}</p>
               </div>
             </div>
-            {!isExpanded && onExpandMessage && (
-              <button
-                onClick={() => onExpandMessage(selectedUser.id, selectedUser.username)}
-                className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
-                title={t('privateMessages.expandToMainView')}
-              >
-                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* VOIP Call Button */}
+              <VoipButton
+                roomId={selectedUser.id}
+                roomType="dm"
+                roomName={selectedUser.username}
+                variant="bordered"
+              />
+              {!isExpanded && onExpandMessage && (
+                <button
+                  onClick={() => onExpandMessage(selectedUser.id, selectedUser.username)}
+                  className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+                  title={t('privateMessages.expandToMainView')}
+                >
+                  <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
@@ -1402,17 +1452,16 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                           }`}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          if (!message.is_from_me) {
-                            const userId = message.user_id || selectedUser?.id;
-                            if (userId) {
-                              setUserContextMenu({
-                                userId,
-                                username: message.sender_username,
-                                x: e.clientX,
-                                y: e.clientY,
-                              });
-                            }
-                          }
+                          e.stopPropagation();
+                          setMessageContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            messageId: message.id,
+                            content: message.content,
+                            userId: message.user_id || selectedUser?.id || '',
+                            username: message.sender_username,
+                            isFromMe: message.is_from_me
+                          });
                         }}
                       >
                         {message.gif_url ? (
@@ -2199,6 +2248,46 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         />
       )}
 
+      {/* Message Context Menu */}
+      {messageContextMenu && (
+        <ContextMenu
+          x={messageContextMenu.x}
+          y={messageContextMenu.y}
+          onClose={() => setMessageContextMenu(null)}
+          items={[
+            ...(messageContextMenu.isFromMe ? [{
+              label: t('privateMessages.unsendMessage') || 'Unsend Message',
+              icon: (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              ),
+              danger: true,
+              action: () => handleDeleteMessage(messageContextMenu.messageId, 'hard'),
+            }] : []),
+            {
+              label: t('privateMessages.deleteForMe') || 'Delete for Me',
+              icon: (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              ),
+              action: () => handleDeleteMessage(messageContextMenu.messageId, 'soft'),
+            },
+            ...(!messageContextMenu.isFromMe ? [{
+              label: t('privateMessages.reportMessage') || 'Report Message',
+              icon: (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              ),
+              danger: true,
+              action: () => handleReportMessage(messageContextMenu.messageId),
+            }] : []),
+          ]}
+        />
+      )}
+
       {/* User Context Menu */}
       {userContextMenu && (
         <UserContextMenu
@@ -2401,6 +2490,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           )}
         </div>
       )}
+
+      {/* VOIP Control Bar is now rendered globally in _app.tsx */}
     </div>
   );
 };

@@ -356,6 +356,12 @@ If you suspect your API key has been exposed:
 | `REDIS_URL` | Redis connection string | redis://localhost:6379/0 | No |
 | `LOG_LEVEL` | Logging level | INFO | No |
 | `TOTP_ISSUER` | 2FA issuer name | TopicsFlow | No |
+| `AZURE_STORAGE_ACCOUNT_NAME` | Azure Storage Account Name | - | No (Yes for Azure) |
+| `AZURE_STORAGE_CONNECTION_STRING` | Azure Storage Connection String | - | No (Yes for Azure) |
+| `AZURE_STORAGE_CONTAINER_NAME` | Azure Storage Container Name | uploads | No |
+| `COSMOS_DB_NAME` | Cosmos DB Database Name | topicsflow | No (Yes for Azure) |
+| `COSMOS_DB_URI` | Cosmos DB Connection URI | - | No (Yes for Azure) |
+| `USE_AZURE_STORAGE` | Force usage of Azure Storage | false | No |
 
 ---
 

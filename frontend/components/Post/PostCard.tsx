@@ -209,7 +209,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
 
 
                 {post.is_anonymous ? (
-                  <div className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs`}>
+                  <div
+                    className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs cursor-pointer`}
+                    onMouseEnter={(e) => handleMouseEnter(e, '', post.display_name || 'Anonymous')}
+                    onMouseLeave={handleMouseLeave}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleClick(e, '', post.display_name || 'Anonymous');
+                    }}
+                  >
                     {(post.display_name || 'Anonymous').charAt(0).toUpperCase()}
                   </div>
                 ) : post.user_id ? (
@@ -235,9 +244,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
                     >
                       {post.author_username}
                     </span>
+                  ) : post.is_anonymous ? (
+                    <span
+                      className="font-medium no-underline cursor-pointer hover:underline"
+                      onMouseEnter={(e) => handleMouseEnter(e, '', post.display_name || 'Anonymous')}
+                      onMouseLeave={handleMouseLeave}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleClick(e, '', post.display_name || 'Anonymous');
+                      }}
+                    >
+                      {post.display_name || 'Anonymous'}
+                    </span>
                   ) : (
                     <span className="font-medium no-underline">
-                      {post.is_anonymous ? post.display_name : post.author_username || 'Unknown'}
+                      {post.author_username || 'Unknown'}
                     </span>
                   )}
                 </span>
@@ -348,9 +370,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
       )}
       {showBanner && selectedUser && bannerPos && (
         <UserBanner
-          userId={post.is_anonymous ? '' : selectedUser.userId}
+          userId={selectedUser.userId || ''}
           username={selectedUser.username}
-          isAnonymous={post.is_anonymous || false}
+          isAnonymous={!selectedUser.userId}
           x={bannerPos.x}
           y={bannerPos.y}
           onClose={handleClose}

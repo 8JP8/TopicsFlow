@@ -203,7 +203,16 @@ const CommentCard: React.FC<CommentCardProps> = ({
       const avatarColor = getUserColorClass(anonymousName);
 
       return (
-        <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs`}>
+        <div
+          className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs cursor-pointer`}
+          onMouseEnter={(e) => handleMouseEnter(e, '', anonymousName)}
+          onMouseLeave={handleMouseLeave}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleClick(e, '', anonymousName);
+          }}
+        >
           {initial}
         </div>
       );
@@ -284,9 +293,22 @@ const CommentCard: React.FC<CommentCardProps> = ({
                     >
                       {comment.author_username}
                     </span>
+                  ) : comment.is_anonymous ? (
+                    <span
+                      className="text-xs font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:underline"
+                      onMouseEnter={(e) => handleMouseEnter(e, '', comment.display_name || 'Anonymous')}
+                      onMouseLeave={handleMouseLeave}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleClick(e, '', comment.display_name || 'Anonymous');
+                      }}
+                    >
+                      {comment.display_name || 'Anonymous'}
+                    </span>
                   ) : (
                     <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
-                      {comment.is_anonymous ? comment.display_name : comment.author_username || 'Unknown'}
+                      {comment.author_username || 'Unknown'}
                     </span>
                   )}
                   <UserBadges
@@ -397,9 +419,9 @@ const CommentCard: React.FC<CommentCardProps> = ({
       </div>
       {showBanner && selectedUser && bannerPos && (
         <UserBanner
-          userId={comment.is_anonymous ? '' : selectedUser.userId}
+          userId={selectedUser.userId || ''}
           username={selectedUser.username}
-          isAnonymous={comment.is_anonymous || false}
+          isAnonymous={!selectedUser.userId}
           x={bannerPos.x}
           y={bannerPos.y}
           onClose={handleClose}

@@ -4,6 +4,7 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import Avatar from '@/components/UI/Avatar';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { VoipButton } from '@/components/Voip';
 import toast from 'react-hot-toast';
 
 interface Conversation {
@@ -605,6 +606,13 @@ const PrivateMessages: React.FC = () => {
                   <p className="text-sm theme-text-secondary">{t('privateMessages.privateConversation') || 'Private conversation'}</p>
                 </div>
               </div>
+              {/* VOIP Call Button */}
+              <VoipButton
+                roomId={selectedConversation}
+                roomType="dm"
+                roomName={conversations.find(c => c.user_id === selectedConversation)?.username}
+                variant="bordered"
+              />
             </div>
 
             {/* Messages */}

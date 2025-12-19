@@ -264,7 +264,12 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
 
 
                     {post.is_anonymous ? (
-                      <div className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs`}>
+                      <div
+                        className={`w-6 h-6 rounded-full ${getUserColorClass(post.display_name || 'Anonymous')} flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs cursor-pointer`}
+                        onMouseEnter={(e) => handleMouseEnter(e, '', post.display_name || 'Anonymous')}
+                        onMouseLeave={handleMouseLeave}
+                        onClick={(e) => handleClick(e, '', post.display_name || 'Anonymous')}
+                      >
                         {(post.display_name || 'Anonymous').charAt(0).toUpperCase()}
                       </div>
                     ) : post.user_id ? (
@@ -273,18 +278,26 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
                         username={post.author_username || post.display_name || 'Unknown'}
                         profilePicture={post.profile_picture}
                         size="sm"
+                        onClick={(e) => e && handleClick(e, post.user_id, post.author_username || post.display_name || 'Unknown')}
+                        onMouseEnter={(e) => handleMouseEnter(e, post.user_id, post.author_username || post.display_name || 'Unknown')}
+                        onMouseLeave={handleMouseLeave}
+                        className="cursor-pointer"
                       />
                     ) : null}
                     <span
                       className="font-medium theme-text-primary cursor-pointer hover:underline"
                       onMouseEnter={(e) => {
-                        if (!post.is_anonymous && post.user_id) {
+                        if (post.is_anonymous) {
+                          handleMouseEnter(e, '', post.display_name || 'Anonymous');
+                        } else if (post.user_id) {
                           handleMouseEnter(e, post.user_id, post.author_username || post.display_name || 'Unknown');
                         }
                       }}
                       onMouseLeave={handleMouseLeave}
                       onClick={(e) => {
-                        if (!post.is_anonymous && post.user_id) {
+                        if (post.is_anonymous) {
+                          handleClick(e, '', post.display_name || 'Anonymous');
+                        } else if (post.user_id) {
                           handleClick(e, post.user_id, post.author_username || post.display_name || 'Unknown');
                         }
                       }}
@@ -327,9 +340,9 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
       {/* User Banner */}
       {showBanner && selectedUser && bannerPos && (
         <UserBanner
-          userId={post.is_anonymous ? '' : selectedUser.userId}
+          userId={selectedUser.userId || ''}
           username={selectedUser.username}
-          isAnonymous={post.is_anonymous || false}
+          isAnonymous={!selectedUser.userId}
           x={bannerPos.x}
           y={bannerPos.y}
           onClose={handleClose}

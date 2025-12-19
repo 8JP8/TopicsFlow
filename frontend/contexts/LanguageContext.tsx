@@ -25,7 +25,7 @@ interface LanguageProviderProps {
 }
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('pt');
   const [mounted, setMounted] = useState(false);
 
   // Load language from localStorage on mount (client-side only)
@@ -37,9 +37,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'pt')) {
         setLanguageState(savedLanguage);
       } else {
-        // Detect browser language
+        // Detect browser language - prioritize PT, fallback to EN only if explicitly EN
         const browserLang = navigator.language.toLowerCase();
-        if (browserLang.startsWith('pt')) {
+        if (browserLang.startsWith('en')) {
+          setLanguageState('en');
+        } else {
           setLanguageState('pt');
         }
       }

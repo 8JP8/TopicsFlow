@@ -69,7 +69,7 @@ def get_attachment(file_id):
             try:
                 from azure.storage.blob import BlobServiceClient
                 connection_string = current_app.config.get('AZURE_STORAGE_CONNECTION_STRING')
-                container_name = current_app.config.get('AZURE_STORAGE_CONTAINER', 'attachments')
+                container_name = current_app.config.get('AZURE_STORAGE_CONTAINER', 'uploads')
                 
                 blob_service = BlobServiceClient.from_connection_string(connection_string)
                 container_client = blob_service.get_container_client(container_name)
@@ -152,13 +152,25 @@ def get_attachment_info(file_id):
             try:
                 from azure.storage.blob import BlobClient
                 connection_string = current_app.config.get('AZURE_STORAGE_CONNECTION_STRING')
-                container_name = current_app.config.get('AZURE_STORAGE_CONTAINER', 'attachments')
+                container_name = current_app.config.get('AZURE_STORAGE_CONTAINER', 'uploads')
                 
-                blob_client = BlobClient.from_connection_string(
-                    connection_string,
-                    container_name=container_name,
-                    blob_name=file_id
-                )
+                # Search for blob with matching file_id in name
+                # We need to list blobs because stored paths include type-based directories
+                blob_service = BlobClient.from_connection_string(connection_string, container_name, "dummy") # We need service client effectively
+                from azure.storage.blob import BlobServiceClient
+                blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                container_client = blob_service_client.get_container_client(container_name)
+                
+                blob_name = None
+                for blob in container_client.list_blobs():
+                    if file_id in blob.name:
+                        blob_name = blob.name
+                        break
+                
+                if not blob_name:
+                    return jsonify({'success': False, 'errors': ['File not found']}), 404
+                
+                blob_client = container_client.get_blob_client(blob_name)
                 
                 blob_props = blob_client.get_blob_properties()
                 metadata = blob_props.metadata

@@ -1247,6 +1247,502 @@ def register_socketio_handlers(socketio):
             logger.error(f"Debug whoami error: {e}")
             emit('error', {'message': f'Debug error: {str(e)}'})
 
+    # ==================== VOIP HANDLERS ====================
+    
+    @socketio.on('voip_create_call')
+    def handle_voip_create_call(data):
+        """Create a new VOIP call for a chat room or DM."""
+        try:
+            room_id = data.get('room_id')
+            room_type = data.get('room_type', 'group')  # 'group' or 'dm'
+            room_name = data.get('room_name', '')
+            
+            if not room_id:
+                emit('voip_error', {'message': 'Room ID is required'})
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('voip_error', {'message': 'Authentication required'})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            username = user.get('username', 'Unknown')
+            
+            # Create the call
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            
+            call = voip_model.create_call(room_id, room_type, user_id, room_name)
+            
+            if not call:
+                # Call already exists, return the existing call
+                existing_call = voip_model.get_active_call(room_id)
+                if existing_call:
+                    emit('voip_call_exists', {
+                        'call': existing_call,
+                        'message': 'A call is already active for this room'
+                    })
+                else:
+                    emit('voip_error', {'message': 'Failed to create call'})
+                return
+            
+            # Join the VOIP room for signaling
+            voip_room = f"voip_{call['id']}"
+            join_room(voip_room)
+            
+            logger.info(f"[VOIP] User {username} created call {call['id']} for room {room_id}")
+            
+            # Emit call created to the creator
+            emit('voip_call_created', {
+                'call': call,
+                'user': {
+                    'id': user_id,
+                    'username': username,
+                    'profile_picture': user.get('profile_picture')
+                }
+            })
+            
+            # Notify other users in the chat room about the new call
+            if room_type == 'group':
+                chat_room = f"chat_room_{room_id}"
+                emit('voip_call_started', {
+                    'call': call,
+                    'started_by': {
+                        'id': user_id,
+                        'username': username,
+                        'profile_picture': user.get('profile_picture')
+                    }
+                }, room=chat_room, include_self=False)
+            else:
+                # For DM, notify the other user
+                other_user_room = f"user_{room_id}"
+                emit('voip_incoming_call', {
+                    'call': call,
+                    'caller': {
+                        'id': user_id,
+                        'username': username,
+                        'profile_picture': user.get('profile_picture')
+                    }
+                }, room=other_user_room)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Create call error: {str(e)}")
+            emit('voip_error', {'message': 'Failed to create call'})
+
+    @socketio.on('voip_join_call')
+    def handle_voip_join_call(data):
+        """Join an existing VOIP call."""
+        try:
+            call_id = data.get('call_id')
+            
+            if not call_id:
+                emit('voip_error', {'message': 'Call ID is required'})
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('voip_error', {'message': 'Authentication required'})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            username = user.get('username', 'Unknown')
+            
+            # Join the call
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            
+            call = voip_model.join_call(call_id, user_id)
+            
+            if not call:
+                emit('voip_error', {'message': 'Call not found or already ended'})
+                return
+            
+            # Join the VOIP room for signaling
+            voip_room = f"voip_{call_id}"
+            join_room(voip_room)
+            
+            logger.info(f"[VOIP] User {username} joined call {call_id}")
+            
+            # Emit to the user who joined
+            emit('voip_call_joined', {
+                'call': call,
+                'user': {
+                    'id': user_id,
+                    'username': username,
+                    'profile_picture': user.get('profile_picture')
+                }
+            })
+            
+            # Notify other participants
+            emit('voip_user_joined', {
+                'call_id': call_id,
+                'user': {
+                    'id': user_id,
+                    'username': username,
+                    'profile_picture': user.get('profile_picture')
+                }
+            }, room=voip_room, include_self=False)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Join call error: {str(e)}")
+            emit('voip_error', {'message': 'Failed to join call'})
+
+    @socketio.on('voip_leave_call')
+    def handle_voip_leave_call(data):
+        """Leave a VOIP call."""
+        try:
+            call_id = data.get('call_id')
+            
+            if not call_id:
+                emit('voip_error', {'message': 'Call ID is required'})
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            username = user.get('username', 'Unknown')
+            
+            # Leave the call
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            
+            result = voip_model.leave_call(call_id, user_id)
+            
+            voip_room = f"voip_{call_id}"
+            
+            # Notify other participants
+            if result:
+                if result.get('ended'):
+                    # Call ended (no participants left)
+                    emit('voip_call_ended', {
+                        'call_id': call_id,
+                        'reason': 'no_participants'
+                    }, room=voip_room)
+                    logger.info(f"[VOIP] Call {call_id} ended - no participants remaining")
+                else:
+                    # User left but call continues
+                    emit('voip_user_left', {
+                        'call_id': call_id,
+                        'user': {
+                            'id': user_id,
+                            'username': username
+                        }
+                    }, room=voip_room, include_self=False)
+            
+            # Leave the VOIP room
+            leave_room(voip_room)
+            
+            # Confirm to the user
+            emit('voip_left_call', {'call_id': call_id})
+            
+            logger.info(f"[VOIP] User {username} left call {call_id}")
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Leave call error: {str(e)}")
+            emit('voip_error', {'message': 'Failed to leave call'})
+
+    @socketio.on('voip_ice_candidate')
+    def handle_voip_ice_candidate(data):
+        """Relay ICE candidate to a specific peer."""
+        try:
+            call_id = data.get('call_id')
+            target_user_id = data.get('target_user_id')
+            candidate = data.get('candidate')
+            
+            if not all([call_id, target_user_id, candidate]):
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Send ICE candidate to target user
+            target_room = f"user_{target_user_id}"
+            emit('voip_ice_candidate', {
+                'call_id': call_id,
+                'from_user_id': user_id,
+                'candidate': candidate
+            }, room=target_room)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] ICE candidate error: {str(e)}")
+
+    @socketio.on('voip_offer')
+    def handle_voip_offer(data):
+        """Relay SDP offer to a specific peer."""
+        try:
+            call_id = data.get('call_id')
+            target_user_id = data.get('target_user_id')
+            offer = data.get('offer')
+            
+            if not all([call_id, target_user_id, offer]):
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            username = user.get('username', 'Unknown')
+            
+            # Send offer to target user
+            target_room = f"user_{target_user_id}"
+            emit('voip_offer', {
+                'call_id': call_id,
+                'from_user_id': user_id,
+                'from_username': username,
+                'offer': offer
+            }, room=target_room)
+            
+            logger.info(f"[VOIP] Relayed offer from {user_id} to {target_user_id}")
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Offer relay error: {str(e)}")
+
+    @socketio.on('voip_answer')
+    def handle_voip_answer(data):
+        """Relay SDP answer to a specific peer."""
+        try:
+            call_id = data.get('call_id')
+            target_user_id = data.get('target_user_id')
+            answer = data.get('answer')
+            
+            if not all([call_id, target_user_id, answer]):
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Send answer to target user
+            target_room = f"user_{target_user_id}"
+            emit('voip_answer', {
+                'call_id': call_id,
+                'from_user_id': user_id,
+                'answer': answer
+            }, room=target_room)
+            
+            logger.info(f"[VOIP] Relayed answer from {user_id} to {target_user_id}")
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Answer relay error: {str(e)}")
+
+    @socketio.on('voip_speaking')
+    def handle_voip_speaking(data):
+        """Broadcast speaking status to call participants."""
+        try:
+            call_id = data.get('call_id')
+            is_speaking = data.get('is_speaking', False)
+            
+            if not call_id:
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Broadcast speaking status to all participants
+            voip_room = f"voip_{call_id}"
+            emit('voip_speaking_status', {
+                'call_id': call_id,
+                'user_id': user_id,
+                'is_speaking': is_speaking
+            }, room=voip_room, include_self=False)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Speaking status error: {str(e)}")
+
+    @socketio.on('voip_mute_toggle')
+    def handle_voip_mute_toggle(data):
+        """Toggle and broadcast mute status."""
+        try:
+            call_id = data.get('call_id')
+            is_muted = data.get('is_muted', False)
+            
+            if not call_id:
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Update mute status in database
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            voip_model.set_mute_status(call_id, user_id, is_muted)
+            
+            # Broadcast mute status to all participants
+            voip_room = f"voip_{call_id}"
+            emit('voip_mute_status', {
+                'call_id': call_id,
+                'user_id': user_id,
+                'is_muted': is_muted
+            }, room=voip_room)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Mute toggle error: {str(e)}")
+
+    @socketio.on('voip_get_active_call')
+    def handle_voip_get_active_call(data):
+        """Get active call info for a room."""
+        try:
+            room_id = data.get('room_id')
+            
+            if not room_id:
+                emit('voip_active_call', {'call': None})
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('voip_error', {'message': 'Authentication required'})
+                return
+            
+            # Get active call
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            call = voip_model.get_active_call(room_id)
+            
+            emit('voip_active_call', {
+                'room_id': room_id,
+                'call': call
+            })
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Get active call error: {str(e)}")
+            emit('voip_active_call', {'call': None})
+
+    @socketio.on('voip_heartbeat')
+    def handle_voip_heartbeat(data):
+        """Update heartbeat for a participant in a call."""
+        try:
+            call_id = data.get('call_id')
+            
+            if not call_id:
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Update heartbeat
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            voip_model.update_heartbeat(call_id, user_id)
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Heartbeat error: {str(e)}")
+
+    @socketio.on('voip_get_my_call')
+    def handle_voip_get_my_call():
+        """Get the user's current active call for reconnection after page refresh."""
+        try:
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                emit('voip_my_call', {'call': None})
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            
+            # Get user's active call
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            call = voip_model.get_user_active_call(user_id)
+            
+            if call:
+                # Rejoin the voip room for signaling
+                voip_room = f"voip_{call['id']}"
+                join_room(voip_room)
+                logger.info(f"[VOIP] User {user.get('username')} reconnected to call {call['id']}")
+            
+            emit('voip_my_call', {'call': call})
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Get my call error: {str(e)}")
+            emit('voip_my_call', {'call': None})
+
+    @socketio.on('voip_set_disconnected')
+    def handle_voip_set_disconnected(data):
+        """Mark a user as disconnected in a call (for network issues)."""
+        try:
+            call_id = data.get('call_id')
+            is_disconnected = data.get('is_disconnected', True)
+            
+            if not call_id:
+                return
+            
+            # Verify user is authenticated
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result['success']:
+                return
+            
+            user = current_user_result['user']
+            user_id = user['id']
+            username = user.get('username', 'Unknown')
+            
+            # Update disconnected status
+            from models.voip import VoipCall
+            voip_model = VoipCall(current_app.db)
+            voip_model.set_disconnected_status(call_id, user_id, is_disconnected)
+            
+            # Broadcast to other participants
+            voip_room = f"voip_{call_id}"
+            emit('voip_user_disconnected', {
+                'call_id': call_id,
+                'user_id': user_id,
+                'username': username,
+                'is_disconnected': is_disconnected
+            }, room=voip_room, include_self=False)
+            
+            logger.info(f"[VOIP] User {username} disconnected status: {is_disconnected}")
+            
+        except Exception as e:
+            logger.error(f"[VOIP] Set disconnected error: {str(e)}")
 
 def get_online_users_count() -> int:
     """Get count of currently online users."""

@@ -1,0 +1,43 @@
+{
+  "name": "TopicsFlow",
+  "short_name": "Chat",
+  "description": "Reddit-style chat application with TOTP authentication",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1976d2",
+  "theme_color": "#1976d2",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/FY5shL9w/chat.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Topic",
+      "short_name": "New Topic",
+      "description": "Create a new chat topic",
+      "url": "/?action=new-topic",
+      "icons": [{ "src": "https://i.postimg.cc/FY5shL9w/chat.png", "sizes": "any", "type": "image/png" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "View private messages",
+      "url": "/?action=messages",
+      "icons": [{ "src": "https://i.postimg.cc/FY5shL9w/chat.png", "sizes": "any", "type": "image/png" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "_comment": {
+    "share_banner": "TODO: Add a 16:9 aspect ratio banner image (e.g., 1920x1080px) for social sharing. Place it in /public/ and update og:image and twitter:image meta tags in _document.tsx. Suggested path: /banner.png or /share-image.png"
+  }
+}

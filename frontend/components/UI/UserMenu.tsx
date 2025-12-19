@@ -5,13 +5,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import Avatar from '@/components/UI/Avatar';
-import { getUserColorClass } from '@/utils/colorUtils';
-
-interface CurrentTopicAnonymousState {
-  topicId: string;
-  isAnonymous: boolean;
-  name?: string;
-}
 
 const UserMenu: React.FC = () => {
   const { user, logout } = useAuth();
@@ -19,58 +12,9 @@ const UserMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [showMyTickets, setShowMyTickets] = useState(false);
-  const [currentTopicAnonymousState, setCurrentTopicAnonymousState] = useState<CurrentTopicAnonymousState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Check for current topic's anonymous state from localStorage
-  useEffect(() => {
-    const checkAnonymousState = () => {
-      if (typeof window === 'undefined') return;
-      try {
-        const stored = localStorage.getItem('current_topic_anonymous_state');
-        if (stored) {
-          const state = JSON.parse(stored) as CurrentTopicAnonymousState;
-          setCurrentTopicAnonymousState(prev => {
-            if (JSON.stringify(prev) === JSON.stringify(state)) return prev;
-            return state;
-          });
-        } else {
-          setCurrentTopicAnonymousState(prev => prev ? null : prev);
-        }
-      } catch (error) {
-        console.error('Failed to read current topic anonymous state:', error);
-        setCurrentTopicAnonymousState(null);
-      }
-    };
-
-    // Check on mount
-    checkAnonymousState();
-
-    // Listen for storage events (when anonymous state changes in another tab/window)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'current_topic_anonymous_state') {
-        checkAnonymousState();
-      }
-    };
-
-    // Listen for custom event when anonymous state changes in same window
-    const handleAnonymousStateChange = () => {
-      checkAnonymousState();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('anonymousStateChanged', handleAnonymousStateChange);
-
-    // Check periodically as fallback (reduced frequency)
-    const interval = setInterval(checkAnonymousState, 1000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('anonymousStateChanged', handleAnonymousStateChange);
-      clearInterval(interval);
-    };
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -191,11 +135,10 @@ const UserMenu: React.FC = () => {
     return null;
   }
 
-  // Determine if we should show anonymous identity
-  const showAnonymous = currentTopicAnonymousState?.isAnonymous || false;
-  const anonymousName = currentTopicAnonymousState?.name || '';
-  const displayName = showAnonymous ? anonymousName : user.username;
-  const displayProfilePicture = showAnonymous ? undefined : user.profile_picture;
+  // Always show real user info in the top-right menu
+  // Anonymous mode only affects posts/message display within specific topics
+  const displayName = user.username;
+  const displayProfilePicture = user.profile_picture;
 
   return (
     <>
@@ -206,21 +149,12 @@ const UserMenu: React.FC = () => {
           className="flex items-center space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
           aria-label="User menu"
         >
-
-
-          {showAnonymous ? (
-            // Show default avatar with initial when anonymous
-            <div className={`w-8 h-8 rounded-full ${getUserColorClass(anonymousName || 'Anonymous')} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
-              {anonymousName ? anonymousName.charAt(0).toUpperCase() : 'A'}
-            </div>
-          ) : (
-            <Avatar
-              userId={user.id}
-              username={user.username}
-              profilePicture={displayProfilePicture}
-              size="md"
-            />
-          )}
+          <Avatar
+            userId={user.id}
+            username={user.username}
+            profilePicture={displayProfilePicture}
+            size="md"
+          />
           <span className="text-sm font-medium theme-text-primary hidden sm:block">
             {displayName}
           </span>
@@ -239,22 +173,14 @@ const UserMenu: React.FC = () => {
             {/* User Info */}
             <div className="px-4 py-3 border-b theme-border">
               <p className="text-sm font-medium theme-text-primary">{displayName}</p>
-              {showAnonymous ? (
-                <p className="text-xs theme-text-muted italic mt-1">
-                  {t('userBanner.anonymousUser') || 'Anonymous User'}
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs theme-text-secondary">{user.email}</p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    {user.totp_enabled && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        {t('userMenu.twoFactorEnabled') || '2FA Enabled'}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
+              <p className="text-xs theme-text-secondary">{user.email}</p>
+              <div className="flex items-center space-x-2 mt-1">
+                {user.totp_enabled && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    {t('userMenu.twoFactorEnabled') || '2FA Enabled'}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Menu Items */}

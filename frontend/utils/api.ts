@@ -170,6 +170,8 @@ export const API_ENDPOINTS = {
     SEND_PRIVATE: '/api/messages/private',
     PRIVATE_CONVERSATIONS: '/api/messages/private/conversations',
     MARK_READ: (id: string) => `/api/messages/private/${id}/read`,
+    DELETE_PRIVATE: (id: string) => `/api/messages/private/${id}`,
+    REPORT_PRIVATE: (id: string) => `/api/messages/private/${id}/report`,
   },
 
   // Reports

@@ -62,7 +62,7 @@ class FileStorageService:
             raise ImportError("Azure Storage SDK not available")
         
         connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-        container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'attachments')
+        container_name = os.getenv('AZURE_STORAGE_CONTAINER', os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'uploads'))
         
         if not connection_string:
             raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable not set")

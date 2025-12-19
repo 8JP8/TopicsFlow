@@ -57,10 +57,13 @@ const UserBanner: React.FC<UserBannerProps> = ({
   }, [userId, isAnonymous]);
 
   const fetchUserData = async () => {
-    // If anonymous, don't show banner at all - return early
-    if (isAnonymous || (!userId && initialUsername && initialUsername === 'Anonymous')) {
-      setError(null);
-      setUser(null);
+    // For anonymous users, show a banner with the anonymous username
+    if (isAnonymous) {
+      setUser({
+        id: '', // Empty id indicates anonymous
+        username: initialUsername || 'Anonymous',
+        created_at: new Date().toISOString(),
+      });
       setLoading(false);
       return;
     }
@@ -225,11 +228,7 @@ const UserBanner: React.FC<UserBannerProps> = ({
                   <UserBadges isAnonymous={true} />
                 )}
               </div>
-              {!user.id || isAnonymous ? (
-                <p className="text-sm theme-text-muted mt-1 italic">
-                  {t('userBanner.anonymousUser') || 'Anonymous User'}
-                </p>
-              ) : (
+              {user.id && !isAnonymous && (
                 <p className="text-sm theme-text-muted mt-1">
                   {t('userBanner.joined')} {formatJoinDate(user.created_at)}
                 </p>

@@ -13,6 +13,7 @@ import FollowedChatroomsModal from '@/components/Settings/FollowedChatroomsModal
 import BackupCodesModal from '@/components/Settings/BackupCodesModal';
 import DeleteAccountModal from '@/components/Settings/DeleteAccountModal';
 import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
+import VoipAudioSettings from '@/components/Settings/VoipAudioSettings';
 
 interface UserPreferences {
   theme: 'light' | 'dark';
@@ -720,6 +721,9 @@ const Settings: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Voice & Audio Settings */}
+              <VoipAudioSettings />
             </div>
           )}
 

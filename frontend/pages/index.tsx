@@ -17,6 +17,7 @@ import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import ResizableSidebar from '@/components/UI/ResizableSidebar';
 import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
 import AnonymousModeDialog from '@/components/UI/AnonymousModeDialog';
+import { VoipControlBar } from '@/components/Voip';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName, saveLastAnonymousName } from '@/utils/anonymousStorage';
 
 interface Topic {
@@ -694,6 +695,9 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* VOIP Control Bar - At bottom of left sidebar */}
+              <VoipControlBar />
             </div>
           </ResizableSidebar>
 

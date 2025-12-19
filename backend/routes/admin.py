@@ -7,6 +7,7 @@ from models.message import Message
 from models.post import Post
 from models.comment import Comment
 from models.topic import Topic
+from models.private_message import PrivateMessage
 from utils.decorators import require_auth, require_json, log_requests
 from utils.admin_middleware import require_admin
 from bson import ObjectId
@@ -33,6 +34,8 @@ def get_all_reports():
         content_type = request.args.get('content_type')  # 'user', 'message', 'post', 'comment', 'chatroom', etc.
         limit = int(request.args.get('limit', 50))
         offset = int(request.args.get('offset', 0))
+        
+        logger.info(f"get_all_reports params: limit={limit}, offset={offset}, status={status}, content_type={content_type}")
 
         if limit < 1 or limit > 100:
             limit = 50
@@ -40,6 +43,7 @@ def get_all_reports():
             offset = 0
 
         report_model = Report(current_app.db)
+        logger.info("Report model initialized")
 
         # Build query
         query = {}
@@ -76,18 +80,25 @@ def get_all_reports():
         reports_cursor = report_model.collection.find(query).sort([('created_at', -1)])
         total_before_limit = report_model.collection.count_documents(query)
         reports = list(reports_cursor.skip(offset).limit(limit))
+        logger.info(f"Fetched {len(reports)} reports from DB")
         
         logger.info(f"Found {len(reports)} reports (showing {offset} to {offset + len(reports)} of {total_before_limit} total) with query {query}")
 
         # Format reports
         formatted_reports = []
+        logger.info("Starting report formatting loop")
         for report in reports:
-            formatted_report = _format_report(report, current_app.db)
-            formatted_reports.append(formatted_report)
+            try:
+                formatted_report = _format_report(report, current_app.db)
+                formatted_reports.append(formatted_report)
+            except Exception as e:
+                logger.error(f"Error formatting report {report.get('_id')}: {str(e)}", exc_info=True)
+                # Continue with other reports instead of failing entirely
+                continue
 
         total_count = report_model.collection.count_documents(query)
 
-        return jsonify({
+        return jsonify(_serialize_for_json({
             'success': True,
             'data': formatted_reports,
             'pagination': {
@@ -96,10 +107,13 @@ def get_all_reports():
                 'total': total_count,
                 'has_more': offset + limit < total_count
             }
-        }), 200
+        })), 200
 
     except Exception as e:
         logger.error(f"Get all reports error: {str(e)}", exc_info=True)
+        # Log the traceback explicitly if needed
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'errors': ['Failed to get reports']}), 500
 
 
@@ -390,7 +404,7 @@ def get_all_tickets():
         
         logger.info(f"Ticket count: {total_count} with filters - status: {status_filter}, category: {category_filter}, priority: {priority_filter}")
 
-        return jsonify({
+        return jsonify(_serialize_for_json({
             'success': True,
             'data': tickets,
             'pagination': {
@@ -399,7 +413,7 @@ def get_all_tickets():
                 'total': total_count,
                 'has_more': offset + limit < total_count
             }
-        }), 200
+        })), 200
 
     except Exception as e:
         logger.error(f"Get all tickets error: {str(e)}", exc_info=True)
@@ -606,10 +620,10 @@ def get_banned_users():
         # Sort by banned_at descending (most recent first)
         banned_users.sort(key=lambda x: x['banned_at'] or '', reverse=True)
         
-        return jsonify({
+        return jsonify(_serialize_for_json({
             'success': True,
             'data': banned_users
-        }), 200
+        })), 200
 
     except Exception as e:
         logger.error(f"Get banned users error: {str(e)}", exc_info=True)
@@ -1031,7 +1045,10 @@ def _format_report(report: dict, db) -> dict:
     # Convert ObjectIds to strings
     report['_id'] = str(report['_id'])
     report['id'] = str(report['_id'])
-    report['reported_by'] = str(report['reported_by'])
+    if report.get('reported_by'):
+        report['reported_by'] = str(report['reported_by'])
+    else:
+        report['reported_by'] = None
 
     if report.get('reported_content_id'):
         report['reported_content_id'] = str(report['reported_content_id'])
@@ -1041,6 +1058,10 @@ def _format_report(report: dict, db) -> dict:
         report['topic_id'] = str(report['topic_id'])
     if report.get('reviewed_by'):
         report['reviewed_by'] = str(report['reviewed_by'])
+    
+    # Convert attached_messages specific list of ObjectIds
+    if report.get('attached_messages'):
+        report['attached_messages'] = [str(mid) for mid in report['attached_messages']]
 
     # Convert datetimes
     if isinstance(report.get('created_at'), datetime):
@@ -1147,6 +1168,47 @@ def _format_report(report: dict, db) -> dict:
                     'attachments': content.get('attachments', []),
                     'chat_room_id': str(content.get('chat_room_id')) if content.get('chat_room_id') else None,
                     'topic_id': str(content.get('topic_id')) if content.get('topic_id') else None,
+                }
+        elif content_type == 'private_message':
+            pm_model = PrivateMessage(db)
+            content = pm_model.get_message_by_id(content_id)
+            if content:
+                # Get user from message (sender)
+                user_id = content.get('from_user_id')
+                if isinstance(user_id, ObjectId):
+                    user_id = str(user_id)
+                else:
+                    user_id = str(user_id)
+                reported_user = user_model.get_user_by_id(user_id)
+                if reported_user:
+                    report['reported_user_id'] = user_id
+                    original_username = reported_user.get('username', 'Unknown')
+                    
+                    report['reported_username'] = original_username
+                    report['reported_username_display'] = original_username
+                    report['reported_username_original'] = original_username
+                    
+                    report['reported_user'] = {
+                        'id': reported_user.get('id'),
+                        'username': original_username,
+                        'is_banned': reported_user.get('is_banned', False)
+                    }
+                
+                # Process attachments to ensure no ObjectIds remain
+                processed_attachments = []
+                for att in content.get('attachments', []):
+                    processed_att = att.copy()
+                    if processed_att.get('file_id') and isinstance(processed_att['file_id'], ObjectId):
+                        processed_att['file_id'] = str(processed_att['file_id'])
+                    processed_attachments.append(processed_att)
+
+                # Message-specific data
+                report['content_data'] = {
+                    'content': content.get('content', ''),
+                    'message_type': content.get('message_type', 'text'),
+                    'created_at': content.get('created_at').isoformat() if isinstance(content.get('created_at'), datetime) else content.get('created_at'),
+                    'attachments': processed_attachments,
+                    'to_user_id': str(content.get('to_user_id'))
                 }
         elif content_type == 'post':
             post_model = Post(db)
@@ -1283,11 +1345,19 @@ def _format_report(report: dict, db) -> dict:
                             'filename': 'GIF'
                         })
                 
+                # Sanitize attachments (convert ObjectId to str)
+                sanitized_attachments = []
+                for att in attachments:
+                    sanitized_att = att.copy()
+                    if sanitized_att.get('file_id') and isinstance(sanitized_att['file_id'], ObjectId):
+                        sanitized_att['file_id'] = str(sanitized_att['file_id'])
+                    sanitized_attachments.append(sanitized_att)
+                
                 attached_messages.append({
                     'id': str(msg.get('_id')),
                     'content': msg.get('content', ''),
                     'created_at': msg.get('created_at').isoformat() if isinstance(msg.get('created_at'), datetime) else msg.get('created_at'),
-                    'attachments': attachments,
+                    'attachments': sanitized_attachments,
                     'gif_url': msg.get('gif_url')  # Also include at message level for compatibility
                 })
         report['attached_messages_data'] = attached_messages

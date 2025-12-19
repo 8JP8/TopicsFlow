@@ -661,6 +661,120 @@ def send_private_message():
         return jsonify({'success': False, 'errors': [f'Failed to send private message: {str(e)}']}), 500
 
 
+@messages_bp.route('/private/<message_id>', methods=['DELETE'])
+@require_auth()
+@log_requests
+def delete_private_message(message_id):
+    """Delete a private message. Defaults to soft delete (for me). Optional mode='hard' for unsend (sender only)."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        from models.private_message import PrivateMessage
+        pm_model = PrivateMessage(current_app.db)
+        
+        # Check if message exists and belongs to user
+        message = pm_model.get_message_by_id(message_id)
+        if not message:
+             return jsonify({'success': False, 'errors': ['Message not found']}), 404
+             
+        if str(message['from_user_id']) != user_id and str(message['to_user_id']) != user_id:
+            return jsonify({'success': False, 'errors': ['Permission denied']}), 403
+
+        mode = request.args.get('mode', 'soft')
+
+        if mode == 'hard':
+            # Hard delete (Unsend) - only allowed for sender
+            if str(message['from_user_id']) != user_id:
+                return jsonify({'success': False, 'errors': ['Only sender can unsend message']}), 403
+            success = pm_model.delete_message(message_id, user_id)
+        else:
+            # Soft delete (Delete for me)
+            success = pm_model.delete_message_for_me(message_id, user_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Message deleted successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to delete message']}), 400
+
+    except Exception as e:
+        logger.error(f"Delete private message error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to delete message']}), 500
+
+
+@messages_bp.route('/private/<message_id>/report', methods=['POST'])
+@require_json
+@require_auth()
+@log_requests
+def report_private_message(message_id):
+    """Report a private message for moderation."""
+    try:
+        data = request.get_json()
+        reason = data.get('reason', '').strip()
+
+        if not reason:
+            return jsonify({'success': False, 'errors': ['Report reason is required']}), 400
+
+        if len(reason) < 3 or len(reason) > 500:
+            return jsonify({'success': False, 'errors': ['Reason must be between 3 and 500 characters']}), 400
+
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        from models.private_message import PrivateMessage
+        pm_model = PrivateMessage(current_app.db)
+        message = pm_model.get_message_by_id(message_id)
+        
+        if not message:
+            return jsonify({'success': False, 'errors': ['Message not found']}), 404
+
+        # Verify user has access to this message (sender or receiver)
+        if str(message['from_user_id']) != user_id and str(message['to_user_id']) != user_id:
+            return jsonify({'success': False, 'errors': ['Permission denied']}), 403
+
+        from models.report import Report
+        report_model = Report(current_app.db)
+        
+        from bson import ObjectId
+        # Check if already reported by this user
+        existing_report = report_model.collection.find_one({
+            'reported_content_id': ObjectId(message_id),
+            'reported_by': ObjectId(user_id),
+            'content_type': 'private_message'
+        })
+        
+        if existing_report:
+             return jsonify({'success': False, 'errors': ['You have already reported this message']}), 400
+
+        # Create report
+        report_id = report_model.create_report(
+            reporter_id=user_id,
+            reason=reason,
+            content_type='private_message',
+            content_id=message_id,
+            reported_user_id=str(message['from_user_id'])  # Report against the sender
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Message reported successfully',
+            'data': {'report_id': report_id}
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Report private message error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to report message']}), 500
+
+
 @messages_bp.route('/private/conversations', methods=['GET'])
 @require_auth()
 @log_requests

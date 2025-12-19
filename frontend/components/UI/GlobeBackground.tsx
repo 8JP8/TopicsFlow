@@ -23,7 +23,7 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        let width = 600;
+        const width = 600;
 
         const initGlobe = async () => {
             const createGlobe = (await import('cobe')).default;

@@ -4,8 +4,10 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SocketProvider, useSocket } from '@/contexts/SocketContext';
+import { VoipProvider } from '@/contexts/VoipContext';
 import WarningBanner from '@/components/Warning/WarningBanner';
 import PWAInstallPrompt from '@/components/UI/PWAInstallPrompt';
+import { IncomingCallDialog } from '@/components/Voip';
 import { useEffect, useState } from 'react';
 import '@/styles/globals.css';
 
@@ -21,7 +23,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
       hasActiveWarning: !!user?.active_warning,
       warningDismissed: user?.active_warning?.dismissed_at
     });
-    
+
     if (user?.active_warning && !user.active_warning.dismissed_at) {
       console.log('[AppContent] Setting warning:', user.active_warning);
       setWarning(user.active_warning);
@@ -52,7 +54,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
     };
 
     window.addEventListener('user_warning', eventHandler as EventListener);
-    
+
     return () => {
       window.removeEventListener('user_warning', eventHandler as EventListener);
     };
@@ -70,6 +72,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
     <>
       {warning && <WarningBanner warning={warning} />}
       <PWAInstallPrompt />
+      <IncomingCallDialog />
       <Component {...pageProps} />
     </>
   );
@@ -81,37 +84,39 @@ function MyApp({ Component, pageProps }: AppProps) {
       <AuthProvider>
         <ThemeProvider>
           <SocketProvider>
-            <AppContent Component={Component} pageProps={pageProps} />
-            <Toaster
-              position="top-center"
-              containerStyle={{
-                top: '20px',
-              }}
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'var(--theme-bg-secondary)',
-                  color: 'var(--theme-text-primary)',
-                  border: '1px solid var(--theme-border)',
-                  borderRadius: '0.75rem',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#ffffff',
+            <VoipProvider>
+              <AppContent Component={Component} pageProps={pageProps} />
+              <Toaster
+                position="top-center"
+                containerStyle={{
+                  top: '20px',
+                }}
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--theme-bg-secondary)',
+                    color: 'var(--theme-text-primary)',
+                    border: '1px solid var(--theme-border)',
+                    borderRadius: '0.75rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#ffffff',
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#ffffff',
+                    },
                   },
-                },
-              }}
-            />
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#ffffff',
+                    },
+                  },
+                }}
+              />
+            </VoipProvider>
           </SocketProvider>
         </ThemeProvider>
       </AuthProvider>
