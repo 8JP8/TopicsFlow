@@ -1,17 +1,15 @@
-name: Deploy to Azure Container Apps
+name: Azure Web App Deployment
 
 on:
   push:
     branches:
-      - main
       - azuredeployment
+      - main
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-  CONTAINER_APP_NAME: ${{ secrets.AZURE_APP_NAME }}
-  IMAGE_NAME: chatapp-azure
+  AZURE_WEBAPP_NAME: 'TopicsFlow'
+  PYTHON_VERSION: '3.11'
 
 jobs:
   build-and-deploy:
@@ -19,105 +17,33 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Log in to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Log in to Azure Container Registry
-      uses: azure/docker-login@v1
-      with:
-        login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
-        username: ${{ secrets.ACR_USERNAME }}
-        password: ${{ secrets.ACR_PASSWORD }}
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./Dockerfile.azure
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        cache-from: type=registry,ref=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache
-        cache-to: type=registry,ref=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-    - name: Deploy to Azure Container Apps
-      uses: azure/CLI@v1
-      with:
-        inlineScript: |
-          az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-    - name: Get Container App URL
-      id: get-url
-      uses: azure/CLI@v1
-      with:
-        inlineScript: |
-          URL=$(az containerapp show \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn \
-            --output tsv)
-          echo "url=https://$URL" >> $GITHUB_OUTPUT
-
-    - name: Health Check
-      run: |
-        sleep 30
-        curl -f ${{ steps.get-url.outputs.url }}/health || exit 1
-
-    - name: Create deployment summary
-      run: |
-        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Successfully deployed to Azure Container Apps" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Application URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Image Tag:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Deployment Time:** $(date)" >> $GITHUB_STEP_SUMMARY
-
-  # Optional: Run tests before deploying
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install backend dependencies
+    - name: Install backend dependencies (local verification)
       run: |
         cd backend
+        pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
 
-    - name: Run backend tests
-      run: |
-        cd backend
-        # Add your test commands here
-        # pytest tests/
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: Install frontend dependencies
+    - name: Build frontend
       run: |
         cd frontend
         npm ci
+        npm run build
 
-    - name: Run frontend tests
+    - name: Copy frontend build to backend
       run: |
-        cd frontend
-        npm run type-check
-        # npm run test (if you have tests)
+        mkdir -p backend/static
+        cp -r frontend/dist/* backend/static/
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./backend
