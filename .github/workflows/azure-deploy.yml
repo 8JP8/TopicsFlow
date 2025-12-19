@@ -6,41 +6,37 @@ on:
       - azuredeployment
       - main
   workflow_dispatch:
-
+  
 env:
   AZURE_WEBAPP_NAME: 'TopicsFlow'
   PYTHON_VERSION: '3.11'
-
+  
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-
     - name: Install backend dependencies (local verification)
       run: |
         cd backend
         pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
-
     - name: Build frontend
       run: |
         cd frontend
         npm ci
         npm run build
-
+      env:
+        CI: false
     - name: Copy frontend build to backend
       run: |
         mkdir -p backend/static
         cp -r frontend/dist/* backend/static/
-
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
