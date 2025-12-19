@@ -6,26 +6,40 @@ on:
       - azuredeployment
       - main
   workflow_dispatch:
-  
+
 env:
   AZURE_WEBAPP_NAME: 'TopicsFlow'
   PYTHON_VERSION: '3.11'
-  
+  NODE_VERSION: '18'
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-    - name: Install backend dependencies (local verification)
+        cache: 'pip'
+        cache-dependency-path: backend/requirements.txt
+    
+    - name: Install backend dependencies
       run: |
         cd backend
         pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
+    
     - name: Build frontend
       run: |
         cd frontend
@@ -33,13 +47,29 @@ jobs:
         npm run build
       env:
         CI: false
+        NEXT_TELEMETRY_DISABLED: 1
+    
     - name: Copy frontend build to backend
       run: |
         mkdir -p backend/static
         cp -r frontend/dist/* backend/static/
+    
+    - name: Verify deployment package
+      run: |
+        echo "Checking backend structure..."
+        ls -la backend/
+        echo "Checking static files..."
+        ls -la backend/static/ || echo "No static files found"
+    
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: ./backend
+    
+    - name: Deployment Summary
+      if: success()
+      run: |
+        echo "Deployment completed successfully!"
+        echo "App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
