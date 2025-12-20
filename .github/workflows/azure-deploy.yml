@@ -44,19 +44,20 @@ jobs:
         pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
     
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm ci
-        npm run build
-        CI: false
-        NEXT_TELEMETRY_DISABLED: 1
-        BACKEND_IP: ${{ secrets.BACKEND_IP }}
-    
-    - name: Copy frontend build to backend
-      run: |
-        mkdir -p backend/static
-        cp -r frontend/out/* backend/static/
+    # - name: Build frontend
+    #   run: |
+    #     cd frontend
+    #     npm ci
+    #     npm run build
+    #   env:
+    #     CI: false
+    #     NEXT_TELEMETRY_DISABLED: 1
+    #     BACKEND_IP: ${{ secrets.BACKEND_IP }}
+    # 
+    # - name: Copy frontend build to backend
+    #   run: |
+    #     mkdir -p backend/static
+    #     cp -r frontend/out/* backend/static/
     
     - name: Verify deployment package
       run: |
