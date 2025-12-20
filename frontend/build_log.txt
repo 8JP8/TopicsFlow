@@ -1,0 +1,44 @@
+
+> topicsflow-frontend@1.0.0 build
+> next build
+
+ ÔÜá Specified "rewrites" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes
+ ÔÜá Specified "headers" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes
+ ÔÜá Specified "rewrites" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes
+ ÔÜá Specified "headers" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes
+  Ôû▓ Next.js 14.2.33
+
+   Linting and checking validity of types ...
+   Creating an optimized production build ...
+ Ô£ô Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/11) ...
+   Generating static pages (2/11) 
+   Generating static pages (5/11) 
+   Generating static pages (8/11) 
+ Ô£ô Generating static pages (11/11)
+   Finalizing page optimization ...
+   Collecting build traces ...
+ ÔÜá rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, headers). See more info here: https://nextjs.org/docs/messages/export-no-custom-routes
+
+Route (pages)                              Size     First Load JS
+Ôöî Ôùï /                                      57.8 kB         340 kB
+Ôö£   /_app                                  0 B             234 kB
+Ôö£ Ôùï /404 (1535 ms)                         1.5 kB          238 kB
+Ôö£ Ôùï /about (1590 ms)                       19.2 kB         291 kB
+Ôö£ Ôùï /chat-room/[id] (1556 ms)              428 B           234 kB
+Ôö£ Ôùï /login (1564 ms)                       4.4 kB          241 kB
+Ôö£ Ôùï /post/[postId]                         2.59 kB         285 kB
+Ôö£ Ôùï /profile                               3.04 kB         275 kB
+Ôö£ Ôùï /recovery (1531 ms)                    4.02 kB         240 kB
+Ôö£ Ôùï /register (1562 ms)                    8.68 kB         242 kB
+Ôöö Ôùï /settings (1569 ms)                    7.3 kB          279 kB
++ First Load JS shared by all              252 kB
+  Ôö£ chunks/framework-64ad27b21261a9ce.js   44.8 kB
+  Ôö£ chunks/main-d352c053a7969eb5.js        38.6 kB
+  Ôö£ chunks/pages/_app-ab7e20a7bb61ee63.js  148 kB
+  Ôö£ css/0c388e23f9304de7.css               18.8 kB
+  Ôöö other shared chunks (total)            2.46 kB
+
+Ôùï  (Static)  prerendered as static content
+

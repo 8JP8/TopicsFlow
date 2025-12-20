@@ -2,7 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  output: 'export',
   images: {
+    unoptimized: true,
     domains: ['localhost', 'media.tenor.com'], // Tenor API for GIFs
     formats: ['image/webp', 'image/avif'],
   },
@@ -11,12 +13,7 @@ const nextConfig = {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'TopicsFlow',
     NEXT_PUBLIC_TENOR_API_KEY: process.env.NEXT_PUBLIC_TENOR_API_KEY || '',
   },
-  // Internationalization
-  i18n: {
-    locales: ['en', 'pt'],
-    defaultLocale: 'en',
-    localeDetection: false,
-  },
+
   // Security headers
   async headers() {
     return [
