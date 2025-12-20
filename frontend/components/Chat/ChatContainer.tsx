@@ -671,8 +671,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     // Determine message type and content
     // If there's both text and GIF, use 'gif' type but include the text content
-    let messageType = selectedGifUrl ? 'gif' : 'text';
-    let gifUrl: string | undefined = selectedGifUrl || undefined;
+    const messageType = selectedGifUrl ? 'gif' : 'text';
+    const gifUrl: string | undefined = selectedGifUrl || undefined;
 
     // Clear selected GIF after using it
     if (selectedGifUrl) {

@@ -262,7 +262,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
                       <h4 className="text-sm font-semibold theme-text-primary mb-1 line-clamp-1">{item.title}</h4>
                     )}
                     <p className="text-sm theme-text-secondary line-clamp-2 italic">
-                      "{item.content_snippet || item.content || item.description || (t('settings.noContent') || 'No content')}"
+                      &quot;{item.content_snippet || item.content || item.description || (t('settings.noContent') || 'No content')}&quot;
                     </p>
                     {(item.topic_title || item.chat_room_title) && (
                       <div className="mt-2 flex items-center gap-1.5">
