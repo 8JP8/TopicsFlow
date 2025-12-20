@@ -315,11 +315,13 @@ def create_db_indexes(app):
         logger.error(f"Failed to create database indexes: {e}")
         raise
 
-if __name__ == '__main__':
-    app = create_app()
+# Create global app instance for Gunicorn/production
+app = create_app()
 
-    # Create database indexes
-    create_db_indexes(app)
+# Create database indexes
+create_db_indexes(app)
+
+if __name__ == '__main__':
 
     # Run the application
     # Use allow_unsafe_werkzeug=True on Windows to avoid threading issues
