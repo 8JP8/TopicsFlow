@@ -574,6 +574,11 @@
     "deleteAccount": "Eliminar Conta",
     "deleteAccountDesc": "Eliminar permanentemente a sua conta e todos os dados. Esta ação não pode ser desfeita."
   },
+  "followedPublications": "Publicações Seguidas",
+  "followedChatrooms": "Salas de Chat Seguidas",
+  "backToDashboard": "Voltar ao Painel",
+  "enableBrowserNotifications": "Ativar Notificações do Navegador",
+  "noFollowedPublications": "Sem publicações seguidas",
   "anonymousIdentities": {
     "title": "Identidades Anónimas",
     "subtitle": "Gerir as suas identidades anónimas em diferentes tópicos. Cada identidade é única para um tópico específico.",
