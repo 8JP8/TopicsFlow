@@ -981,7 +981,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       // Determine message type
       let messageType = 'text';
       let gifUrl: string | undefined = undefined;
-      let content = messageInput.trim();
+      const content = messageInput.trim();
 
       if (selectedGifUrl) {
         messageType = 'gif';

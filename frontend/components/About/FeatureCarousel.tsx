@@ -81,7 +81,7 @@ export default function FeatureCarousel() {
 
             if (!isPaused && !selectedFeature && !isSnapping) {
                 const currentX = xRaw.get();
-                let nextX = currentX - (speed * deltaTime) / 1000;
+                const nextX = currentX - (speed * deltaTime) / 1000;
                 xRaw.set(wrapAround(nextX));
             }
             requestRef.current = requestAnimationFrame(animateLoop);
