@@ -671,8 +671,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     // Determine message type and content
     // If there's both text and GIF, use 'gif' type but include the text content
-    const messageType = selectedGifUrl ? 'gif' : 'text';
-    const gifUrl: string | undefined = selectedGifUrl || undefined;
+    let messageType = selectedGifUrl ? 'gif' : 'text';
+    let gifUrl: string | undefined = selectedGifUrl || undefined;
 
     // Clear selected GIF after using it
     if (selectedGifUrl) {
@@ -1588,6 +1588,31 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               toast.error(error.response?.data?.errors?.[0] || t('chat.failedToReportMessage') || 'Failed to report message');
             }
           }}
+          onHide={async (messageId) => {
+            try {
+              await api.post(`/api/content-settings/chat-messages/${messageId}/hide`);
+              setLocalMessages(prev => prev.filter(m => m.id !== messageId));
+              toast.success(t('settings.itemHidden') || 'Message hidden');
+              setMessageContextMenu(null);
+            } catch (error: any) {
+              console.error('Failed to hide message:', error);
+              toast.error(error.response?.data?.errors?.[0] || 'Failed to hide message');
+            }
+          }}
+          onDeleteMessage={async (messageId) => {
+            if (window.confirm(t('chat.confirmDeleteMessage') || 'Are you sure you want to delete this message?')) {
+              try {
+                await api.delete(API_ENDPOINTS.MESSAGES.DELETE(messageId));
+                setLocalMessages(prev => prev.filter(m => m.id !== messageId));
+                toast.success(t('chat.messageDeleted') || 'Message deleted');
+                setMessageContextMenu(null);
+              } catch (error: any) {
+                console.error('Failed to delete message:', error);
+                toast.error(error.response?.data?.errors?.[0] || 'Failed to delete message');
+              }
+            }
+          }}
+          canDelete={localMessages.find(m => m.id === messageContextMenu.messageId)?.user_id === user?.id || user?.is_admin}
         />
       )}
 

@@ -40,15 +40,15 @@ class Config:
         else:
             # Azure App Service default connection strings
             MONGO_URI = os.getenv('AZURE_COSMOS_CONNECTIONSTRING')
-            MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'chatapp')
+            MONGO_DB_NAME = os.getenv('AZURE_COSMOS_DATABASE', 'TopicsFlow')
             
         # CosmosDB specific settings
         COSMOS_SSL = True
         COSMOS_RETRY_WRITES = False  # CosmosDB doesn't support retryWrites
     else:
         # Local MongoDB
-        MONGO_URI = os.getenv('DATABASE_URL', os.getenv('MONGO_URI', 'mongodb://localhost:27017/chatapp'))
-        MONGO_DB_NAME = os.getenv('DB_NAME', 'chatapp')
+        MONGO_URI = os.getenv('DATABASE_URL', os.getenv('MONGO_URI', 'mongodb://localhost:27017/TopicsFlow'))
+        MONGO_DB_NAME = os.getenv('DB_NAME', 'TopicsFlow')
         COSMOS_SSL = False
         COSMOS_RETRY_WRITES = True
 
@@ -129,7 +129,7 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
-    MONGO_URI = 'mongodb://localhost:27017/chatapp_test'
+    MONGO_URI = 'mongodb://localhost:27017/TopicsFlow_test'
     WTF_CSRF_ENABLED = False
 
 class AzureConfig(ProductionConfig):

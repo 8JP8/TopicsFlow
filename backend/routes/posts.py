@@ -364,13 +364,15 @@ def delete_post(post_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
+        mode = request.args.get('mode', 'soft')
+
         post_model = Post(current_app.db)
-        success = post_model.delete_post(post_id, user_id)
+        success = post_model.delete_post(post_id, user_id, mode)
 
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Post deleted successfully'
+                'message': f'Post {"permanently " if mode == "hard" else ""}deleted successfully'
             }), 200
         else:
             return jsonify({'success': False, 'errors': ['Permission denied or post not found']}), 403

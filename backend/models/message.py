@@ -287,8 +287,8 @@ class Message:
                 message['is_anonymous'] = False
         return message
 
-    def delete_message(self, message_id: str, deleted_by: str, deletion_reason: Optional[str] = None) -> bool:
-        """Delete a message (soft delete). Supports deletion with reason for chat owners."""
+    def delete_message(self, message_id: str, deleted_by: str, deletion_reason: Optional[str] = None, mode: str = 'soft') -> bool:
+        """Delete a message (soft or hard delete). Supports deletion with reason for chat owners."""
         # Check if user has permission to delete this message
         message = self.get_message_by_id(message_id)
         if not message:
@@ -297,25 +297,41 @@ class Message:
         if not self._can_delete_message(message, deleted_by):
             return False
 
-        from datetime import timedelta
-        
-        update_data = {
-            'is_deleted': True,
-            'deleted_by': ObjectId(deleted_by),
-            'deleted_at': datetime.utcnow(),
-            'permanent_delete_at': datetime.utcnow() + timedelta(days=30)  # Permanent delete after 30 days
-        }
-        
-        # Add deletion reason if provided (for owner deletions)
-        if deletion_reason:
-            update_data['deletion_reason'] = deletion_reason
+        if mode == 'hard':
+            # Hard delete - remove from collection
+            result = self.collection.delete_one({'_id': ObjectId(message_id)})
+            
+            # Decrement message count if it was in a chat room
+            if result.deleted_count > 0 and message.get('chat_room_id'):
+                try:
+                    from .chat_room import ChatRoom
+                    chat_room_model = ChatRoom(self.db)
+                    chat_room_model.decrement_message_count(str(message['chat_room_id']))
+                except:
+                    pass
+            
+            return result.deleted_count > 0
+        else:
+            # Soft delete - set is_deleted flag and pending status
+            from datetime import timedelta
+            
+            update_data = {
+                'is_deleted': True,
+                'deleted_by': ObjectId(deleted_by),
+                'deleted_at': datetime.utcnow(),
+                'permanent_delete_at': datetime.utcnow() + timedelta(days=30)  # Permanent delete after 30 days
+            }
+            
+            # Add deletion reason if provided (for owner deletions)
+            if deletion_reason:
+                update_data['deletion_reason'] = deletion_reason
 
-        result = self.collection.update_one(
-            {'_id': ObjectId(message_id)},
-            {'$set': update_data}
-        )
+            result = self.collection.update_one(
+                {'_id': ObjectId(message_id)},
+                {'$set': update_data}
+            )
 
-        return result.modified_count > 0
+            return result.modified_count > 0
 
     def _can_delete_message(self, message: Dict[str, Any], user_id: str) -> bool:
         """Check if user can delete a message. Supports both topic messages and chat room messages."""

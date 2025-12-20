@@ -98,15 +98,15 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticketId, onClo
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}
                 >
-                  {statusConfig.label}
+                  {t(statusConfig.label)}
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}
                 >
-                  {priorityConfig.label}
+                  {t(priorityConfig.label)}
                 </span>
                 <span className="px-2 py-0.5 rounded text-xs font-medium theme-bg-tertiary theme-text-muted">
-                  {categoryConfig.label}
+                  {t(categoryConfig.label)}
                 </span>
               </div>
             </div>

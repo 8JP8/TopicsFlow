@@ -169,7 +169,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
                 <option value="">{t('tickets.selectCategory') || 'Select a category...'}</option>
                 {categories.map((category) => (
                   <option key={category.value} value={category.value}>
-                    {category.icon} {t(`tickets.category_${category.value}`) || category.label}
+                    {category.icon} {t(category.label)}
                   </option>
                 ))}
               </select>
@@ -190,7 +190,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
               >
                 {priorities.map((priority) => (
                   <option key={priority.value} value={priority.value}>
-                    {t(`tickets.priority_${priority.value}`) || priority.label}
+                    {t(priority.label)}
                   </option>
                 ))}
               </select>

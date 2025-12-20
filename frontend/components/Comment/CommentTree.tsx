@@ -372,6 +372,26 @@ const CommentTree: React.FC<CommentTreeProps> = ({
                 handleVoteChange(comment.id, upvoted, downvoted, upCount, downCount, score)
               }
               onReply={handleReply}
+              onHide={async (commentId) => {
+                try {
+                  await api.post(`/api/content-settings/comments/${commentId}/hide`);
+                  setComments(prev => {
+                    const removeComment = (list: Comment[]): Comment[] => {
+                      return list
+                        .filter(c => c.id !== commentId)
+                        .map(c => ({
+                          ...c,
+                          replies: c.replies ? removeComment(c.replies) : []
+                        }));
+                    };
+                    return removeComment(prev);
+                  });
+                  toast.success(t('settings.itemHidden') || 'Comment hidden');
+                } catch (error: any) {
+                  console.error('Failed to hide comment:', error);
+                  toast.error(error.response?.data?.errors?.[0] || 'Failed to hide comment');
+                }
+              }}
               maxDepth={maxDepth}
               isClosed={isClosed}
             />

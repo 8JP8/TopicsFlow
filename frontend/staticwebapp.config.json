@@ -1,0 +1,37 @@
+{
+    "navigationFallback": {
+        "rewrite": "/index.html"
+    },
+    "routes": [
+        {
+            "route": "/api/*",
+            "methods": [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS",
+                "PATCH"
+            ],
+            "allowedRoles": [
+                "anonymous",
+                "authenticated"
+            ]
+        },
+        {
+            "route": "/socket.io/*",
+            "methods": [
+                "GET",
+                "POST",
+                "OPTIONS"
+            ],
+            "allowedRoles": [
+                "anonymous",
+                "authenticated"
+            ]
+        }
+    ],
+    "networking": {
+        "allowedIpRanges": []
+    }
+}

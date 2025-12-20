@@ -958,12 +958,6 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
         const topicTitle = latest.data?.topic_title || t('notifications.aTopic');
         displayTitle = t('notifications.topicInvitation') || 'Topic Invitation';
         displayMessage = t('notifications.invitedToTopic', { inviter: latest.data?.invited_by_username, topicTitle }) || latest.message;
-      } else if (key.startsWith('report-')) {
-        displayTitle = t('notifications.reportUpdate') || 'Report Update';
-        displayMessage = latest.message;
-      } else if (key.startsWith('system-')) {
-        displayTitle = t('notifications.systemMessage') || 'System Message';
-        displayMessage = latest.message;
       } else {
         displayMessage = latest.message;
       }

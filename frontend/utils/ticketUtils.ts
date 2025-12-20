@@ -32,108 +32,108 @@ export interface TicketMessage {
 
 // Get ticket category label and icon
 export const getTicketCategoryConfig = (category: TicketCategory): { label: string; icon: string; color: string } => {
-  const configs: Record<TicketCategory, { label: string; icon: string; color: string }> = {
+  const configs: Record<string, { label: string; icon: string; color: string }> = {
     bug: {
-      label: 'Bug Report',
+      label: 'tickets.catBug',
       icon: '🐛',
       color: 'text-red-600 dark:text-red-400',
     },
     feature: {
-      label: 'Feature Request',
+      label: 'tickets.catFeature',
       icon: '✨',
       color: 'text-purple-600 dark:text-purple-400',
     },
     account: {
-      label: 'Account Issue',
+      label: 'tickets.catAccount',
       icon: '👤',
       color: 'text-blue-600 dark:text-blue-400',
     },
     abuse: {
-      label: 'Abuse Report',
+      label: 'tickets.catAbuse',
       icon: '⚠️',
       color: 'text-orange-600 dark:text-orange-400',
     },
     other: {
-      label: 'Other',
+      label: 'tickets.catOther',
       icon: '📝',
       color: 'text-gray-600 dark:text-gray-400',
     },
   };
-  return configs[category] || configs.other;
+  return configs[(category || '').toLowerCase()] || configs.other;
 };
 
 // Get ticket status label and color
 export const getTicketStatusConfig = (status: TicketStatus): { label: string; color: string; bgColor: string } => {
-  const configs: Record<TicketStatus, { label: string; color: string; bgColor: string }> = {
+  const configs: Record<string, { label: string; color: string; bgColor: string }> = {
     open: {
-      label: 'Open',
+      label: 'tickets.statusOpen',
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     },
     in_progress: {
-      label: 'In Progress',
+      label: 'tickets.statusInProgress',
       color: 'text-yellow-600 dark:text-yellow-400',
       bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
     },
     resolved: {
-      label: 'Resolved',
+      label: 'tickets.statusResolved',
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/30',
     },
     closed: {
-      label: 'Closed',
+      label: 'tickets.statusClosed',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-100 dark:bg-gray-900/30',
     },
   };
-  return configs[status] || configs.open;
+  return configs[(status || '').toLowerCase()] || configs.open;
 };
 
 // Get ticket priority label and color
 export const getTicketPriorityConfig = (priority: TicketPriority): { label: string; color: string; bgColor: string } => {
-  const configs: Record<TicketPriority, { label: string; color: string; bgColor: string }> = {
+  const configs: Record<string, { label: string; color: string; bgColor: string }> = {
     low: {
-      label: 'Low',
+      label: 'tickets.priorityLow',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-100 dark:bg-gray-900/30',
     },
     medium: {
-      label: 'Medium',
+      label: 'tickets.priorityMedium',
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     },
     high: {
-      label: 'High',
+      label: 'tickets.priorityHigh',
       color: 'text-orange-600 dark:text-orange-400',
       bgColor: 'bg-orange-100 dark:bg-orange-900/30',
     },
     urgent: {
-      label: 'Urgent',
+      label: 'tickets.priorityUrgent',
       color: 'text-red-600 dark:text-red-400',
       bgColor: 'bg-red-100 dark:bg-red-900/30',
     },
   };
-  return configs[priority] || configs.medium;
+  return configs[(priority || '').toLowerCase()] || configs.medium;
 };
 
 // Get all ticket categories for dropdown
 export const getTicketCategories = (): Array<{ value: TicketCategory; label: string; icon: string }> => {
   return [
-    { value: 'bug', label: 'Bug Report', icon: '🐛' },
-    { value: 'feature', label: 'Feature Request', icon: '✨' },
-    { value: 'account', label: 'Account Issue', icon: '👤' },
-    { value: 'abuse', label: 'Abuse Report', icon: '⚠️' },
-    { value: 'other', label: 'Other', icon: '📝' },
+    { value: 'bug', label: 'tickets.catBug', icon: '🐛' },
+    { value: 'feature', label: 'tickets.catFeature', icon: '✨' },
+    { value: 'account', label: 'tickets.catAccount', icon: '👤' },
+    { value: 'abuse', label: 'tickets.catAbuse', icon: '⚠️' },
+    { value: 'other', label: 'tickets.catOther', icon: '📝' },
   ];
 };
 
 // Get all ticket priorities for dropdown
 export const getTicketPriorities = (): Array<{ value: TicketPriority; label: string }> => {
   return [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'urgent', label: 'Urgent' },
+    { value: 'low', label: 'tickets.priorityLow' },
+    { value: 'medium', label: 'tickets.priorityMedium' },
+    { value: 'high', label: 'tickets.priorityHigh' },
+    { value: 'urgent', label: 'tickets.priorityUrgent' },
   ];
 };
 

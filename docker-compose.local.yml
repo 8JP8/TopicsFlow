@@ -4,19 +4,19 @@ services:
   # MongoDB local
   mongodb:
     image: mongo:7.0
-    container_name: chatapp-mongodb-local
+    container_name: TopicsFlow-mongodb-local
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: chatapp
+      MONGO_INITDB_DATABASE: TopicsFlow
     volumes:
       - mongodb_local_data:/data/db
     networks:
-      - chatapp-local
+      - TopicsFlow-local
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,16 +24,16 @@ services:
   # Redis local
   redis:
     image: redis:7.2-alpine
-    container_name: chatapp-redis-local
+    container_name: TopicsFlow-redis-local
     ports:
       - "6379:6379"
     command: redis-server --requirepass password123
     volumes:
       - redis_local_data:/data
     networks:
-      - chatapp-local
+      - TopicsFlow-local
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,14 +43,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: chatapp-backend-local
+    container_name: TopicsFlow-backend-local
     ports:
       - "5000:5000"
     environment:
       # Force local mode (not Azure)
       FLASK_ENV: development
-      DATABASE_URL: mongodb://admin:password123@mongodb:27017/chatapp?authSource=admin
-      DB_NAME: chatapp
+      DATABASE_URL: mongodb://admin:password123@mongodb:27017/TopicsFlow?authSource=admin
+      DB_NAME: TopicsFlow
       REDIS_URL: redis://:password123@redis:6379/0
       SECRET_KEY: dev-secret-key-local-testing
       FRONTEND_URL: http://localhost:3000
@@ -66,7 +66,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - chatapp-local
+      - TopicsFlow-local
     stdin_open: true
     tty: true
     restart: unless-stopped
@@ -76,7 +76,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: chatapp-frontend-local
+    container_name: TopicsFlow-frontend-local
     ports:
       - "3000:3000"
     environment:
@@ -90,13 +90,13 @@ services:
     depends_on:
       - backend
     networks:
-      - chatapp-local
+      - TopicsFlow-local
     stdin_open: true
     tty: true
     restart: unless-stopped
 
 networks:
-  chatapp-local:
+  TopicsFlow-local:
     driver: bridge
 
 volumes:

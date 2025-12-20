@@ -288,6 +288,240 @@ def unhide_post(post_id):
         return jsonify({'success': False, 'errors': [f'Failed to unhide post: {str(e)}']}), 500
 
 
+
+
+@content_settings_bp.route('/chats/<chat_id>/hide', methods=['POST'])
+@require_auth()
+@log_requests
+def hide_chat(chat_id):
+    """Hide a specific chat/room for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        # We need the topic_id to hide a chat in the current model
+        # However, for group chats topic_id is None.
+        # Let's try to find if it's a group chat or topic chat
+        from models.chat_room import ChatRoom
+        chat_model = ChatRoom(current_app.db)
+        chat = chat_model.get_chat_room_by_id(chat_id)
+        if not chat:
+            return jsonify({'success': False, 'errors': ['Chat not found']}), 404
+        
+        topic_id = chat.get('topic_id')
+        if topic_id == 'None':
+            topic_id = None
+        else:
+            topic_id = str(topic_id) if topic_id else None
+
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.hide_chat(user_id, chat_id, topic_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Chat hidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to hide chat']}), 500
+            
+    except Exception as e:
+        logger.error(f"Hide chat error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to hide chat: {str(e)}']}), 500
+
+
+@content_settings_bp.route('/chats/<chat_id>/unhide', methods=['POST'])
+@require_auth()
+@log_requests
+def unhide_chat(chat_id):
+    """Unhide a specific chat/room for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        from models.chat_room import ChatRoom
+        chat_model = ChatRoom(current_app.db)
+        chat = chat_model.get_chat_room_by_id(chat_id)
+        if not chat:
+            return jsonify({'success': False, 'errors': ['Chat not found']}), 404
+        
+        topic_id = chat.get('topic_id')
+        if topic_id == 'None':
+            topic_id = None
+        else:
+            topic_id = str(topic_id) if topic_id else None
+
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.unhide_chat(user_id, chat_id, topic_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Chat unhidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to unhide chat']}), 500
+            
+    except Exception as e:
+        logger.error(f"Unhide chat error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unhide chat: {str(e)}']}), 500
+
+
+@content_settings_bp.route('/comments/<comment_id>/hide', methods=['POST'])
+@require_auth()
+@log_requests
+def hide_comment(comment_id):
+    """Hide a comment for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.hide_comment(user_id, comment_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Comment hidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to hide comment']}), 500
+            
+    except Exception as e:
+        logger.error(f"Hide comment error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to hide comment: {str(e)}']}), 500
+
+
+@content_settings_bp.route('/comments/<comment_id>/unhide', methods=['POST'])
+@require_auth()
+@log_requests
+def unhide_comment(comment_id):
+    """Unhide a comment for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.unhide_comment(user_id, comment_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Comment unhidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to unhide comment']}), 500
+            
+    except Exception as e:
+        logger.error(f"Unhide comment error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unhide comment: {str(e)}']}), 500
+
+
+@content_settings_bp.route('/chat-messages/<message_id>/hide', methods=['POST'])
+@require_auth()
+@log_requests
+def hide_chat_message(message_id):
+    """Hide a chat message for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.hide_chat_message(user_id, message_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Message hidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to hide message']}), 500
+            
+    except Exception as e:
+        logger.error(f"Hide message error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to hide message: {str(e)}']}), 500
+
+
+
+@content_settings_bp.route('/chat-messages/<message_id>/unhide', methods=['POST'])
+@require_auth()
+@log_requests
+def unhide_chat_message(message_id):
+    """Unhide a chat message for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        settings_model = UserContentSettings(current_app.db)
+        success = settings_model.unhide_chat_message(user_id, message_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Message unhidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to unhide message']}), 500
+            
+    except Exception as e:
+        logger.error(f"Unhide message error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unhide message: {str(e)}']}), 500
+
+
+@content_settings_bp.route('/private-messages/<message_id>/unhide', methods=['POST'])
+@require_auth()
+@log_requests
+def unhide_private_message(message_id):
+    """Unhide (restore) a private message for the current user."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        
+        user_id = current_user_result['user']['id']
+        
+        from models.private_message import PrivateMessage
+        pm_model = PrivateMessage(current_app.db)
+        success = pm_model.restore_message_for_me(message_id, user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Message unhidden successfully'
+            }), 200
+        else:
+            return jsonify({'success': False, 'errors': ['Failed to unhide message']}), 500
+            
+    except Exception as e:
+        logger.error(f"Unhide private message error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to unhide message: {str(e)}']}), 500
+
+
 @content_settings_bp.route('/hidden-items', methods=['GET'])
 @require_auth()
 @log_requests

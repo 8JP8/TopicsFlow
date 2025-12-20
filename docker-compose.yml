@@ -9,7 +9,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: chatapp
+      MONGO_INITDB_DATABASE: TopicsFlow
     ports:
       - "27017:27017"
     volumes:
@@ -40,8 +40,8 @@ services:
     environment:
       FLASK_ENV: development
       SECRET_KEY: your-super-secret-key-change-in-production
-      DATABASE_URL: mongodb://admin:password123@mongodb:27017/chatapp?authSource=admin
-      DB_NAME: chatapp
+      DATABASE_URL: mongodb://admin:password123@mongodb:27017/TopicsFlow?authSource=admin
+      DB_NAME: TopicsFlow
       FRONTEND_URL: http://localhost:3000
       TOTP_ISSUER: TopicsFlow
       REDIS_URL: redis://redis:6379/0
@@ -82,6 +82,7 @@ volumes:
   mongodb_data:
   redis_data:
   totp_keys:
+
 
 networks:
   topicsflow-network:

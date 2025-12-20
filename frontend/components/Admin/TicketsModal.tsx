@@ -149,19 +149,19 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
 
   const statusOptions: Array<{ value: TicketStatus | 'all'; label: string }> = [
     { value: 'all', label: t('admin.allTickets') || 'All' },
-    { value: 'open', label: t('admin.openTickets') || 'Open' },
-    { value: 'in_progress', label: t('admin.inProgressTickets') || 'In Progress' },
-    { value: 'resolved', label: t('admin.resolvedTickets') || 'Resolved' },
-    { value: 'closed', label: t('admin.closedTickets') || 'Closed' },
+    { value: 'open', label: t(getTicketStatusConfig('open').label) },
+    { value: 'in_progress', label: t(getTicketStatusConfig('in_progress').label) },
+    { value: 'resolved', label: t(getTicketStatusConfig('resolved').label) },
+    { value: 'closed', label: t(getTicketStatusConfig('closed').label) },
   ];
 
   const categoryOptions: Array<{ value: TicketCategory | 'all'; label: string }> = [
     { value: 'all', label: t('admin.allCategories') || 'All Categories' },
-    { value: 'bug', label: t('tickets.categoryBug') || 'Bug Report' },
-    { value: 'feature', label: t('tickets.categoryFeature') || 'Feature Request' },
-    { value: 'account', label: t('tickets.categoryAccount') || 'Account Issue' },
-    { value: 'abuse', label: t('tickets.categoryAbuse') || 'Abuse Report' },
-    { value: 'other', label: t('tickets.categoryOther') || 'Other' },
+    { value: 'bug', label: t(getTicketCategoryConfig('bug').label) },
+    { value: 'feature', label: t(getTicketCategoryConfig('feature').label) },
+    { value: 'account', label: t(getTicketCategoryConfig('account').label) },
+    { value: 'abuse', label: t(getTicketCategoryConfig('abuse').label) },
+    { value: 'other', label: t(getTicketCategoryConfig('other').label) },
   ];
 
   return (
@@ -264,10 +264,10 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                           </div>
                           <div className="flex items-center space-x-2 mb-1">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
-                              {statusConfig.label}
+                              {t(statusConfig.label)}
                             </span>
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}>
-                              {priorityConfig.label}
+                              {t(priorityConfig.label)}
                             </span>
                           </div>
                           <p className="text-sm theme-text-muted">
@@ -307,14 +307,14 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                     <label className="text-sm font-medium theme-text-muted">
                       {t('admin.category') || 'Category'}
                     </label>
-                    <p className="theme-text-primary">{getTicketCategoryConfig(selectedTicket.category).label}</p>
+                    <p className="theme-text-primary">{t(getTicketCategoryConfig(selectedTicket.category).label)}</p>
                   </div>
 
                   <div>
                     <label className="text-sm font-medium theme-text-muted">
                       {t('admin.priority') || 'Priority'}
                     </label>
-                    <p className="theme-text-primary">{getTicketPriorityConfig(selectedTicket.priority).label}</p>
+                    <p className="theme-text-primary">{t(getTicketPriorityConfig(selectedTicket.priority).label)}</p>
                   </div>
 
                   <div>
@@ -327,10 +327,10 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                       disabled={updatingStatus}
                       className="mt-1 px-3 py-2 theme-bg-primary theme-border rounded-lg theme-text-primary text-sm"
                     >
-                      <option value="open">{t('admin.statusOpen') || 'Open'}</option>
-                      <option value="in_progress">{t('admin.statusInProgress') || 'In Progress'}</option>
-                      <option value="resolved">{t('admin.statusResolved') || 'Resolved'}</option>
-                      <option value="closed">{t('admin.statusClosed') || 'Closed'}</option>
+                      <option value="open">{t(getTicketStatusConfig('open').label)}</option>
+                      <option value="in_progress">{t(getTicketStatusConfig('in_progress').label)}</option>
+                      <option value="resolved">{t(getTicketStatusConfig('resolved').label)}</option>
+                      <option value="closed">{t(getTicketStatusConfig('closed').label)}</option>
                     </select>
                   </div>
 
@@ -370,8 +370,8 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                             <div
                               key={msg.id}
                               className={`p-4 rounded-lg border ${msg.is_admin
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ml-8'
-                                  : 'theme-bg-tertiary theme-border mr-8'
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ml-8'
+                                : 'theme-bg-tertiary theme-border mr-8'
                                 }`}
                             >
                               <div className="flex items-center justify-between mb-2">

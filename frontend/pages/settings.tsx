@@ -6,14 +6,16 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { toast } from 'react-hot-toast';
-import BlockedUsersModal from '@/components/Settings/BlockedUsersModal';
-import HiddenItemsModal from '@/components/Settings/HiddenItemsModal';
-import FollowedPublicationsModal from '@/components/Settings/FollowedPublicationsModal';
-import FollowedChatroomsModal from '@/components/Settings/FollowedChatroomsModal';
-import BackupCodesModal from '@/components/Settings/BackupCodesModal';
-import DeleteAccountModal from '@/components/Settings/DeleteAccountModal';
-import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
-import VoipAudioSettings from '@/components/Settings/VoipAudioSettings';
+import dynamic from 'next/dynamic';
+
+const BlockedUsersModal = dynamic(() => import('@/components/Settings/BlockedUsersModal'));
+const HiddenItemsModal = dynamic(() => import('@/components/Settings/HiddenItemsModal'));
+const FollowedPublicationsModal = dynamic(() => import('@/components/Settings/FollowedPublicationsModal'));
+const FollowedChatroomsModal = dynamic(() => import('@/components/Settings/FollowedChatroomsModal'));
+const BackupCodesModal = dynamic(() => import('@/components/Settings/BackupCodesModal'));
+const DeleteAccountModal = dynamic(() => import('@/components/Settings/DeleteAccountModal'));
+const NotificationPermissionDialog = dynamic(() => import('@/components/UI/NotificationPermissionDialog'));
+const VoipAudioSettings = dynamic(() => import('@/components/Settings/VoipAudioSettings'));
 
 interface UserPreferences {
   theme: 'light' | 'dark';
@@ -777,14 +779,19 @@ const Settings: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <BlockedUsersModal
-        isOpen={showBlockedUsersModal}
-        onClose={() => setShowBlockedUsersModal(false)}
-      />
-      <HiddenItemsModal
-        isOpen={showHiddenItemsModal}
-        onClose={() => setShowHiddenItemsModal(false)}
-      />
+      {/* Modals */}
+      {showBlockedUsersModal && (
+        <BlockedUsersModal
+          isOpen={showBlockedUsersModal}
+          onClose={() => setShowBlockedUsersModal(false)}
+        />
+      )}
+      {showHiddenItemsModal && (
+        <HiddenItemsModal
+          isOpen={showHiddenItemsModal}
+          onClose={() => setShowHiddenItemsModal(false)}
+        />
+      )}
       {showFollowedPublicationsModal && (
         <FollowedPublicationsModal
           isOpen={showFollowedPublicationsModal}
@@ -797,14 +804,18 @@ const Settings: React.FC = () => {
           onClose={() => setShowFollowedChatroomsModal(false)}
         />
       )}
-
-      <DeleteAccountModal
-        isOpen={showDeleteAccountModal}
-        onClose={() => setShowDeleteAccountModal(false)}
-      />
-
-
-
+      {showBackupCodesModal && (
+        <BackupCodesModal
+          isOpen={showBackupCodesModal}
+          onClose={() => setShowBackupCodesModal(false)}
+        />
+      )}
+      {showDeleteAccountModal && (
+        <DeleteAccountModal
+          isOpen={showDeleteAccountModal}
+          onClose={() => setShowDeleteAccountModal(false)}
+        />
+      )}
       {showNotificationDialog && (
         <NotificationPermissionDialog
           onClose={() => {

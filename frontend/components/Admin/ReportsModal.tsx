@@ -309,14 +309,14 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-1 flex-wrap">
                               <span className="font-semibold theme-text-primary">
-                                {(report as any).content_type ? getReportTypeLabel((report as any).content_type as any) : getReportTypeLabel(report.report_type)}
+                                {t((report as any).content_type ? getReportTypeLabel((report as any).content_type as any) : getReportTypeLabel(report.report_type))}
                               </span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
-                                {statusConfig.label}
+                                {t(statusConfig.label)}
                               </span>
                               {(report as any).content_type && (report as any).content_type !== (report as any).report_type && (
                                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                                  {getReportTypeLabel(report.report_type)}
+                                  {t(getReportTypeLabel(report.report_type))}
                                 </span>
                               )}
                             </div>
@@ -339,7 +339,7 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                           </span>
                         </div>
                         <p className="text-sm theme-text-primary">
-                          {t('admin.reason') || 'Reason'}: {getReportReasonLabel(report.reason)}
+                          {t('admin.reason') || 'Reason'}: {t(getReportReasonLabel(report.reason))}
                         </p>
                         {(report as any).content_data && (report as any).content_type === 'chatroom' && (
                           <p className="text-xs theme-text-muted mt-1">
@@ -370,18 +370,11 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                       </label>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                          {getReportTypeLabel(selectedReport.report_type)}
+                          {t(getReportTypeLabel(selectedReport.report_type))}
                         </span>
                         {(selectedReport as any).content_type && (
                           <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                            {(selectedReport as any).content_type === 'user' ? t('admin.typeUser') || 'User' :
-                              (selectedReport as any).content_type === 'message' ? t('admin.typeMessage') || 'Message' :
-                                (selectedReport as any).content_type === 'post' ? t('admin.typePost') || 'Post' :
-                                  (selectedReport as any).content_type === 'comment' ? t('admin.typeComment') || 'Comment' :
-                                    (selectedReport as any).content_type === 'chatroom' ? t('admin.typeChatroom') || 'Chatroom' :
-                                      (selectedReport as any).content_type === 'chatroom_background' ? t('admin.typeChatroomBackground') || 'Chatroom Background' :
-                                        (selectedReport as any).content_type === 'chatroom_picture' ? t('admin.typeChatroomPicture') || 'Chatroom Picture' :
-                                          (selectedReport as any).content_type}
+                            {t(getReportTypeLabel((selectedReport as any).content_type))}
                           </span>
                         )}
                       </div>
@@ -391,7 +384,7 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                       <label className="text-sm font-medium theme-text-muted">
                         {t('admin.status') || 'Status'}
                       </label>
-                      <p className="theme-text-primary">{getReportStatusConfig(selectedReport.status).label}</p>
+                      <p className="theme-text-primary">{t(getReportStatusConfig(selectedReport.status).label)}</p>
                     </div>
 
                     <div>
@@ -424,7 +417,7 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
                       <label className="text-sm font-medium theme-text-muted">
                         {t('admin.reason') || 'Reason'}
                       </label>
-                      <p className="theme-text-primary">{getReportReasonLabel(selectedReport.reason)}</p>
+                      <p className="theme-text-primary">{t(getReportReasonLabel(selectedReport.reason))}</p>
                     </div>
 
                     <div>

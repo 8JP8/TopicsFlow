@@ -8,9 +8,10 @@ interface VoipButtonProps {
     roomName?: string;
     className?: string;
     variant?: 'default' | 'bordered';
+    disabled?: boolean;
 }
 
-const VoipButton: React.FC<VoipButtonProps> = ({ roomId, roomType, roomName, className = '', variant = 'default' }) => {
+const VoipButton: React.FC<VoipButtonProps> = ({ roomId, roomType, roomName, className = '', variant = 'default', disabled = false }) => {
     const { activeCall, createCall, joinCall, leaveCall, connectionStatus, checkActiveCall } = useVoip();
     const { t } = useLanguage();
     const [roomActiveCall, setRoomActiveCall] = useState<any>(null);
@@ -18,6 +19,8 @@ const VoipButton: React.FC<VoipButtonProps> = ({ roomId, roomType, roomName, cla
 
     // Check for active call when component mounts or roomId changes
     useEffect(() => {
+        if (disabled) return;
+
         checkActiveCall(roomId);
 
         const handleActiveCall = (event: CustomEvent) => {
@@ -48,13 +51,13 @@ const VoipButton: React.FC<VoipButtonProps> = ({ roomId, roomType, roomName, cla
             window.removeEventListener('voip_call_started', handleCallStarted as EventListener);
             window.removeEventListener('voip_call_ended', handleCallEnded as EventListener);
         };
-    }, [roomId, checkActiveCall]);
+    }, [roomId, checkActiveCall, disabled]);
 
     // Check if current user is already in this call
     const isInThisCall = activeCall?.room_id === roomId;
 
     const handleClick = async () => {
-        if (isLoading || connectionStatus === 'connecting') return;
+        if (disabled || isLoading || connectionStatus === 'connecting') return;
 
         // If in call, end it
         if (isInThisCall) {
@@ -83,6 +86,26 @@ const VoipButton: React.FC<VoipButtonProps> = ({ roomId, roomType, roomName, cla
 
     const isConnecting = connectionStatus === 'connecting' || isLoading;
     const hasActiveCall = roomActiveCall && !isInThisCall;
+
+    // Disabled style
+    if (disabled) {
+        return (
+            <button
+                disabled
+                className={`
+                    flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
+                    bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed
+                    ${className}
+                `}
+                title={t('voip.callsDisabled') || 'Voice calls are disabled in this room'}
+            >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                    <path d="M17 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z" />
+                </svg>
+            </button>
+        );
+    }
 
     // Bordered variant styling (for DM headers)
     const borderedButtonClasses = isInThisCall

@@ -25,6 +25,7 @@ class ChatRoom:
             'is_public': is_public,
             'picture': picture,  # Chat room picture (displayed in header/list)
             'background_picture': background_picture,  # Background picture (faded behind messages)
+            'voip_enabled': False,  # VoIP calls disabled by default
             'member_count': 1,  # Owner counts as first member
             'members': [ObjectId(owner_id)],
             'banned_users': [],  # Users banned from this chat
@@ -584,6 +585,14 @@ class ChatRoom:
         if not room:
             return False
         return ObjectId(user_id) in room.get('banned_users', [])
+
+    def update_settings(self, room_id: str, voip_enabled: bool) -> bool:
+        """Update chat room settings."""
+        result = self.collection.update_one(
+            {'_id': ObjectId(room_id)},
+            {'$set': {'voip_enabled': voip_enabled}}
+        )
+        return result.modified_count > 0
 
     def get_user_permission_level(self, room_id: str, user_id: str) -> int:
         """Get user permission level in a chat room.

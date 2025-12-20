@@ -2,7 +2,7 @@
 // This script runs when MongoDB starts for the first time
 
 // Switch to the TopicsFlow database
-db = db.getSiblingDB('chatapp');
+db = db.getSiblingDB('TopicsFlow');
 
 // Create collections and indexes
 print('Creating collections and indexes...');

@@ -26,8 +26,8 @@ properties:
 
   template:
     containers:
-      - name: chatapp
-        image: {your-acr-name}.azurecr.io/chatapp-azure:latest
+      - name: TopicsFlow
+        image: {your-acr-name}.azurecr.io/TopicsFlow-azure:latest
         resources:
           cpu: 1.0
           memory: 2Gi
@@ -44,7 +44,7 @@ properties:
           - name: AZURE_COSMOS_CONNECTIONSTRING
             secretRef: cosmos-connection-string
           - name: AZURE_COSMOS_DATABASE
-            value: "chatapp"
+            value: "TopicsFlow"
 
           # Azure Redis Cache (optional)
           - name: AZURE_REDIS_CONNECTIONSTRING

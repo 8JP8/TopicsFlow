@@ -414,13 +414,15 @@ def delete_comment(comment_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
+        mode = request.args.get('mode', 'soft')
+
         comment_model = Comment(current_app.db)
-        success = comment_model.delete_comment(comment_id, user_id)
+        success = comment_model.delete_comment(comment_id, user_id, mode)
 
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Comment deleted successfully'
+                'message': f'Comment {"permanently " if mode == "hard" else ""}deleted successfully'
             }), 200
         else:
             return jsonify({'success': False, 'errors': ['Permission denied or comment not found']}), 403

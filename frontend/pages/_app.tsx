@@ -1,3 +1,5 @@
+import '@/styles/globals.css';
+import React, { useState, useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import { Toaster } from 'react-hot-toast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -7,14 +9,16 @@ import { SocketProvider, useSocket } from '@/contexts/SocketContext';
 import { VoipProvider } from '@/contexts/VoipContext';
 import WarningBanner from '@/components/Warning/WarningBanner';
 import PWAInstallPrompt from '@/components/UI/PWAInstallPrompt';
-import { IncomingCallDialog } from '@/components/Voip';
-import { useEffect, useState } from 'react';
-import '@/styles/globals.css';
+import { IncomingCallDialog, VoipControlBar } from '@/components/Voip';
+import { useRouter } from 'next/router';
+import { motion } from 'framer-motion';
+import Snowfall from 'react-snowfall';
 
 function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const { user, refreshUser } = useAuth();
   const { socket } = useSocket();
   const [warning, setWarning] = useState<{ message: string; warned_at: string; dismissed_at?: string } | null>(null);
+  const router = useRouter();
 
   // Check for active warning on mount and when user data changes
   useEffect(() => {
@@ -68,11 +72,34 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
     }
   }, [user?.id]);
 
+  const showFloatingControl = router.pathname !== '/';
+  // Show snowfall on all pages EXCEPT root ('/') and settings ('/settings')
+  const showSnowfall = router.pathname !== '/' && !router.pathname.startsWith('/settings');
+
   return (
     <>
       {warning && <WarningBanner warning={warning} />}
+      {showSnowfall && (
+        <div style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, pointerEvents: 'none', zIndex: 10 }}>
+          <Snowfall
+            snowflakeCount={100}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          />
+        </div>
+      )}
       <PWAInstallPrompt />
       <IncomingCallDialog />
+      {showFloatingControl && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragConstraints={{ left: 16, right: 16, top: 16, bottom: 16 }}
+          className="fixed bottom-4 left-4 z-50 cursor-move"
+          whileDrag={{ scale: 1.05, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
+        >
+          <VoipControlBar variant="floating" />
+        </motion.div>
+      )}
       <Component {...pageProps} />
     </>
   );

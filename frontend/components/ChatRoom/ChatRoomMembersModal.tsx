@@ -441,7 +441,93 @@ interface ChatRoomMembersModalProps {
   mode?: 'view' | 'manage'; // 'view' for member count click, 'manage' for manage button
 }
 
+
+interface ChatRoomSettingsSectionProps {
+  roomId: string;
+  onUpdate?: () => void;
+}
+
+const ChatRoomSettingsSection: React.FC<ChatRoomSettingsSectionProps> = ({
+  roomId,
+  onUpdate,
+}) => {
+  const { t } = useLanguage();
+  const [voipEnabled, setVoipEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await api.get(API_ENDPOINTS.CHAT_ROOMS.GET(roomId));
+        if (response.data.success) {
+          setVoipEnabled(response.data.data?.voip_enabled || false);
+        }
+      } catch (error) {
+        console.error('Failed to load chatroom settings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (roomId) {
+      loadSettings();
+    }
+  }, [roomId]);
+
+  const handleToggleVoip = async () => {
+    setUpdating(true);
+    try {
+      const newValue = !voipEnabled;
+      const response = await api.put(API_ENDPOINTS.CHAT_ROOMS.UPDATE_SETTINGS(roomId), {
+        voip_enabled: newValue,
+      });
+
+      if (response.data.success) {
+        setVoipEnabled(newValue);
+        toast.success(newValue ? (t('chat.voipEnabled') || 'Calls enabled') : (t('chat.voipDisabled') || 'Calls disabled'));
+        onUpdate?.();
+      } else {
+        toast.error(response.data.errors?.[0] || t('errors.generic'));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) return <div className="p-4"><LoadingSpinner size="sm" /></div>;
+
+  return (
+    <div className="mb-6 p-4 theme-bg-tertiary rounded-lg">
+      <h4 className="text-sm font-medium theme-text-primary mb-3">
+        {t('chat.settings') || 'Settings'}
+      </h4>
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm theme-text-primary font-medium">{t('chat.enableCalls') || 'Enable Voice Calls'}</span>
+          <p className="text-xs theme-text-muted mt-1">{t('chat.enableCallsHint') || 'Allow members to start voice calls in this room.'}</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={voipEnabled}
+          onClick={handleToggleVoip}
+          disabled={updating}
+          className={`${voipEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50`}
+        >
+          <span
+            aria-hidden="true"
+            className={`${voipEnabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+          />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
+
   isOpen,
   onClose,
   roomId,
@@ -721,6 +807,17 @@ const ChatRoomMembersModal: React.FC<ChatRoomMembersModalProps> = ({
                     }}
                   />
                 </>
+              )}
+
+
+              {/* Chatroom Settings Section (Manage mode only, invite-only rooms) */}
+              {isOwner && mode === 'manage' && !isPublic && (
+                <ChatRoomSettingsSection
+                  roomId={roomId}
+                  onUpdate={() => {
+                    onMemberUpdate?.();
+                  }}
+                />
               )}
 
               {/* Invite User Section (Owner only, manage mode only, private chats only) */}

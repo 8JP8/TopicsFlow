@@ -1319,7 +1319,17 @@ def register_socketio_handlers(socketio):
                 }, room=chat_room, include_self=False)
             else:
                 # For DM, notify the other user
-                other_user_room = f"user_{room_id}"
+                target_user_id = room_id
+                if room_type == 'dm' and '_' in room_id:
+                    # If room_id is composite (userA_userB), find the ID that is not current user
+                    parts = room_id.split('_')
+                    # Find the part that is NOT the current user_id
+                    for part in parts:
+                        if part != user_id:
+                            target_user_id = part
+                            break
+                            
+                other_user_room = f"user_{target_user_id}"
                 emit('voip_incoming_call', {
                     'call': call,
                     'caller': {

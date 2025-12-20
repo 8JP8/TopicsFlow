@@ -92,7 +92,7 @@ if __name__ == '__main__':
     load_dotenv()
 
     mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-    db_name = os.getenv('MONGO_DB_NAME', 'chatapp')
+    db_name = os.getenv('MONGO_DB_NAME', 'TopicsFlow')
 
     logger.info(f"Connecting to MongoDB: {mongo_uri}")
     logger.info(f"Database: {db_name}")

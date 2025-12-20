@@ -42,7 +42,10 @@ def create_app(config_name=None):
     logger.info(f"  Database: {'CosmosDB' if app.config.get('IS_AZURE') else 'MongoDB'}")
     logger.info("="*60)
 
-    # Initialize extensions with CORS restricted to localhost and configured frontend URL
+    # Initialize extensions with CORS
+    # Allow local development and the production frontend URL from environment
+    frontend_url = app.config.get('FRONTEND_URL')
+    
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -50,13 +53,15 @@ def create_app(config_name=None):
         "http://127.0.0.1:5000",
     ]
     
-    # Add configured frontend URL if it's not already in the list
-    configured_frontend = app.config.get('FRONTEND_URL')
-    if configured_frontend and configured_frontend not in allowed_origins:
-        allowed_origins.append(configured_frontend)
-        
-    logger.info(f"CORS: Allowed origins: {allowed_origins}")
-    cors.init_app(app,
+    if frontend_url:
+        # Support both with and without trailing slash
+        allowed_origins.append(frontend_url.rstrip('/'))
+        allowed_origins.append(f"{frontend_url.rstrip('/')}/")
+        logger.info(f"CORS: Adding production frontend URL to allowed origins: {frontend_url}")
+    
+    logger.info(f"CORS: Configured with allowed origins: {allowed_origins}")
+    
+    cors.init_app(app, 
                  resources={r"/*": {"origins": allowed_origins}},
                  allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
                  methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -68,9 +73,8 @@ def create_app(config_name=None):
     async_mode = 'threading' if sys.platform == 'win32' else 'eventlet'
     logger.info(f"Using SocketIO async_mode: {async_mode}")
 
-    # SocketIO CORS - restricted to localhost only
-    logger.info(f"SocketIO CORS: Configured for localhost only - Allowed origins: {allowed_origins}")
-    socketio.init_app(app,
+    # SocketIO CORS - same origins as main app
+    socketio.init_app(app, 
                      cors_allowed_origins=allowed_origins,
                      async_mode=async_mode,
                      cors_credentials=True)  # Enable credentials for session cookies
@@ -165,15 +169,6 @@ def create_app(config_name=None):
         @app.route('/<path:path>')
         def serve_frontend(path):
             """Serve static frontend files."""
-            # Flask-SocketIO automatically handles /socket.io/ routes before this function is called
-            # If we somehow get here for a socket.io route, Flask-SocketIO didn't handle it
-            # In that case, we should not process it to avoid WSGI conflicts
-            if 'socket.io' in path or path.startswith('socket.io/') or path == 'socket.io':
-                # Don't process socket.io routes - Flask-SocketIO should handle them
-                # Return an empty response with 200 status to avoid WSGI write() before start_response error
-                from flask import Response
-                return Response('', status=200, mimetype='text/plain')
-            
             # Skip API routes - let blueprints handle them
             if path.startswith('api/'):
                 from flask import abort

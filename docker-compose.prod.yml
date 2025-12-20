@@ -9,7 +9,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
-      MONGO_INITDB_DATABASE: chatapp
+      MONGO_INITDB_DATABASE: TopicsFlow
     volumes:
       - mongodb_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -40,8 +40,8 @@ services:
     environment:
       FLASK_ENV: production
       SECRET_KEY_FILE: /run/secrets/flask_secret_key
-      DATABASE_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/chatapp?authSource=admin
-      DB_NAME: chatapp
+      DATABASE_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/TopicsFlow?authSource=admin
+      DB_NAME: TopicsFlow
       FRONTEND_URL: ${FRONTEND_URL}
       TOTP_ISSUER: TopicsFlow
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -101,6 +101,7 @@ volumes:
   mongodb_data:
   redis_data:
   totp_keys:
+
 
 networks:
   topicsflow-network:

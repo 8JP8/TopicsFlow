@@ -39,7 +39,7 @@ class ApiClient {
           // Unauthorized - redirect to login only if not already on auth pages
           if (typeof window !== 'undefined') {
             const path = window.location.pathname;
-            if (path !== '/login' && path !== '/register') {
+            if (path !== '/login' && path !== '/register' && path !== '/about') {
               window.location.href = '/login';
             }
           }
@@ -297,6 +297,7 @@ export const API_ENDPOINTS = {
     DECLINE_INVITATION: (invitationId: string) => `/api/chat-rooms/invitations/${invitationId}/decline`,
     UPDATE_PICTURE: (id: string) => `/api/chat-rooms/${id}/picture`,
     UPDATE_BACKGROUND: (id: string) => `/api/chat-rooms/${id}/background`,
+    UPDATE_SETTINGS: (id: string) => `/api/chat-rooms/${id}/settings`,
   },
 
   // Blocking (new)

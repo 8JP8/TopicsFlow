@@ -152,7 +152,7 @@ You should see:
 
 **Option A: Using Postman**
 
-Import `ChatApp_API_Passwordless.postman_collection.json` and run:
+Import `TopicsFlow_API_Passwordless.postman_collection.json` and run:
 1. "1. Register (Passwordless)" - Uses your email
 2. Check your email for 6-digit verification code
 3. Run "2. Verify Email" with the code
@@ -272,7 +272,7 @@ echo RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 echo FROM_EMAIL=chat@taskflow.pt
 echo APP_NAME=TopicsFlow
 echo FRONTEND_URL=http://localhost:3000
-echo DATABASE_URL=mongodb://localhost:27017/chatapp
+echo DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 echo CORS_ALLOW_ALL=true
 echo TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 ) > .env
@@ -287,7 +287,7 @@ RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 FROM_EMAIL=chat@taskflow.pt
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
-DATABASE_URL=mongodb://localhost:27017/chatapp
+DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 CORS_ALLOW_ALL=true
 TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 "@ | Out-File -FilePath .env -Encoding UTF8
@@ -302,7 +302,7 @@ RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
 FROM_EMAIL=chat@taskflow.pt
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
-DATABASE_URL=mongodb://localhost:27017/chatapp
+DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 CORS_ALLOW_ALL=true
 TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 EOF
@@ -348,7 +348,7 @@ If you suspect your API key has been exposed:
 | `FROM_EMAIL` | Sender email address | chat@taskflow.pt | ✅ Yes |
 | `APP_NAME` | Application name | TopicsFlow | ✅ Yes |
 | `FRONTEND_URL` | Frontend URL | http://localhost:3000 | ✅ Yes |
-| `DATABASE_URL` | MongoDB connection string | mongodb://localhost:27017/chatapp | ✅ Yes |
+| `DATABASE_URL` | MongoDB connection string | mongodb://localhost:27017/TopicsFlow | ✅ Yes |
 | `CORS_ALLOW_ALL` | Enable CORS for dev | true | ✅ Yes |
 | `TENOR_API_KEY` | Tenor GIF API key | - | ✅ Yes |
 | `SECRET_KEY` | Flask secret key | - | ✅ Yes |

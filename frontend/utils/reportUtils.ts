@@ -38,82 +38,82 @@ export interface Report {
 
 // Get report type label
 export const getReportTypeLabel = (type: ReportType): string => {
-  const labels: Record<ReportType, string> = {
-    user: 'User',
-    content: 'Content',
-    message: 'Message',
-    post: 'Post',
-    comment: 'Comment',
-    chatroom: 'Chatroom',
-    chatroom_background: 'Chatroom Background',
-    chatroom_picture: 'Chatroom Picture',
+  const labels: Record<string, string> = {
+    user: 'admin.typeUser',
+    content: 'admin.typeContent',
+    message: 'admin.typeMessage',
+    post: 'admin.typePost',
+    comment: 'admin.typeComment',
+    chatroom: 'admin.typeChatroom',
+    chatroom_background: 'admin.typeChatroomBackground',
+    chatroom_picture: 'admin.typeChatroomPicture',
   };
-  return labels[type] || type;
+  return labels[(type || '').toLowerCase()] || type;
 };
 
 // Get report status label and color
 export const getReportStatusConfig = (status: ReportStatus): { label: string; color: string; bgColor: string } => {
-  const configs: Record<ReportStatus, { label: string; color: string; bgColor: string }> = {
+  const configs: Record<string, { label: string; color: string; bgColor: string }> = {
     pending: {
-      label: 'Pending',
+      label: 'admin.pendingReports',
       color: 'text-yellow-600 dark:text-yellow-400',
       bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
     },
     reviewed: {
-      label: 'Reviewed',
+      label: 'admin.reviewedReports',
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     },
     dismissed: {
-      label: 'Dismissed',
+      label: 'admin.dismissedReports',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-100 dark:bg-gray-900/30',
     },
     resolved: {
-      label: 'Resolved',
+      label: 'admin.resolvedReports',
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/30',
     },
   };
-  return configs[status] || configs.pending;
+  return configs[(status || '').toLowerCase()] || configs.pending;
 };
 
 // Get report reason label
 export const getReportReasonLabel = (reason: ReportReason): string => {
-  const labels: Record<ReportReason, string> = {
-    spam: 'Spam',
-    harassment: 'Harassment',
-    hate_speech: 'Hate Speech',
-    inappropriate_content: 'Inappropriate Content',
-    misinformation: 'Misinformation',
-    violence: 'Violence',
-    terrorism: 'Terrorism',
-    racial_content: 'Racial Content',
-    sexual_content: 'Sexual Content',
-    copyright: 'Copyright Violation',
-    privacy_violation: 'Privacy Violation',
-    impersonation: 'Impersonation',
-    other: 'Other',
+  const labels: Record<string, string> = {
+    spam: 'admin.reasonSpam',
+    harassment: 'admin.reasonHarassment',
+    hate_speech: 'admin.reasonHateSpeech',
+    inappropriate_content: 'admin.reasonInappropriateContent',
+    misinformation: 'admin.reasonMisinformation',
+    violence: 'admin.reasonViolence',
+    terrorism: 'admin.reasonTerrorism',
+    racial_content: 'admin.reasonRacialContent',
+    sexual_content: 'admin.reasonSexualContent',
+    copyright: 'admin.reasonCopyright',
+    privacy_violation: 'admin.reasonPrivacyViolation',
+    impersonation: 'admin.reasonImpersonation',
+    other: 'admin.reasonOther',
   };
-  return labels[reason] || reason;
+  return labels[(reason || '').toLowerCase()] || reason;
 };
 
 // Get all report reasons for dropdown
 export const getReportReasons = (): Array<{ value: ReportReason; label: string }> => {
   return [
-    { value: 'spam', label: 'Spam' },
-    { value: 'harassment', label: 'Harassment' },
-    { value: 'hate_speech', label: 'Hate Speech' },
-    { value: 'inappropriate_content', label: 'Inappropriate Content' },
-    { value: 'misinformation', label: 'Misinformation' },
-    { value: 'violence', label: 'Violence' },
-    { value: 'terrorism', label: 'Terrorism' },
-    { value: 'racial_content', label: 'Racial Content' },
-    { value: 'sexual_content', label: 'Sexual Content' },
-    { value: 'copyright', label: 'Copyright Violation' },
-    { value: 'privacy_violation', label: 'Privacy Violation' },
-    { value: 'impersonation', label: 'Impersonation' },
-    { value: 'other', label: 'Other' },
+    { value: 'spam', label: 'admin.reasonSpam' },
+    { value: 'harassment', label: 'admin.reasonHarassment' },
+    { value: 'hate_speech', label: 'admin.reasonHateSpeech' },
+    { value: 'inappropriate_content', label: 'admin.reasonInappropriateContent' },
+    { value: 'misinformation', label: 'admin.reasonMisinformation' },
+    { value: 'violence', label: 'admin.reasonViolence' },
+    { value: 'terrorism', label: 'admin.reasonTerrorism' },
+    { value: 'racial_content', label: 'admin.reasonRacialContent' },
+    { value: 'sexual_content', label: 'admin.reasonSexualContent' },
+    { value: 'copyright', label: 'admin.reasonCopyright' },
+    { value: 'privacy_violation', label: 'admin.reasonPrivacyViolation' },
+    { value: 'impersonation', label: 'admin.reasonImpersonation' },
+    { value: 'other', label: 'admin.reasonOther' },
   ];
 };
 

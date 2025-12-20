@@ -71,7 +71,7 @@ class AuthService:
         self.passkey_service = PasskeyService()
 
     def register_user(self, username: str, email: str, password: str,
-                     phone: str = None, security_questions: list = None) -> dict:
+                     phone: str = None, security_questions: list = None, lang: str = 'en') -> dict:
         """Register a new user with TOTP setup."""
         # Validate inputs
         validation_errors = []
@@ -106,6 +106,9 @@ class AuthService:
             country_code = detect_country_from_request()
             if country_code:
                 self.user_model.update_country_code(user_id, country_code)
+
+            # Save language preference
+            self.user_model.update_user_preferences(user_id, {'language': lang})
 
             # Generate TOTP QR code data
             qr_data = self.user_model.get_totp_qr_data(user_id)
@@ -479,6 +482,9 @@ class AuthService:
                 password=None  # No password for passwordless auth
             )
 
+            # Save language preference
+            self.user_model.update_user_preferences(user_id, {'language': lang})
+
             # Generate and send email verification code
             verification_code = ''.join(random.choices(string.digits, k=6))
             self.user_model.set_email_verification_code(user_id, verification_code)
@@ -539,12 +545,16 @@ class AuthService:
             verification_code = ''.join(random.choices(string.digits, k=6))
             self.user_model.set_email_verification_code(user_id, verification_code)
 
+            # Use user's preferred language if set, otherwise use requested language
+            user_lang = user.get('preferences', {}).get('language')
+            effective_lang = user_lang if user_lang else lang
+
             # Send verification email
             email_result = self.email_service.send_verification_email(
                 user['email'],
                 user['username'],
                 verification_code,
-                lang
+                effective_lang
             )
 
             if not email_result.get('success'):
@@ -730,12 +740,16 @@ class AuthService:
             recovery_code = ''.join(random.choices(string.digits, k=6))
             self.user_model.set_recovery_code(email.lower().strip(), recovery_code)
 
+            # Use user's preferred language if set, otherwise use requested language
+            user_lang = user.get('preferences', {}).get('language')
+            effective_lang = user_lang if user_lang else lang
+
             # Send recovery email
             email_result = self.email_service.send_recovery_email(
                 email.lower().strip(),
                 user['username'],
                 recovery_code,
-                lang
+                effective_lang
             )
 
             return {
@@ -779,11 +793,14 @@ class AuthService:
             if not user:
                 return {'success': False, 'errors': ['User not found']}
 
+            # Get user's preferred language
+            user_lang = user.get('preferences', {}).get('language', 'en')
+
             # Get QR code data
             qr_data = self.user_model.get_totp_qr_data(user_id)
 
             # Send notification email
-            self.email_service.send_2fa_reset_notification(user['email'], user['username'])
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'], user_lang)
 
             return {
                 'success': True,
@@ -851,8 +868,12 @@ class AuthService:
             new_secret = self.user_model.reset_totp_with_new_secret(user_id)
             qr_data = self.user_model.get_totp_qr_data(user_id)
 
+            # Use user's preferred language if set, otherwise use requested language
+            user_lang = user.get('preferences', {}).get('language')
+            effective_lang = user_lang if user_lang else lang
+
             # Send notification email
-            self.email_service.send_2fa_reset_notification(user['email'], user['username'], lang)
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'], effective_lang)
 
             return {
                 'success': True,

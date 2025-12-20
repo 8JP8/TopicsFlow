@@ -61,7 +61,8 @@ interface ChatRoom {
   message_count: number;
   is_public: boolean;
   picture?: string;
-  background_picture?: string;
+  whiteboard_enabled?: boolean;
+  voip_enabled?: boolean;
 }
 
 interface ChatRoomContainerProps {
@@ -673,11 +674,14 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             </div>
             <div className="flex items-center gap-2">
               {/* VOIP Button for voice calls */}
-              <VoipButton
-                roomId={room.id}
-                roomType="group"
-                roomName={room.name}
-              />
+              {!room.is_public && (
+                <VoipButton
+                  roomId={room.id}
+                  roomType="group"
+                  roomName={room.name}
+                  disabled={!room.voip_enabled}
+                />
+              )}
               {isOwner && (
                 <button
                   onClick={() => {

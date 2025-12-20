@@ -422,8 +422,8 @@ class Post:
             )
             return result.modified_count > 0
 
-    def delete_post(self, post_id: str, deleted_by: str) -> bool:
-        """Delete a post (soft delete)."""
+    def delete_post(self, post_id: str, deleted_by: str, mode: str = 'soft') -> bool:
+        """Delete a post (soft or hard delete)."""
         # Check if user has permission to delete this post
         post = self.get_post_by_id(post_id)
         if not post:
@@ -444,30 +444,34 @@ class Post:
         if permission_level < 2 and not is_owner:
             return False
 
-        # If owner is deleting, require admin approval
-        from datetime import timedelta
-        permanent_delete_at = datetime.utcnow() + timedelta(days=7) if is_owner else None
-        deletion_status = 'pending' if is_owner else 'approved'
+        if mode == 'hard':
+            # Hard delete - remove from collection
+            result = self.collection.delete_one({'_id': ObjectId(post_id)})
+        else:
+            # Soft delete - set is_deleted flag and pending status if owner
+            from datetime import timedelta
+            permanent_delete_at = datetime.utcnow() + timedelta(days=7) if is_owner else None
+            deletion_status = 'pending' if is_owner else 'approved'
 
-        result = self.collection.update_one(
-            {'_id': ObjectId(post_id)},
-            {
-                '$set': {
-                    'is_deleted': True,
-                    'deleted_by': ObjectId(deleted_by),
-                    'deleted_at': datetime.utcnow(),
-                    'permanent_delete_at': permanent_delete_at,
-                    'deletion_status': deletion_status,
-                    'updated_at': datetime.utcnow()
+            result = self.collection.update_one(
+                {'_id': ObjectId(post_id)},
+                {
+                    '$set': {
+                        'is_deleted': True,
+                        'deleted_by': ObjectId(deleted_by),
+                        'deleted_at': datetime.utcnow(),
+                        'permanent_delete_at': permanent_delete_at,
+                        'deletion_status': deletion_status,
+                        'updated_at': datetime.utcnow()
+                    }
                 }
-            }
-        )
+            )
 
-        if result.modified_count > 0 and topic_id:
+        if (result.deleted_count > 0 or result.modified_count > 0) and topic_id:
             # Decrement topic post count
             topic_model.decrement_post_count(topic_id)
 
-        return result.modified_count > 0
+        return (result.deleted_count > 0 if mode == 'hard' else result.modified_count > 0)
     
     def get_pending_deletions(self) -> List[Dict[str, Any]]:
         """Get all posts pending deletion approval."""

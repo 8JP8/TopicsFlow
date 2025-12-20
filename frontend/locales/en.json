@@ -60,7 +60,9 @@
     "user": "User",
     "goBackHome": "Go Back Home",
     "welcomeBack": "Welcome Back",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "closeModal": "Close Modal",
+    "learnMore": "Learn More"
   },
   "chats": {
     "title": "Chats",
@@ -527,20 +529,35 @@
     "blockedUsers": "Blocked Users",
     "hiddenItems": "Hidden Items",
     "blockedUsersDesc": "Manage users you have blocked",
-    "hiddenItemsDesc": "Manage topics, posts, chats, and private messages you have hidden",
+    "hiddenItemsDesc": "Manage content you have hidden for yourself",
     "hiddenTopics": "Hidden Topics",
     "hiddenPosts": "Hidden Posts",
     "hiddenChats": "Hidden Chats",
-    "hiddenChatrooms": "Hidden Chatrooms",
-    "hiddenPublications": "Hidden Publications",
-    "hiddenPrivateMessages": "Hidden Private Messages",
+    "hiddenChatrooms": "Chatrooms",
+    "hiddenPublications": "Publications",
+    "hiddenPrivateMessages": "Private Messages",
     "noHiddenItems": "No hidden items",
     "unhide": "Unhide",
     "restore": "Restore",
+    "delete": "Delete",
     "deleteForMe": "Delete for me",
+    "hideForMe": "Hide for me",
     "removeForMe": "Remove for me",
     "messageRemoved": "Message removed for you",
     "itemUnhidden": "Item unhidden",
+    "itemRestored": "Item restored successfully",
+    "itemPermanentlyDeleted": "Item permanently deleted successfully",
+    "confirmPermanentDelete": "Are you sure you want to permanently delete this item? This action cannot be undone.",
+    "allClear": "All clear!",
+    "noHiddenItemsByType": "No hidden items found in this category",
+    "noContent": "No content",
+    "comments": "Comments",
+    "publications": "Publications",
+    "chatrooms": "Chatrooms",
+    "groups": "Groups",
+    "private": "Private",
+    "group": "Group",
+    "topic": "Topic",
     "noAnonymousIdentities": "No anonymous identities",
     "enableBrowserNotificationsDesc": "Enable browser notifications to receive real-time updates when the app is in the background.",
     "backToDashboard": "Back to Dashboard",
@@ -1178,13 +1195,27 @@
     "reportedContent": "Reported Content",
     "filterByType": "Filter by type:",
     "allTypes": "All Types",
-    "typeUser": "User Reports",
-    "typeMessage": "Message Reports",
-    "typePost": "Post Reports",
-    "typeComment": "Comment Reports",
-    "typeChatroom": "Chatroom Reports",
+    "typeUser": "User",
+    "typeMessage": "Message",
+    "typePost": "Post",
+    "typeComment": "Comment",
+    "typeChatroom": "Chatroom",
     "typeChatroomBackground": "Chatroom Background",
     "typeChatroomPicture": "Chatroom Picture",
+    "typeContent": "Content Violation",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Harassment",
+    "reasonHateSpeech": "Hate Speech",
+    "reasonInappropriateContent": "Inappropriate Content",
+    "reasonMisinformation": "Misinformation",
+    "reasonViolence": "Violence",
+    "reasonTerrorism": "Terrorism",
+    "reasonRacialContent": "Racial Content",
+    "reasonSexualContent": "Sexual Content",
+    "reasonCopyright": "Copyright Violation",
+    "reasonPrivacyViolation": "Privacy Violation",
+    "reasonImpersonation": "Impersonation",
+    "reasonOther": "Other",
     "predefinedWarning1": "Inappropriate behavior detected. Please review our community guidelines.",
     "predefinedWarning2": "Your recent actions violate our terms of service. Please be more respectful.",
     "predefinedWarning3": "Warning: Harassment or bullying is not tolerated. Continued violations may result in a ban.",
@@ -1258,12 +1289,29 @@
     "admin": "Admin"
   },
   "tickets": {
+    "catBug": "Bug Report",
+    "catFeature": "Feature Request",
+    "catAccount": "Account Issue",
+    "catAbuse": "Abuse Report",
+    "catOther": "Other",
+    "statusOpen": "Open",
+    "statusInProgress": "In Progress",
+    "statusResolved": "Resolved",
+    "statusClosed": "Closed",
+    "priorityLow": "Low",
+    "priorityMedium": "Medium",
+    "priorityHigh": "High",
+    "priorityUrgent": "Urgent",
     "createTicket": "Create Support Ticket",
-    "myTickets": "My Tickets",
-    "ticketTitle": "Title",
-    "ticketDescription": "Description",
-    "ticketCategory": "Category",
+    "myTickets": "My Support Tickets",
+    "subject": "Subject",
+    "subjectPlaceholder": "Brief summary of your issue...",
+    "description": "Description",
+    "descriptionPlaceholder": "Provide detailed information about your issue or question",
+    "category": "Category",
+    "selectCategory": "Select a category...",
     "priority": "Priority",
+    "priorityHint": "Select the urgency level of your issue",
     "submit": "Submit Ticket",
     "ticketSubmitted": "Ticket submitted successfully",
     "failedToSubmit": "Failed to submit ticket",
@@ -1271,41 +1319,6 @@
     "ticketId": "Ticket ID",
     "created": "Created",
     "lastUpdate": "Last Update",
-    "open": "Open",
-    "pending": "Pending",
-    "resolved": "Resolved",
-    "closed": "Closed",
-    "low": "Low",
-    "normal": "Normal",
-    "high": "High",
-    "urgent": "Urgent",
-    "bug": "Bug Report",
-    "feature": "Feature Request",
-    "question": "Question",
-    "other": "Other",
-    "titlePlaceholder": "Brief description of your issue",
-    "descriptionPlaceholder": "Provide detailed information about your issue or question",
-    "selectCategory": "Select a category",
-    "selectPriority": "Select priority",
-    "category": "Category",
-    "category_bug": "Bug Report",
-    "category_feature": "Feature Request",
-    "category_account": "Account Issue",
-    "category_abuse": "Abuse Report",
-    "category_other": "Other",
-    "categoryBug": "Bug Report",
-    "categoryFeature": "Feature Request",
-    "categoryAccount": "Account Issue",
-    "categoryAbuse": "Abuse Report",
-    "categoryOther": "Other",
-    "priority_low": "Low",
-    "priority_medium": "Medium",
-    "priority_high": "High",
-    "priority_urgent": "Urgent",
-    "priorityHint": "Select the urgency level of your issue",
-    "subject": "Subject",
-    "subjectPlaceholder": "Brief summary of your issue...",
-    "description": "Description",
     "categoryRequired": "Please select a category",
     "subjectRequired": "Subject is required",
     "subjectTooShort": "Subject must be at least 5 characters",
@@ -1333,9 +1346,17 @@
     "addMessage": "Add Additional Information",
     "messagePlaceholder": "Add more details or ask a question...",
     "sendMessage": "Send Message",
+    "resolved": "Resolved",
+    "resolvedAt": "Resolved at",
     "messageAdded": "Message added successfully",
     "failedToAddMessage": "Failed to add message",
-    "resolvedAt": "Resolved at"
+    "replyToTicket": "Reply to Ticket",
+    "closeTicket": "Close Ticket",
+    "ticketClosed": "Ticket closed successfully",
+    "ticketUpdated": "Ticket updated successfully",
+    "reopenTicket": "Reopen Ticket",
+    "ticketReopened": "Ticket reopened successfully",
+    "failedToReopenTicket": "Failed to reopen ticket"
   },
   "reports": {
     "reportUser": "Report User",
@@ -1498,208 +1519,9 @@
   "anonymousStateChanged": "Anonymousstatechanged",
   "tailwindcss": "Tailwindcss",
   "GIF": "Gif",
-  "": {
-    "": ""
-  },
   "next": "Next",
   "refresh_invitations": "Refresh invitations",
   "a": "A",
-  "about": {
-    "features": {
-      "realTimeChatDesc": "Instant messaging in topic-based rooms. Share images, GIFs, and files seamlessly.",
-      "anonymousMode": "Anonymous Mode",
-      "realTimeChat": "Real-time Chat",
-      "securePrivate": "Secure & Private",
-      "anonymousModeDesc": "Participate in discussions without revealing your real identity. Unique profiles per topic.",
-      "securePrivateDesc": "Passwordless authentication, end-to-end like encryption for private messages.",
-      "title": "Platform Features",
-      "discussions": {
-        "title": "Structured Discussions",
-        "desc": "Dive deep into specific interests with threaded conversations.",
-        "richText": {
-          "title": "Rich Text Editing",
-          "desc": "Format your posts with markdown, code blocks, and more."
-        },
-        "tagging": {
-          "title": "Tagging System",
-          "desc": "Organize content and find exactly what you're looking for with robust tagging."
-        },
-        "voting": {
-          "title": "Voting Mechanism",
-          "desc": "Upvote quality content to help the best ideas rise to the top."
-        },
-        "media": {
-          "title": "Media Support",
-          "desc": "Embed images, videos, and files directly into your posts."
-        }
-      },
-      "chat": {
-        "title": "Real-Time Chat",
-        "desc": "Instant messaging for when you need answers now.",
-        "channels": {
-          "title": "Live Channels",
-          "desc": "Jump into active rooms associated with any topic."
-        },
-        "dm": {
-          "title": "Direct Messaging",
-          "desc": "Private conversations with friends or other community members."
-        },
-        "presence": {
-          "title": "Presence System",
-          "desc": "See who's online and typing in real-time."
-        },
-        "media": {
-          "title": "GIFs & Emojis",
-          "desc": "Express yourself fully with integrated media pickers."
-        }
-      },
-      "privacy": {
-        "title": "Privacy & Control",
-        "desc": "Your data, your identity, your rules.",
-        "anonymous": {
-          "title": "Anonymous Mode",
-          "desc": "Participate without linking to your main profile."
-        },
-        "invite": {
-          "title": "Invite-Only Topics",
-          "desc": "Create private spaces for teams or close groups."
-        },
-        "activity": {
-          "title": "Activity Status",
-          "desc": "Control who sees when you were last online."
-        },
-        "export": {
-          "title": "Data Export",
-          "desc": "Download your data anytime. We don't lock you in."
-        }
-      }
-    },
-    "title": "About TopicsFlow - The Future of Discussion",
-    "heroSubtitle": "Where conversations flow naturally. A real-time community platform for modern discussions.",
-    "metaDescription": "TopicsFlow is a modern Reddit-style discussion platform with real-time chat rooms.",
-    "allRightsReserved": "All rights reserved.",
-    "learnMore": "Learn More",
-    "goToDashboard": "Go to Dashboard",
-    "tour": {
-      "discover": "Discover the Platform",
-      "redefining": "Redefining Online Communities",
-      "redefiningDesc": "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface.",
-      "everything": "Everything You Need",
-      "everythingDesc": "Explore the powerful features that make TopicsFlow unique.",
-      "takeTour": "Take a Tour"
-    },
-    "carousel": {
-      "topicsTitle": "Diverse Topics",
-      "topicsDesc": "Dive into a wide range of discussions. From tech to art, find your niche or create your own topic to start a new community.",
-      "chatTitle": "Real-time Chatrooms",
-      "chatDesc": "Experience fluid, instant messaging. Connect with others in real-time with responsive chat rooms designed for modern interaction.",
-      "attachTitle": "Rich Attachments",
-      "attachDesc": "Share more than just words. Upload images, files, and GIFs to make your conversations come alive.",
-      "ticketTitle": "Ticket System",
-      "ticketDesc": "Comprehensive support and moderation. Report issues and track their status seamlessly through our integrated ticket system."
-    },
-    "grid": {
-      "moderationTitle": "Advanced Moderation",
-      "moderationDesc": "Our built-in Ticket System ensures community safety. Users can report content or behavior, and moderators have a dedicated dashboard to handle inquiries efficiently.",
-      "sharingTitle": "Seamless Sharing",
-      "sharingDesc": "Share code snippets, images, and files effortlessly. With built-in drag-and-drop attachment support, your technical discussions don't have to be text-only.",
-      "expressTitle": "Express Yourself",
-      "expressDesc": "Customize your profile, choose your theme, and find your community. Whether you're anonymous or a known regular, you belong here.",
-      "attachment": "Attachment"
-    },
-    "faq": {
-      "title": "Frequently Asked Questions",
-      "q1": "What is TopicsFlow?",
-      "a1": "TopicsFlow is a hybrid platform combining the best of structured forums and real-time chat. It allows you to create focused topics for long-term discussions while also providing immediate, live chat rooms for community bonding.",
-      "q2": "How do I create a new topic?",
-      "a2": "Simply click the 'Create Topic' button in the sidebar. You can customize it with a title, description, and tags. You can also choose if it's public or invite-only, and if anonymous posting is allowed.",
-      "q3": "Is it free to use?",
-      "a3": "Yes! TopicsFlow is completely free for all users. You can create topics, join chats, and share files without any cost.",
-      "q4": "Can I stay anonymous?",
-      "a4": "Absolutely. Many topics allow 'Anonymous Mode', letting you participate without revealing your main profile. You can even set a custom alias for each topic.",
-      "q5": "How does moderation work?",
-      "a5": "Topic owners can appoint moderators. Moderators have tools to delete messages, ban users, and manage requests. We also have a built-in reporting system for safety."
-    },
-    "takeATour": "Take a Tour",
-    "discover": {
-      "label": "Discover the Platform",
-      "title": "Redefining Online Communities",
-      "description": "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface."
-    },
-    "trust": {
-      "label": "Trust & Security",
-      "title": "Your Safety is Our Priority",
-      "moderation": {
-        "title": "Active Moderation",
-        "desc": "Our dedicated team monitors content and responds to reports within hours."
-      },
-      "privacy": {
-        "title": "Privacy First",
-        "desc": "Two-factor authentication, anonymous mode, and secure encryption protect your data."
-      },
-      "community": {
-        "title": "Community Guidelines",
-        "desc": "Clear rules and transparent enforcement create a respectful environment for all."
-      }
-    }
-  },
-  "tour": {
-    "sidebarTitle": "Navigation Sidebar",
-    "sidebarDesc": "Access topics, your themes, and filter discussions by tags here.",
-    "createTopicTitle": "Create Topics",
-    "createTopicDesc": "Start your own discussion topic. You can set it as public or invite-only, and even enable anonymous posting.",
-    "notificationsTitle": "Notifications",
-    "notificationsDesc": "Stay updated with mentions, messages, and invitations. You can view them all in the dedicated modal.",
-    "profileTitle": "Your Profile",
-    "profileDesc": "Manage your account settings, anonymous identities, and preferences here.",
-    "discussionTitle": "Discussion Area",
-    "discussionDesc": "This is where the magic happens. Select a topic to view posts and chat in real-time.",
-    "adminTitle": "Admin Dashboard",
-    "adminDesc": "Access moderation tools, reports, and platform statistics.",
-    "themeTitle": "Theme",
-    "themeDesc": "Switch between light and dark modes for better visual comfort.",
-    "invitationsTitle": "Invitations",
-    "invitationsDesc": "Manage invitations for topics and chat rooms.",
-    "languageTitle": "Language",
-    "languageDesc": "Switch between English and Portuguese.",
-    "continueToSettings": "Configure Your Experience",
-    "continueToSettingsDesc": "Click here and select \"Settings\" to continue the tour and customize your profile and preferences.",
-    "continueButton": "Continue to Settings",
-    "settingsTabsTitle": "Settings Navigation",
-    "settingsTabsDesc": "Navigate between Preferences, Account details, Privacy settings, and Anonymous Identities.",
-    "accountTabTitle": "Account Settings",
-    "accountTabDesc": "Manage your profile information, email, and password.",
-    "privacyTabTitle": "Privacy Settings",
-    "privacyTabDesc": "Control who can see your activity and manage blocked users.",
-    "anonymousTabTitle": "Anonymous Identities",
-    "anonymousTabDesc": "Create and manage your anonymous aliases for different topics.",
-    "blockedUsersTitle": "Blocked Users",
-    "blockedUsersDesc": "View and manage users you have blocked.",
-    "hiddenContentTitle": "Hidden Content",
-    "hiddenContentDesc": "Manage topics and posts you have hidden.",
-    "deleteAccountTitle": "Delete Account",
-    "deleteAccountDesc": "Permanently delete your account and all associated data.",
-    "editProfileTitle": "Edit Profile",
-    "editProfileDesc": "Update your personal information and avatar here.",
-    "contentSafetyTitle": "Content & Safety",
-    "contentSafetyDesc": "Manage blocked users, hidden items, and followed content easily.",
-    "settingsCompleteTitle": "Tour Complete",
-    "settingsCompleteDesc": "You represent the heart of our community. Enjoy TopicsFlow!",
-    "searchTitle": "Search Topics",
-    "searchDesc": "Quickly find topics by name or description.",
-    "sortTitle": "Sort Topics",
-    "sortDesc": "Sort topics by activity, popularity, or creation date.",
-    "tagsTitle": "Filter by Tags",
-    "tagsDesc": "Click on tags to filter topics by category.",
-    "anonymousModeTitle": "Anonymous Mode",
-    "anonymousModeDesc": "Toggle anonymous mode to participate without revealing your identity.",
-    "messagesTabTitle": "Private Messages",
-    "messagesTabDesc": "Switch to the messages tab to chat privately with other users.",
-    "messagesListTitle": "Conversations",
-    "messagesListDesc": "Select a conversation to start chatting.",
-    "messageInputTitle": "Send Message",
-    "messageInputDesc": "Type your message, send GIFs, or attach files here."
-  },
   "voip": {
     "startCall": "Start Call",
     "joinCall": "Join Call",
@@ -1751,5 +1573,244 @@
     "soloCallEnded": "Call ended - you were the only participant for too long",
     "reconnectedToCall": "Reconnected to call",
     "userDisconnected": "{name} lost connection"
+  },
+  "tour": {
+    "sidebarTitle": "Navigation Sidebar",
+    "sidebarDesc": "Access different topics, your themes, and filter discussions by tags here.",
+    "searchTitle": "Search Topics",
+    "searchDesc": "Quickly find topics by name or description.",
+    "sortTitle": "Sort Topics",
+    "sortDesc": "Sort topics by activity, popularity, or creation date.",
+    "tagsTitle": "Filter by Tags",
+    "tagsDesc": "Click on tags to filter topics by category.",
+    "createTopicTitle": "Create Topics",
+    "createTopicDesc": "Start your own discussion topic. Public or private, it's your choice.",
+    "invitationsTitle": "Invitations",
+    "invitationsDesc": "Manage your topic and chat invitations here.",
+    "notificationsTitle": "Notifications",
+    "notificationsDesc": "Stay updated with mentions, messages, and invites.",
+    "profileTitle": "Your Profile",
+    "profileDesc": "Manage your account settings, anonymous identities, and preferences here.",
+    "discussionTitle": "Discussion Area",
+    "discussionDesc": "This is where the magic happens. Select a topic to view posts and chat in real-time.",
+    "adminTitle": "Admin Dashboard",
+    "adminDesc": "Access moderation tools, reports, and platform statistics.",
+    "themeTitle": "Theme",
+    "themeDesc": "Switch between light and dark modes for better visual comfort.",
+    "languageTitle": "Language",
+    "languageDesc": "Switch between English and Portuguese.",
+    "continueToSettings": "Continue to Settings",
+    "continueToSettingsDesc": "Let's explore where you can customize your experience.",
+    "continueButton": "Continue to Settings",
+    "settingsTabsTitle": "Settings Categories",
+    "settingsTabsDesc": "Switch between account, security, and interface preferences.",
+    "accountTabTitle": "Account Settings",
+    "accountTabDesc": "Manage your profile, avatar, and core account details.",
+    "editProfileTitle": "Edit Profile",
+    "editProfileDesc": "Change your username, bio, and other public information.",
+    "contentSafetyTitle": "Content & Safety",
+    "contentSafetyDesc": "Manage blocked users, hidden items, and followed content easily.",
+    "anonymousModeTitle": "Anonymous Mode",
+    "anonymousModeDesc": "Participate without revealing your identity. Unique per topic.",
+    "messagesTabTitle": "Private Messages",
+    "messagesTabDesc": "Direct messaging with other community members.",
+    "messagesListTitle": "Conversations",
+    "messagesListDesc": "Select a conversation to start chatting.",
+    "messageInputTitle": "Send Message",
+    "messageInputDesc": "Type, send GIFs, or attach files here.",
+    "settingsCompleteTitle": "Tour Complete",
+    "settingsCompleteDesc": "You represent the heart of our community. Enjoy TopicsFlow!"
+  },
+  "about": {
+    "title": "About TopicsFlow - The Future of Discussion",
+    "sectionTitle": "About TopicsFlow",
+    "sectionSubtitle": "The evolution of community discussion",
+    "metaDescription": "TopicsFlow is a modern Reddit-style discussion platform with real-time chat rooms.",
+    "heroSubtitle": "Where conversations flow naturally. A real-time community platform for modern discussions.",
+    "discover": {
+      "label": "Discover the Platform",
+      "title": "Redefining Online Communities",
+      "description": "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface."
+    },
+    "features": {
+      "label": "System Overview",
+      "title": "Everything You Need",
+      "subtitle": "Explore the powerful features that make TopicsFlow unique.",
+      "sectionTitle": "Everything you need to connect",
+      "sectionSubtitle": "Discover the powerful tools that make TopicsFlow the ultimate discussion platform.",
+      "publications": {
+        "title": "Dynamic Publications",
+        "desc": "Reddit-style community spaces where you can share posts, vote, and engage in meaningful discussions within specialized Topics."
+      },
+      "groupchats": {
+        "title": "Group Chats",
+        "desc": "Real-time rooms for every topic. Join active discussions and connect with the community instantly."
+      },
+      "chat": {
+        "title": "Real-time Messaging",
+        "desc": "Instant messaging for everyone. Start private conversations or participate in room chats with anyone."
+      },
+      "voip": {
+        "title": "Voice Communication",
+        "desc": "Crystal clear VOIP rooms within chats. Join or start voice calls seamlessly without leaving the app."
+      },
+      "anonymous": {
+        "title": "Anonymous Presence",
+        "desc": "Engage with total privacy using our unique anonymous system. Custom names for every topic."
+      },
+      "safety": {
+        "title": "Unmatched Safety",
+        "desc": "Advanced moderation tools, content hiding, and blocking systems to keep your experience clean."
+      },
+      "support": {
+        "title": "Professional Support",
+        "desc": "A dedicated ticketing system for all your needs. Reach out to admins directly and track requests."
+      },
+      "discussions": {
+        "title": "Structured Discussions",
+        "desc": "Dive deep into specific interests with threaded conversations.",
+        "richText": {
+          "title": "Rich Text Editing",
+          "desc": "Format your posts with markdown, code blocks, and more."
+        },
+        "tagging": {
+          "title": "Tagging System",
+          "desc": "Organize content and find exactly what you're looking for with robust tags."
+        },
+        "voting": {
+          "title": "Voting Mechanism",
+          "desc": "Upvote quality content to help the best ideas rise to the top."
+        },
+        "media": {
+          "title": "Media Support",
+          "desc": "Embed images, videos, and files directly into your publications."
+        }
+      },
+      "realTimeMessaging": {
+        "title": "Real-time Messaging",
+        "desc": "Instant messaging for when you need answers now.",
+        "channels": {
+          "title": "Live Channels",
+          "desc": "Jump into active rooms associated with any topic."
+        },
+        "dm": {
+          "title": "Direct Messages",
+          "desc": "Private conversations with friends or other community members."
+        },
+        "presence": {
+          "title": "Presence System",
+          "desc": "See who's online and typing in real-time."
+        },
+        "media": {
+          "title": "GIFs & Emojis",
+          "desc": "Express yourself fully with integrated media pickers."
+        }
+      },
+      "privacy": {
+        "title": "Privacy & Control",
+        "desc": "Your data, your identity, your rules.",
+        "anonymous": {
+          "title": "Anonymous Mode",
+          "desc": "Participate without linking to your main profile."
+        },
+        "invite": {
+          "title": "Invite-Only Topics",
+          "desc": "Create private spaces for teams or closed groups."
+        },
+        "activity": {
+          "title": "Activity Status",
+          "desc": "Control who sees when you were last online."
+        },
+        "export": {
+          "title": "Data Portability",
+          "desc": "Download your data anytime. We don't lock you in."
+        }
+      }
+    },
+    "trust": {
+      "label": "Trust & Security",
+      "title": "Your Safety is Our Priority",
+      "moderation": {
+        "title": "Active Moderation",
+        "desc": "Our dedicated team monitors content and responds to reports within hours."
+      },
+      "privacy": {
+        "title": "Privacy First",
+        "desc": "Two-factor authentication, anonymous mode, and secure encryption protect your data."
+      },
+      "community": {
+        "title": "Community Guidelines",
+        "desc": "Clear rules and transparent enforcement create a respectful environment for all."
+      }
+    },
+    "faq": {
+      "label": "FAQ",
+      "title": "Frequently Asked Questions",
+      "q1": "What is TopicsFlow?",
+      "a1": "TopicsFlow is a hybrid platform combining the best of structured forums and real-time chat. It allows you to create focused topics for long-term discussions while also providing immediate, live chat rooms for community bonding.",
+      "q2": "How do I create a new topic?",
+      "a2": "Simply click the 'Create Topic' button in the sidebar. You can customize it with a title, description, and tags. You can also choose if it's public or invite-only, and if anonymous posting is allowed.",
+      "q3": "Is it free to use?",
+      "a3": "Yes! TopicsFlow is completely free for all users. You can create topics, join chats, and share files without any cost.",
+      "q4": "Can I stay anonymous?",
+      "a4": "Absolutely. Many topics allow 'Anonymous Mode', letting you participate without revealing your main profile. You can even set a custom alias for each topic.",
+      "q5": "How does moderation work?",
+      "a5": "Topic owners can appoint moderators. Moderators have tools to delete messages, ban users, and manage requests. We also have a built-in reporting system for safety."
+    },
+    "carousel": {
+      "extended": {
+        "publications": {
+          "title": "Dynamic Publications",
+          "shortDesc": "Community forums for deep dives and organized discussion.",
+          "longDesc": "Reddit-inspired spaces where you can share ideas, vote on content, and keep long-form discussions organized within specialized Topics. Our publication system supports rich text, media embeds, and threaded comments for meaningful engagement.",
+          "color": "blue"
+        },
+        "chat": {
+          "title": "Real-time Group Chat",
+          "shortDesc": "Instant social hubs for every discussion topic.",
+          "longDesc": "Instant messaging rooms paired with every forum topic. Experience fluid conversations with typing indicators, presence tracking, and real-time reactions that bring your community to life.",
+          "color": "purple"
+        },
+        "voip": {
+          "title": "High-Quality VOIP",
+          "shortDesc": "Crystal clear voice rooms integrated into chats.",
+          "longDesc": "Seamless voice communication integrated directly into your chat rooms. Join or leave calls with a single click, track active speakers, and enjoy low-latency audio for a truly collaborative experience.",
+          "color": "emerald"
+        },
+        "anonymous": {
+          "title": "Advanced Privacy",
+          "shortDesc": "Engage freely with per-topic unique identities.",
+          "longDesc": "A unique identity system where you can choose a custom alias for each topic. This protects your main profile while allowing you to stay active in sensitive or private discussions without compromise.",
+          "color": "cyan"
+        },
+        "multimedia": {
+          "title": "Multimedia Richness",
+          "shortDesc": "Share high-res images, videos, and GIFs easily.",
+          "longDesc": "Express yourself fully with support for high-resolution images, optimized video playback, and built-in Tenor GIF search. Our secure storage ensures your media is always accessible and safe.",
+          "color": "orange"
+        },
+        "support": {
+          "title": "Professional Support",
+          "shortDesc": "Integrated ticket system for direct assistance.",
+          "longDesc": "A professional helpdesk platform where you can report bugs, request help, or reach out to the moderation team. Track the status of your requests in real-time with direct feedback from admins.",
+          "color": "red"
+        },
+        "notifications": {
+          "title": "Smart Notifications",
+          "shortDesc": "Stay updated with real-time community alerts.",
+          "longDesc": "Never miss a beat with real-time desktop and in-app alerts. Get notified of mentions, direct messages, topic invitations, and active discussions that matter most to you.",
+          "color": "yellow"
+        },
+        "security": {
+          "title": "Unmatched Security",
+          "shortDesc": "Authenticator-based 2FA and secure recovery.",
+          "longDesc": "Industry-standard TOTP authentication (2FA) compatible with Google and Microsoft Authenticator. Includes account recovery systems and backup codes to ensure you never lose access to your data.",
+          "color": "indigo"
+        }
+      }
+    },
+    "goToDashboard": "Go to Dashboard",
+    "takeATour": "Take the Tour",
+    "allRightsReserved": "All rights reserved."
   }
 }

@@ -60,7 +60,9 @@
     "user": "Utilizador",
     "goBackHome": "Voltar para Início",
     "welcomeBack": "Bem-vindo de Volta",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "closeModal": "Fechar Modal",
+    "learnMore": "Saber mais"
   },
   "chats": {
     "title": "Conversações",
@@ -525,20 +527,35 @@
     "blockedUsers": "Utilizadores Bloqueados",
     "hiddenItems": "Itens Ocultos",
     "blockedUsersDesc": "Gerir utilizadores que bloqueou",
-    "hiddenItemsDesc": "Gerir tópicos, publicações, chats e mensagens privadas que ocultaste",
-    "hiddenChatrooms": "Salas de Chat Ocultas",
-    "hiddenPublications": "Publicações Ocultas",
-    "hiddenPrivateMessages": "Mensagens Privadas Ocultas",
-    "restore": "Restaurar",
-    "deleteForMe": "Eliminar para mim",
-    "removeForMe": "Remover para mim",
-    "messageRemoved": "Mensagem removida para ti",
-    "hiddenTopics": "Tópicos Escondidos",
-    "hiddenPosts": "Publicações Escondidas",
-    "hiddenChats": "Chats Escondidos",
-    "noHiddenItems": "Nenhum item escondido",
+    "hiddenItemsDesc": "Gira o conteúdo que ocultou para si mesmo",
+    "hiddenTopics": "Tópicos Ocultos",
+    "hiddenPosts": "Publicações Ocultas",
+    "hiddenChats": "Chats Ocultos",
+    "hiddenChatrooms": "Salas de Chat",
+    "hiddenPublications": "Publicações",
+    "hiddenPrivateMessages": "Mensagens Privadas",
+    "noHiddenItems": "Nenhum item oculto",
     "unhide": "Mostrar",
-    "itemUnhidden": "Item mostrado",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "deleteForMe": "Eliminar para mim",
+    "hideForMe": "Ocultar para mim",
+    "removeForMe": "Remover para mim",
+    "messageRemoved": "Mensagem removida para si",
+    "itemUnhidden": "Item visível",
+    "itemRestored": "Item restaurado com sucesso",
+    "itemPermanentlyDeleted": "Item eliminado permanentemente com sucesso",
+    "confirmPermanentDelete": "Tem a certeza que deseja eliminar permanentemente este item? Esta ação não pode ser desfeita.",
+    "allClear": "Tudo limpo!",
+    "noHiddenItemsByType": "Nenhum item oculto encontrado nesta categoria",
+    "noContent": "Sem conteúdo",
+    "comments": "Comentários",
+    "publications": "Publicações",
+    "chatrooms": "Salas de Chat",
+    "groups": "Grupos",
+    "private": "Privado",
+    "group": "Grupo",
+    "topic": "Tópico",
     "noAnonymousIdentities": "Sem identidades anónimas",
     "enableBrowserNotificationsDesc": "Ative as notificações do navegador para receber atualizações com a aplicação em segundo plano.",
     "failedToLoadFollowedPosts": "Falha ao carregar publicações seguidas",
@@ -1225,13 +1242,27 @@
     "reportedContent": "Conteúdo Denunciado",
     "filterByType": "Filtrar por tipo:",
     "allTypes": "Todos os Tipos",
-    "typeUser": "Denúncias de Utilizadores",
-    "typeMessage": "Denúncias de Mensagens",
-    "typePost": "Denúncias de Publicações",
-    "typeComment": "Denúncias de Comentários",
-    "typeChatroom": "Denúncias de Salas de Chat",
+    "typeUser": "Utilizador",
+    "typeMessage": "Mensagem",
+    "typePost": "Publicação",
+    "typeComment": "Comentário",
+    "typeChatroom": "Sala de Chat",
     "typeChatroomBackground": "Fundo da Sala de Chat",
     "typeChatroomPicture": "Imagem da Sala de Chat",
+    "typeContent": "Violação de Conteúdo",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Assédio",
+    "reasonHateSpeech": "Discurso de Ódio",
+    "reasonInappropriateContent": "Conteúdo Impróprio",
+    "reasonMisinformation": "Desinformação",
+    "reasonViolence": "Violência",
+    "reasonTerrorism": "Terrorismo",
+    "reasonRacialContent": "Conteúdo Racial",
+    "reasonSexualContent": "Conteúdo Sexual",
+    "reasonCopyright": "Violação de Direitos de Autor",
+    "reasonPrivacyViolation": "Violação de Privacidade",
+    "reasonImpersonation": "Usurpação de Identidade",
+    "reasonOther": "Outro",
     "predefinedWarning1": "Comportamento inadequado detectado. Por favor, reveja as nossas diretrizes da comunidade.",
     "predefinedWarning2": "As suas ações recentes violam os nossos termos de serviço. Por favor, seja mais respeitoso.",
     "predefinedWarning3": "Aviso: Assédio ou bullying não é tolerado. Violações contínuas podem resultar em banimento.",
@@ -1307,6 +1338,19 @@
     "reasonPlaceholder": "Por favor, forneça detalhes adicionais"
   },
   "tickets": {
+    "catBug": "Relatório de Bug",
+    "catFeature": "Pedido de Funcionalidade",
+    "catAccount": "Problema de Conta",
+    "catAbuse": "Relatório de Abuso",
+    "catOther": "Outro",
+    "statusOpen": "Aberto",
+    "statusInProgress": "Em Progresso",
+    "statusResolved": "Resolvido",
+    "statusClosed": "Fechado",
+    "priorityLow": "Baixa",
+    "priorityMedium": "Média",
+    "priorityHigh": "Alta",
+    "priorityUrgent": "Urgente",
     "createTicket": "Criar Ticket de Suporte",
     "myTickets": "Os Meus Tickets de Suporte",
     "ticketTitle": "Título",
@@ -1314,21 +1358,7 @@
     "ticketCategory": "Categoria",
     "category": "Categoria",
     "selectCategory": "Selecione uma categoria...",
-    "category_bug": "Relatório de Bug",
-    "category_feature": "Pedido de Funcionalidade",
-    "category_account": "Problema de Conta",
-    "category_abuse": "Denúncia de Abuso",
-    "category_other": "Outro",
-    "categoryBug": "Relatório de Bug",
-    "categoryFeature": "Pedido de Funcionalidade",
-    "categoryAccount": "Problema de Conta",
-    "categoryAbuse": "Denúncia de Abuso",
-    "categoryOther": "Outro",
     "priority": "Prioridade",
-    "priority_low": "Baixa",
-    "priority_medium": "Média",
-    "priority_high": "Alta",
-    "priority_urgent": "Urgente",
     "priorityHint": "Selecione o nível de urgência do seu problema",
     "subject": "Assunto",
     "subjectPlaceholder": "Resumo breve do seu problema...",
@@ -1384,7 +1414,14 @@
     "question": "Pergunta",
     "other": "Outro",
     "titlePlaceholder": "Breve descrição do seu problema",
-    "selectPriority": "Selecione a prioridade"
+    "selectPriority": "Selecione a prioridade",
+    "replyToTicket": "Responder ao Ticket",
+    "closeTicket": "Fechar Ticket",
+    "ticketClosed": "Ticket fechado com sucesso",
+    "ticketUpdated": "Ticket atualizado com sucesso",
+    "reopenTicket": "Reabrir Ticket",
+    "ticketReopened": "Ticket reaberto com sucesso",
+    "failedToReopenTicket": "Falha ao reabrir ticket"
   },
   "mute": {
     "muteTopic": "Silenciar Tópico",
@@ -1491,17 +1528,52 @@
     "dismiss": "Dispensar",
     "timeRemaining": "Tempo restante"
   },
-  "anonymousStateChanged": "Anonymousstatechanged",
-  "tailwindcss": "Tailwindcss",
   "GIF": "Gif",
   "about": {
+    "title": "Sobre o TopicsFlow - O Futuro das Discussões",
+    "sectionTitle": "Sobre o TopicsFlow",
+    "sectionSubtitle": "A evolução da discussão em comunidade",
+    "metaDescription": "TopicsFlow é uma plataforma de discussão moderna ao estilo Reddit com salas de chat em tempo real.",
+    "heroSubtitle": "Onde as conversas fluem naturalmente. Uma plataforma de comunidade em tempo real para discussões modernas.",
+    "discover": {
+      "label": "Descubra a Plataforma",
+      "title": "Redefinindo Comunidades Online",
+      "description": "O TopicsFlow não é apenas mais um fórum. É um ecossistema coeso onde as discussões estruturadas ao estilo Reddit se encontram com a imediatez das salas de chat em tempo real. Criámos um espaço onde pode aprofundar conteúdos de longa duração ou conviver em canais ao vivo, tudo com uma interface moderna e fluida."
+    },
     "features": {
-      "realTimeChatDesc": "Mensagens instantâneas em salas baseadas em tópicos. Partilhe imagens, GIFs e ficheiros sem problemas.",
-      "anonymousMode": "Modo Anónimo",
-      "realTimeChat": "Chat em Tempo Real",
-      "securePrivate": "Seguro e Privado",
-      "anonymousModeDesc": "Participe em discussões sem revelar a sua identidade real. Perfis únicos por tópico.",
-      "securePrivateDesc": "Autenticação sem password, encriptação segura para mensagens privadas.",
+      "label": "Visão Geral do Sistema",
+      "title": "Tudo o que Precisa",
+      "subtitle": "Explore as funcionalidades poderosas que tornam o TopicsFlow único.",
+      "sectionTitle": "Tudo o que precisa para se conectar",
+      "sectionSubtitle": "Descubra as ferramentas poderosas que tornam o TopicsFlow a plataforma de discussão definitiva.",
+      "publications": {
+        "title": "Publicações Dinâmicas",
+        "desc": "Espaços de comunidade ao estilo Reddit onde pode partilhar publicações, votar e envolver-se em discussões significativas dentro de Tópicos especializados."
+      },
+      "groupchats": {
+        "title": "Group Chats",
+        "desc": "Salas em tempo real para cada tópico. Junte-se a discussões ativas e ligue-se à comunidade instantaneamente."
+      },
+      "chat": {
+        "title": "Mensagens em Tempo Real",
+        "desc": "Mensagens instantâneas para todos. Inicie conversas privadas ou participe em salas de chat com qualquer pessoa."
+      },
+      "voip": {
+        "title": "Comunicação por Voz",
+        "desc": "Salas VOIP cristalinas dentro dos chats. Junte-se ou inicie chamadas de voz perfeitamente sem sair da aplicação."
+      },
+      "anonymous": {
+        "title": "Presença Anónima",
+        "desc": "Envolva-se com total privacidade usando o nosso sistema anónimo único. Nomes personalizados para cada tópico."
+      },
+      "safety": {
+        "title": "Segurança Inigualável",
+        "desc": "Ferramentas avançadas de moderação, ocultação de conteúdo e sistemas de bloqueio para manter a sua experiência limpa."
+      },
+      "support": {
+        "title": "Suporte Profissional",
+        "desc": "Um sistema de tickets dedicado para todas as suas necessidades. Contacte os admins diretamente e acompanhe os pedidos."
+      },
       "discussions": {
         "title": "Discussões Estruturadas",
         "desc": "Mergulhe em interesses específicos com conversas em tópicos.",
@@ -1522,8 +1594,8 @@
           "desc": "Incorpore imagens, vídeos e ficheiros diretamente nas suas publicações."
         }
       },
-      "chat": {
-        "title": "Chat em Tempo Real",
+      "realTimeMessaging": {
+        "title": "Mensagens em Tempo Real",
         "desc": "Mensagens instantâneas para quando precisa de respostas agora.",
         "channels": {
           "title": "Canais ao Vivo",
@@ -1558,76 +1630,96 @@
           "desc": "Controle quem vê quando esteve online pela última vez."
         },
         "export": {
-          "title": "Exportação de Dados",
+          "title": "Portabilidade de Dados",
           "desc": "Descarregue os seus dados a qualquer momento. Não o prendemos."
         }
-      },
-      "title": "Tudo o que Precisa",
-      "subtitle": "Explore as funcionalidades poderosas que tornam o TopicsFlow único.",
-      "moderation": {
-        "title": "Moderação Avançada",
-        "desc": "O nosso Sistema de Tickets integrado garante a segurança da comunidade. Os utilizadores podem reportar conteúdo ou comportamento, e os moderadores têm um painel dedicado para gerir inquéritos de forma eficiente."
-      },
-      "sharing": {
-        "title": "Partilha Sem Esforço",
-        "desc": "Partilhe excertos de código, imagens e ficheiros facilmente. Com suporte integrado de arrastar e soltar, as suas discussões técnicas não precisam de ser apenas texto."
-      },
-      "express": {
-        "title": "Expresse-se",
-        "desc": "Personalize o seu perfil, escolha o seu tema e encontre a sua comunidade. Seja anónimo ou um regular conhecido, pertence aqui."
       }
-    },
-    "title": "Sobre o TopicsFlow - O Futuro das Discussões",
-    "metaDescription": "TopicsFlow é uma plataforma moderna de discussão estilo Reddit com salas de chat em tempo real.",
-    "heroSubtitle": "Onde as conversas fluem naturalmente. Uma plataforma comunitária em tempo real para discussões modernas.",
-    "goToDashboard": "Ir para o Painel",
-    "takeATour": "Fazer um Tour",
-    "allRightsReserved": "Todos os direitos reservados.",
-    "discover": {
-      "label": "Descubra a Plataforma",
-      "title": "Redefinindo Comunidades Online",
-      "description": "O TopicsFlow não é apenas mais um fórum. É um ecossistema coeso onde discussões estruturadas ao estilo Reddit encontram a imediatez das salas de chat em tempo real. Construímos um espaço onde pode aprofundar-se em conteúdo de formato longo ou participar em canais ao vivo, tudo com uma interface moderna e integrada."
     },
     "trust": {
       "label": "Confiança e Segurança",
       "title": "A Sua Segurança é a Nossa Prioridade",
       "moderation": {
         "title": "Moderação Ativa",
-        "desc": "A nossa equipa dedicada monitoriza o conteúdo e responde a denúncias em horas."
+        "desc": "A nossa equipa dedicada monitoriza o conteúdo e responde a denúncias em poucas horas."
       },
       "privacy": {
-        "title": "Privacidade em Primeiro",
+        "title": "Privacidade Primeiro",
         "desc": "Autenticação de dois fatores, modo anónimo e encriptação segura protegem os seus dados."
       },
       "community": {
         "title": "Diretrizes da Comunidade",
-        "desc": "Regras claras e aplicação transparente criam um ambiente respeitoso para todos."
+        "desc": "Regras claras e aplicação transparente criam um ambiente respeitador para todos."
       }
     },
     "faq": {
       "label": "FAQ",
       "title": "Perguntas Frequentes",
       "q1": "O que é o TopicsFlow?",
-      "a1": "O TopicsFlow é uma plataforma de discussão moderna que combina tópicos estilo Reddit com salas de chat em tempo real, criando uma experiência integrada para comunidades.",
-      "q2": "O TopicsFlow é gratuito?",
-      "a2": "Sim! O TopicsFlow é completamente gratuito. Crie uma conta e comece a interagir com comunidades imediatamente.",
-      "q3": "Como crio um tópico?",
-      "a3": "Simplesmente faça login, navegue até à página principal e clique em \"Criar Tópico\". Preencha o título e o conteúdo e publique para a comunidade.",
+      "a1": "TopicsFlow é uma plataforma híbrida que combina o melhor dos fóruns estruturados e do chat em tempo real. Permite criar tópicos focados para discussões a longo prazo, ao mesmo tempo que oferece salas de chat ao vivo imediatas.",
+      "q2": "Como crio um novo tópico?",
+      "a2": "Basta clicar no botão 'Criar Tópico' na barra lateral. Pode personalizá-lo com um título, descrição e etiquetas. Também pode escolher se é público ou apenas por convite, e se a publicação anónima é permitida.",
+      "q3": "É gratuito?",
+      "a3": "Sim! O TopicsFlow é completamente gratuito para todos os utilizadores. Pode criar tópicos, juntar-se a chats e partilhar ficheiros sem qualquer custo.",
       "q4": "Posso manter-me anónimo?",
-      "a4": "Sim! O TopicsFlow oferece um modo anónimo. Ative-o nas configurações para publicar sem revelar o seu nome de utilizador.",
-      "q5": "Como são moderadas as comunidades?",
-      "a5": "Temos um sistema de tickets robusto e moderadores dedicados. Denuncie conteúdo inapropriado e a nossa equipa irá analisá-lo prontamente."
+      "a4": "Absolutamente. Muitos tópicos permitem o 'Modo Anónimo', permitindo-lhe participar sem revelar o seu perfil principal. Pode até definir um pseudónimo personalizado para cada tópico.",
+      "q5": "Como funciona a moderação?",
+      "a5": "Os proprietários de tópicos podem nomear moderadores. Os moderadores têm ferramentas para eliminar mensagens, banir utilizadores e gerir pedidos. Também temos um sistema de denúncias integrado."
     },
     "carousel": {
-      "topicsTitle": "Tópicos Diversos",
-      "topicsDesc": "Mergulhe numa ampla gama de discussões. Da tecnologia à arte, encontre o seu nicho ou crie o seu próprio tópico para iniciar uma nova comunidade.",
-      "chatTitle": "Salas de Chat em Tempo Real",
-      "chatDesc": "Experimente mensagens fluidas e instantâneas. Conecte-se com outros em tempo real com salas de chat responsivas projetadas para interação moderna.",
-      "attachTitle": "Anexos Ricos",
-      "attachDesc": "Partilhe mais do que apenas palavras. Carregue imagens, ficheiros e GIFs para dar vida às suas conversas.",
-      "ticketTitle": "Sistema de Tickets",
-      "ticketDesc": "Suporte e moderação abrangentes. Reporte problemas e acompanhe o seu estado de forma integrada através do nosso sistema de tickets."
-    }
+      "extended": {
+        "publications": {
+          "title": "Publicações Dinâmicas",
+          "shortDesc": "Fóruns de comunidade para discussões profundas e organizadas.",
+          "longDesc": "Espaços inspirados no Reddit onde pode partilhar ideias, votar em conteúdos e manter as discussões de longa duração organizadas dentro de Tópicos especializados. O nosso sistema suporta texto rico, incorporação de media e comentários encadeados para um envolvimento significativo.",
+          "color": "blue"
+        },
+        "chat": {
+          "title": "Chat de Grupo em Tempo Real",
+          "shortDesc": "Centros sociais instantâneos para cada tópico de discussão.",
+          "longDesc": "Salas de mensagens instantâneas emparelhadas com cada tópico do fórum. Experimente conversas fluidas com indicadores de escrita, rastreio de presença e reações em tempo real que dão vida à sua comunidade.",
+          "color": "purple"
+        },
+        "voip": {
+          "title": "VOIP de Alta Qualidade",
+          "shortDesc": "Salas de voz cristalinas integradas nos chats.",
+          "longDesc": "Comunicação por voz perfeitamente integrada diretamente nas suas salas de chat. Junte-se ou saia de chamadas com um único clique, acompanhe os oradores ativos e desfrute de áudio de baixa latência para uma experiência verdadeiramente colaborativa.",
+          "color": "emerald"
+        },
+        "anonymous": {
+          "title": "Privacidade Avançada",
+          "shortDesc": "Envolva-se livremente com identidades únicas por tópico.",
+          "longDesc": "Um sistema de identidade único onde pode escolher um pseudónimo personalizado para cada tópico. Isto protege o seu perfil principal, permitindo-lhe manter-se ativo em discussões sensíveis ou privadas sem compromissos.",
+          "color": "cyan"
+        },
+        "multimedia": {
+          "title": "Riqueza Multimédia",
+          "shortDesc": "Partilhe imagens, vídeos e GIFs de alta resolução facilmente.",
+          "longDesc": "Expresse-se totalmente com suporte para imagens de alta resolução, reprodução de vídeo otimizada e pesquisa integrada de GIFs do Tenor. O nosso armazenamento seguro garante que o seu conteúdo multimédia está sempre acessível e seguro.",
+          "color": "orange"
+        },
+        "support": {
+          "title": "Suporte Profissional",
+          "shortDesc": "Sistema de tickets integrado para assistência direta.",
+          "longDesc": "Uma plataforma de suporte profissional onde pode reportar bugs, solicitar ajuda ou contactar a equipa de moderação. Acompanhe o estado dos seus pedidos em tempo real com feedback direto dos administradores.",
+          "color": "red"
+        },
+        "notifications": {
+          "title": "Notificações Inteligentes",
+          "shortDesc": "Mantenha-se atualizado com alertas de comunidade em tempo real.",
+          "longDesc": "Nunca perca nada com alertas em tempo real no desktop e na aplicação. Seja notificado de menções, mensagens diretas, convites para tópicos e discussões ativas que mais lhe interessam.",
+          "color": "yellow"
+        },
+        "security": {
+          "title": "Segurança Inigualável",
+          "shortDesc": "2FA baseada em autenticador e recuperação segura.",
+          "longDesc": "Autenticação TOTP (2FA) de padrão industrial compatível com o Google e Microsoft Authenticator. Inclui sistemas de recuperação de conta e códigos de reserva para garantir que nunca perde o acesso aos seus dados.",
+          "color": "indigo"
+        }
+      }
+    },
+    "goToDashboard": "Ir para o Painel",
+    "takeATour": "Fazer a Visita Guiada",
+    "allRightsReserved": "Todos os direitos reservados."
   },
   "next": "Próximo",
   "refresh_invitations": "Atualizar convites",
@@ -1683,5 +1775,52 @@
     "soloCallEnded": "Chamada terminada - era o único participante há muito tempo",
     "reconnectedToCall": "Reconectado à chamada",
     "userDisconnected": "{name} perdeu a conexão"
+  },
+  "tour": {
+    "sidebarTitle": "Barra Lateral de Navegação",
+    "sidebarDesc": "Aceda a diferentes tópicos, seus temas e filtre discussões por etiquetas aqui.",
+    "searchTitle": "Pesquisar Tópicos",
+    "searchDesc": "Encontre rapidamente tópicos por nome ou descrição.",
+    "sortTitle": "Ordenar Tópicos",
+    "sortDesc": "Ordene tópicos por atividade, popularidade ou data de criação.",
+    "tagsTitle": "Filtrar por Etiquetas",
+    "tagsDesc": "Clique nas etiquetas para filtrar tópicos por categoria.",
+    "createTopicTitle": "Criar Tópicos",
+    "createTopicDesc": "Inicie o seu próprio tópico de discussão. Público ou privado, a escolha é sua.",
+    "invitationsTitle": "Convites",
+    "invitationsDesc": "Gira os seus convites de tópicos e chats aqui.",
+    "notificationsTitle": "Notificações",
+    "notificationsDesc": "Mantenha-se atualizado com menções, mensagens e convites.",
+    "profileTitle": "O Seu Perfil",
+    "profileDesc": "Gira as definições da sua conta, identidades anónimas e preferências aqui.",
+    "discussionTitle": "Área de Discussão",
+    "discussionDesc": "Aqui é onde a magia acontece. Selecione um tópico para ver publicações e conversar em tempo real.",
+    "adminTitle": "Painel de Admin",
+    "adminDesc": "Aceda a ferramentas de moderação, relatórios e estatísticas da plataforma.",
+    "themeTitle": "Tema",
+    "themeDesc": "Alterne entre os modos claro e escuro para melhor conforto visual.",
+    "languageTitle": "Idioma",
+    "languageDesc": "Alterne entre Inglês e Português.",
+    "continueToSettings": "Continuar para Definições",
+    "continueToSettingsDesc": "Vamos explorar onde pode personalizar a sua experiência.",
+    "continueButton": "Continuar para Definições",
+    "settingsTabsTitle": "Categorias de Definições",
+    "settingsTabsDesc": "Alterne entre preferências de conta, segurança e interface.",
+    "accountTabTitle": "Definições de Conta",
+    "accountTabDesc": "Gira o seu perfil, avatar e detalhes principais da conta.",
+    "editProfileTitle": "Editar Perfil",
+    "editProfileDesc": "Altere o seu nome de utilizador, bio e outras informações públicas.",
+    "contentSafetyTitle": "Conteúdo e Segurança",
+    "contentSafetyDesc": "Gira utilizadores bloqueados, itens ocultos e conteúdo seguido facilmente.",
+    "anonymousModeTitle": "Modo Anónimo",
+    "anonymousModeDesc": "Participe sem revelar a sua identidade. Único por tópico.",
+    "messagesTabTitle": "Mensagens Privadas",
+    "messagesTabDesc": "Mensagens diretas com outros membros da comunidade.",
+    "messagesListTitle": "Conversas",
+    "messagesListDesc": "Selecione uma conversa para começar a falar.",
+    "messageInputTitle": "Enviar Mensagem",
+    "messageInputDesc": "Escreva, envie GIFs ou anexe ficheiros aqui.",
+    "settingsCompleteTitle": "Guia Concluído",
+    "settingsCompleteDesc": "Você representa o coração da nossa comunidade. Divirta-se no TopicsFlow!"
   }
 }

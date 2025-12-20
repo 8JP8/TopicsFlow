@@ -1426,3 +1426,54 @@ def update_chat_background(room_id):
         logger.error(f"Update chat background error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': [f'Failed to update background picture: {str(e)}']}), 500
 
+
+@chat_rooms_bp.route('/<room_id>/settings', methods=['PUT'])
+@require_json
+@require_auth()
+@log_requests
+def update_chat_settings(room_id):
+    """Update chat room settings (owner only)."""
+    try:
+        auth_service = AuthService(current_app.db)
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        user_id = current_user_result['user']['id']
+
+        data = request.get_json()
+        
+        chat_room_model = ChatRoom(current_app.db)
+        room = chat_room_model.get_chat_room_by_id(room_id)
+        
+        if not room:
+            return jsonify({'success': False, 'errors': ['Chat room not found']}), 404
+
+        # Check if user is owner
+        if str(room.get('owner_id')) != user_id:
+            return jsonify({'success': False, 'errors': ['Only the owner can update settings']}), 403
+
+        # Update settings
+        updated = False
+        if 'voip_enabled' in data:
+            success = chat_room_model.update_settings(room_id, bool(data['voip_enabled']))
+            if success:
+                updated = True
+
+        if updated:
+            updated_room = chat_room_model.get_chat_room_by_id(room_id)
+            return jsonify({
+                'success': True,
+                'message': 'Settings updated successfully',
+                'data': updated_room
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'No settings changed',
+                'data': room
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Update chat settings error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to update settings: {str(e)}']}), 500
+

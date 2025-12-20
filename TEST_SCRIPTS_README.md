@@ -82,7 +82,7 @@ For complete test coverage, follow these steps:
 ### MongoDB Connection Issues
 - Ensure MongoDB is running: `mongod` or check your MongoDB service
 - Check connection string in `.env` file or environment variables
-- Default: `mongodb://localhost:27017/chatapp`
+- Default: `mongodb://localhost:27017/TopicsFlow`
 
 ### Newman Not Found
 - The script will automatically install Newman

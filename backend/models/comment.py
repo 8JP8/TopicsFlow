@@ -391,8 +391,8 @@ class Comment:
             )
             return result.modified_count > 0
 
-    def delete_comment(self, comment_id: str, deleted_by: str) -> bool:
-        """Delete a comment (soft delete)."""
+    def delete_comment(self, comment_id: str, deleted_by: str, mode: str = 'soft') -> bool:
+        """Delete a comment (soft or hard delete)."""
         comment = self.get_comment_by_id(comment_id)
         if not comment:
             return False
@@ -419,19 +419,24 @@ class Comment:
         if permission_level < 2 and comment['user_id'] != deleted_by:
             return False
 
-        result = self.collection.update_one(
-            {'_id': ObjectId(comment_id)},
-            {
-                '$set': {
-                    'is_deleted': True,
-                    'deleted_by': ObjectId(deleted_by),
-                    'deleted_at': datetime.utcnow(),
-                    'updated_at': datetime.utcnow()
+        if mode == 'hard':
+            # Hard delete - remove from collection
+            result = self.collection.delete_one({'_id': ObjectId(comment_id)})
+        else:
+            # Soft delete - set is_deleted flag
+            result = self.collection.update_one(
+                {'_id': ObjectId(comment_id)},
+                {
+                    '$set': {
+                        'is_deleted': True,
+                        'deleted_by': ObjectId(deleted_by),
+                        'deleted_at': datetime.utcnow(),
+                        'updated_at': datetime.utcnow()
+                    }
                 }
-            }
-        )
+            )
 
-        if result.modified_count > 0:
+        if result.deleted_count > 0 or result.modified_count > 0:
             # Decrement post comment count
             post_model.decrement_comment_count(comment['post_id'])
 
@@ -442,7 +447,7 @@ class Comment:
                     {'$inc': {'reply_count': -1}}
                 )
 
-        return result.modified_count > 0
+        return (result.deleted_count > 0 if mode == 'hard' else result.modified_count > 0)
 
     def report_comment(self, comment_id: str, reporter_id: str, reason: str) -> bool:
         """Report a comment for moderation."""

@@ -1,5 +1,6 @@
-# Build Python backend for Azure deployment
-FROM python:3.11-slim AS backend
+# Simplified Dockerfile for Azure App Service (Backend only)
+# Frontend is now deployed as an Azure Static Web App
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -22,7 +23,6 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
-# Azure App Service usually expects traffic on 8000 by default for Python, but honors $PORT environment variable
 EXPOSE 8000
 
 # Health check

@@ -136,6 +136,9 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
     const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
 
+    // State for remote streams (explicit rendering to prevent GC)
+    const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+
     // Refs
     const localStreamRef = useRef<MediaStream | null>(null);
     const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map());
@@ -159,52 +162,40 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
     useEffect(() => { userRef.current = user; }, [user]);
     useEffect(() => {
         isMutedRef.current = isMuted;
-        // Persist mute state for page refresh
         localStorage.setItem('voip_is_muted', String(isMuted));
     }, [isMuted]);
 
-    // Load threshold from localStorage
+    // Load settings
     useEffect(() => {
         const savedThreshold = localStorage.getItem('voip_microphone_threshold');
-        if (savedThreshold) {
-            setMicrophoneThreshold(parseInt(savedThreshold, 10));
-        }
+        if (savedThreshold) setMicrophoneThreshold(parseInt(savedThreshold, 10));
         const savedDevice = localStorage.getItem('voip_selected_device');
-        if (savedDevice) {
-            setSelectedDeviceId(savedDevice);
-        }
+        if (savedDevice) setSelectedDeviceId(savedDevice);
     }, []);
 
-    // Save threshold to localStorage
     const handleSetMicrophoneThreshold = useCallback((value: number) => {
         setMicrophoneThreshold(value);
         localStorage.setItem('voip_microphone_threshold', value.toString());
     }, []);
 
-    // Refresh available audio devices
     const refreshDevices = useCallback(async () => {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const audioInputs = devices.filter(d => d.kind === 'audioinput');
-            setAvailableDevices(audioInputs);
+            setAvailableDevices(devices.filter(d => d.kind === 'audioinput'));
         } catch (error) {
             console.error('[VOIP] Failed to enumerate devices:', error);
         }
     }, []);
 
-    // Initialize device list
     useEffect(() => {
         refreshDevices();
         navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
-        return () => {
-            navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
-        };
+        return () => navigator.mediaDevices.removeEventListener('devicechange', refreshDevices);
     }, [refreshDevices]);
 
-    // Voice Activity Detection (VAD) with voice-activated transmission
+    // VAD - VISUAL ONLY (Relaxed)
     const startVoiceActivityDetection = useCallback((stream: MediaStream) => {
         try {
-            console.log('[VOIP] Starting VAD with voice-activated transmission...');
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
             const source = audioContextRef.current.createMediaStreamSource(stream);
             analyserRef.current = audioContextRef.current.createAnalyser();
@@ -214,9 +205,9 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
             const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
             let wasSpeaking = false;
 
-            // Initially disable audio tracks (voice-activated mode)
+            // CRITICAL FIX: Ensure audio tracks are ENABLED by default
             stream.getAudioTracks().forEach(track => {
-                track.enabled = false;
+                track.enabled = !isMutedRef.current;
             });
 
             const checkLevel = () => {
@@ -230,49 +221,31 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
                 const isSpeaking = level > microphoneThreshold;
                 const isManuallyMuted = isMutedRef.current;
 
-                // Use refs to get current values
-                const currentCall = activeCallRef.current;
-                const currentSocket = socketRef.current;
-                const currentConnected = connectedRef.current;
-                const currentUser = userRef.current;
+                // CRITICAL FIX: DO NOT toggle track.enabled here. 
+                // Let audio flow naturally. Only use this for visual indicators.
 
-                // Control audio track based on speaking and mute state
-                // Only transmit audio when speaking AND not manually muted
-                const shouldTransmit = isSpeaking && !isManuallyMuted;
-                stream.getAudioTracks().forEach(track => {
-                    track.enabled = shouldTransmit;
-                });
-
-                if (isSpeaking !== wasSpeaking && currentCall && currentSocket && currentConnected && currentUser) {
-                    console.log('[VOIP] Local speaking change:', isSpeaking, 'level:', level, 'threshold:', microphoneThreshold, 'transmitting:', shouldTransmit);
-                    currentSocket.emit('voip_speaking', {
-                        call_id: currentCall.id,
+                if (isSpeaking !== wasSpeaking && activeCallRef.current && socketRef.current && connectedRef.current && userRef.current) {
+                    socketRef.current.emit('voip_speaking', {
+                        call_id: activeCallRef.current.id,
                         is_speaking: isSpeaking && !isManuallyMuted
                     });
                     wasSpeaking = isSpeaking;
 
-                    // Update local speaking status
                     if (isSpeaking && !isManuallyMuted) {
-                        setSpeakingUsers(prev => {
-                            const next = new Set([...prev, currentUser.id]);
-                            return next;
-                        });
+                        setSpeakingUsers(prev => new Set([...prev, userRef.current!.id]));
                     } else {
                         setSpeakingUsers(prev => {
                             const next = new Set(prev);
-                            next.delete(currentUser.id);
+                            next.delete(userRef.current!.id);
                             return next;
                         });
                     }
                 }
-
                 animationFrameRef.current = requestAnimationFrame(checkLevel);
             };
-
             checkLevel();
-            console.log('[VOIP] VAD started successfully - audio will only transmit when speaking above threshold');
         } catch (error) {
-            console.error('[VOIP] VAD initialization failed:', error);
+            console.error('[VOIP] VAD init failed:', error);
         }
     }, [microphoneThreshold]);
 
@@ -289,41 +262,24 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         setCurrentMicrophoneLevel(0);
     }, []);
 
-    // Get user media
     const getUserMedia = useCallback(async (deviceId?: string): Promise<MediaStream> => {
-        const constraints: MediaStreamConstraints = {
-            audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-            video: false
-        };
-
+        const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true, video: false };
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            return stream;
+            return await navigator.mediaDevices.getUserMedia(constraints);
         } catch (error: any) {
             console.error('[VOIP] getUserMedia failed:', error);
-            if (error.name === 'NotAllowedError') {
-                toast.error(t('voip.microphonePermissionDenied') || 'Microphone access denied');
-            } else if (error.name === 'NotFoundError') {
-                toast.error(t('voip.noMicrophoneFound') || 'No microphone found');
-            } else {
-                toast.error(t('voip.microphoneError') || 'Failed to access microphone');
-            }
+            toast.error(t('voip.microphoneError') || 'Microphone error');
             throw error;
         }
     }, [t]);
 
-    // Create peer connection
     const createPeerConnection = useCallback((targetUserId: string): RTCPeerConnection => {
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-        // Add local tracks
         if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, localStreamRef.current!);
-            });
+            localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
         }
 
-        // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate && socket && connected && activeCall) {
                 socket.emit('voip_ice_candidate', {
@@ -334,54 +290,42 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
             }
         };
 
-        // Handle remote stream
+        // CRITICAL FIX: Store remote stream in state for explicit rendering
         pc.ontrack = (event) => {
             const [remoteStream] = event.streams;
+            console.log(`[VOIP] Received remote stream from ${targetUserId}`);
+
+            setRemoteStreams(prev => {
+                const newMap = new Map(prev);
+                newMap.set(targetUserId, remoteStream);
+                return newMap;
+            });
+
+            // Fallback: still try to play directly just in case (but state rendering is primary)
             const audio = new Audio();
             audio.srcObject = remoteStream;
-            audio.play().catch(console.error);
-
-            // Store for cleanup
-            const peerData = peerConnectionsRef.current.get(targetUserId);
-            if (peerData) {
-                peerData.audioStream = remoteStream;
-            }
+            audio.play().catch(e => console.error('[VOIP] Audio play fallback failed:', e));
         };
 
-        // Handle connection state changes
         pc.onconnectionstatechange = () => {
-            console.log(`[VOIP] Peer connection state (${targetUserId}):`, pc.connectionState);
-
-            if (pc.connectionState === 'connected') {
-                setConnectionStatus('connected');
-            } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-                // Try to reconnect
-                setConnectionStatus('reconnecting');
-            }
+            console.log(`[VOIP] PC state (${targetUserId}):`, pc.connectionState);
+            if (pc.connectionState === 'connected') setConnectionStatus('connected');
+            else if (pc.connectionState === 'failed') setConnectionStatus('reconnecting');
         };
 
         peerConnectionsRef.current.set(targetUserId, { userId: targetUserId, connection: pc });
         return pc;
     }, [socket, connected, activeCall]);
 
-    // Cleanup function
     const cleanup = useCallback(() => {
-        // Stop local stream
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
-
-        // Close all peer connections
-        peerConnectionsRef.current.forEach(({ connection }) => {
-            connection.close();
-        });
+        peerConnectionsRef.current.forEach(({ connection }) => connection.close());
         peerConnectionsRef.current.clear();
-
-        // Stop VAD
+        setRemoteStreams(new Map()); // Clear remote streams
         stopVoiceActivityDetection();
-
-        // Reset all state for call independence
         setActiveCall(null);
         setParticipants([]);
         setConnectionStatus('disconnected');
@@ -456,20 +400,19 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
 
         // When muting, immediately disable audio tracks
         // When unmuting, let VAD control the tracks based on speaking
-        if (newMuted && localStreamRef.current) {
+        if (localStreamRef.current) {
             localStreamRef.current.getAudioTracks().forEach(track => {
-                track.enabled = false;
+                track.enabled = !newMuted; // CRITICAL: Just respect mute state, ignore VAD for enablement
             });
-            // Clear speaking status when muting
-            if (user) {
-                setSpeakingUsers(prev => {
-                    const next = new Set(prev);
-                    next.delete(user.id);
-                    return next;
-                });
-            }
         }
-        // Note: When unmuting, we don't enable tracks here - VAD will do it when speaking
+
+        if (newMuted && user) {
+            setSpeakingUsers(prev => {
+                const next = new Set(prev);
+                next.delete(user.id);
+                return next;
+            });
+        }
 
         // Notify server
         if (socket && connected && activeCall) {
@@ -555,6 +498,10 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
             }
         }
     }, [activeCall, getUserMedia, stopVoiceActivityDetection, startVoiceActivityDetection]);
+
+
+
+
 
     // Socket event handlers
     useEffect(() => {
@@ -655,22 +602,11 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
                     }];
                 });
 
-                // Create offer to new participant
-                if (data.user.id !== user?.id && activeCall) {
-                    try {
-                        const pc = createPeerConnection(data.user.id);
-                        const offer = await pc.createOffer();
-                        await pc.setLocalDescription(offer);
 
-                        socket.emit('voip_offer', {
-                            call_id: activeCall.id,
-                            target_user_id: data.user.id,
-                            offer: offer
-                        });
-                    } catch (error) {
-                        console.error('[VOIP] Failed to create offer for new user:', error);
-                    }
-                }
+
+                // NO offer creation here to avoid glare/race conditions.
+                // The new user (who just joined) will initiate offers to us via their 'voip_call_joined' handler.
+                // We just wait for 'voip_offer' event from them.
             },
 
             'voip_user_left': (data) => {
@@ -1004,7 +940,27 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         refreshDevices,
     };
 
-    return <VoipContext.Provider value={value}>{children}</VoipContext.Provider>;
+    return (
+        <VoipContext.Provider value={value}>
+            {children}
+            {/* Explicitly render audio elements for all remote streams to prevent GC and ensure playback */}
+            {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
+                <audio
+                    key={userId}
+                    ref={(el) => {
+                        if (el && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                            el.play().catch(e => console.error(`[VOIP] Failed to play remote audio for ${userId}:`, e));
+                        }
+                    }}
+                    autoPlay
+                    playsInline
+                    controls={false}
+                    style={{ display: 'none' }} // Hidden but active
+                />
+            ))}
+        </VoipContext.Provider>
+    );
 };
 
 export default VoipContext;

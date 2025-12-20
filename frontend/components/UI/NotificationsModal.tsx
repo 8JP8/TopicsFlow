@@ -212,6 +212,105 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
     }
   };
 
+  const getNotificationContent = (notification: Notification) => {
+    // Helper to safely get translation with fallback
+    const safeT = (key: string, params?: Record<string, string | number>, fallback?: string) => {
+      const translation = t(key, params);
+      return translation !== key ? translation : (fallback || translation);
+    };
+
+    switch (notification.type) {
+      case 'mention':
+        if (notification.context_type === 'chat_room') {
+          return {
+            title: safeT('notifications.youWereMentioned'),
+            message: safeT('notifications.mentionedInChat', {
+              username: notification.sender_username || 'Someone',
+              roomName: notification.context_name || t('notifications.aChatRoom')
+            })
+          };
+        } else if (notification.context_type === 'post') {
+          return {
+            title: safeT('notifications.youWereMentioned'),
+            message: safeT('notifications.mentionedInPost', {
+              username: notification.sender_username || 'Someone',
+              postTitle: notification.context_name || t('notifications.aPost')
+            })
+          };
+        } else {
+          // Fallback generic mention
+          return {
+            title: safeT('notifications.youWereMentioned'),
+            message: safeT('notifications.mentionedYou', {
+              username: notification.sender_username || 'Someone'
+            })
+          };
+        }
+
+      case 'message':
+        return {
+          title: safeT('notifications.newPrivateMessage'),
+          message: safeT('notifications.newMessageFrom', {
+            username: notification.sender_username || 'User'
+          })
+        };
+
+      case 'chatroom_message':
+        return {
+          title: safeT('notifications.newMessageInRoom', {
+            roomName: notification.context_name || 'Chat'
+          }),
+          message: safeT('notifications.messageFromUser', {
+            username: notification.sender_username || 'User'
+          })
+        };
+
+      case 'invitation':
+        return {
+          title: safeT('notifications.chatInvitation'),
+          message: safeT('notifications.invitedToChat', {
+            inviter: notification.sender_username || 'Someone',
+            roomName: notification.context_name || t('notifications.aChatRoom')
+          })
+        };
+
+      case 'friend_request':
+        return {
+          title: safeT('notifications.friendRequestReceived'),
+          message: safeT('notifications.friendRequestFrom', {
+            username: notification.sender_username || 'User'
+          })
+        };
+
+      case 'comment':
+        return {
+          title: safeT('notifications.newCommentOnPost'),
+          message: safeT('notifications.newCommentsOnPost', {
+            count: 1,
+            postTitle: notification.context_name || 'post'
+          })
+        };
+
+      case 'report':
+        return {
+          title: safeT('notifications.reportUpdate'),
+          message: notification.message // Usually specific message from admin
+        };
+
+      case 'system':
+        return {
+          title: safeT('notifications.systemMessage'),
+          message: notification.message
+        };
+
+      default:
+        return {
+          title: notification.title,
+          message: notification.message
+        };
+    }
+  };
+
   const generalNotifications = notifications.filter(n => n.type !== 'mention');
   const mentionNotifications = notifications.filter(n => n.type === 'mention');
   const displayedNotifications = activeTab === 'general' ? generalNotifications : mentionNotifications;
@@ -311,62 +410,69 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 <p className="text-lg theme-text-primary mb-2">
-                  {t('notifications.noNotifications') || 'No notifications'}
+                  {activeTab === 'mentions'
+                    ? (t('notifications.noMentions') || 'No mentions yet')
+                    : (t('notifications.noNotifications') || 'No notifications')
+                  }
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {displayedNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 rounded-lg border theme-border relative group cursor-pointer hover:theme-bg-tertiary transition-colors ${!notification.read ? 'theme-bg-primary' : ''
-                      }`}
-                    onClick={() => handleNotificationClick(notification)}
-                  >
-                    {/* X button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(notification.id);
-                      }}
-                      className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title={t('notifications.delete') || 'Delete'}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                {displayedNotifications.map((notification) => {
+                  const content = getNotificationContent(notification);
 
-                    <div className="flex items-start space-x-3 pr-6">
-                      <div className={`p-2 rounded-full ${notification.type === 'message' ? 'theme-blue-primary' :
-                        notification.type === 'mention' ? 'bg-purple-500' :
-                          notification.type === 'comment' ? 'bg-green-500' :
-                            notification.type === 'chatroom_message' ? 'bg-blue-500' :
-                              'theme-bg-tertiary'
-                        }`}>
-                        <div className={notification.type === 'message' || notification.type === 'mention' || notification.type === 'comment' || notification.type === 'chatroom_message' ? 'text-white' : 'theme-text-primary'}>
-                          {getNotificationIcon(notification.type)}
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg border theme-border relative group cursor-pointer hover:theme-bg-tertiary transition-colors ${!notification.read ? 'theme-bg-primary' : ''
+                        }`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      {/* X button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title={t('notifications.delete') || 'Delete'}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      <div className="flex items-start space-x-3 pr-6">
+                        <div className={`p-2 rounded-full ${notification.type === 'message' ? 'theme-blue-primary' :
+                          notification.type === 'mention' ? 'bg-purple-500' :
+                            notification.type === 'comment' ? 'bg-green-500' :
+                              notification.type === 'chatroom_message' ? 'bg-blue-500' :
+                                'theme-bg-tertiary'
+                          }`}>
+                          <div className={notification.type === 'message' || notification.type === 'mention' || notification.type === 'comment' || notification.type === 'chatroom_message' ? 'text-white' : 'theme-text-primary'}>
+                            {getNotificationIcon(notification.type)}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium theme-text-primary">
-                            {notification.title}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium theme-text-primary">
+                              {content.title}
+                            </p>
+                            {!notification.read && (
+                              <div className="w-2 h-2 theme-blue-primary rounded-full" />
+                            )}
+                          </div>
+                          <p className="text-xs theme-text-secondary mt-1">
+                            {content.message}
                           </p>
-                          {!notification.read && (
-                            <div className="w-2 h-2 theme-blue-primary rounded-full" />
-                          )}
+                          <p className="text-xs theme-text-muted mt-2">
+                            {formatTimestamp(notification.timestamp)}
+                          </p>
                         </div>
-                        <p className="text-xs theme-text-secondary mt-1">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs theme-text-muted mt-2">
-                          {formatTimestamp(notification.timestamp)}
-                        </p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {hasMore && (
                   <button

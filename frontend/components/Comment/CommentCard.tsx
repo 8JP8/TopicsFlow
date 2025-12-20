@@ -43,6 +43,7 @@ interface CommentCardProps {
   onVoteChange?: (upvoted: boolean, downvoted: boolean, upCount: number, downCount: number, score: number) => void;
   onReply?: (commentId: string, content: string, gifUrl?: string) => void;
   onDelete?: (commentId: string) => void;
+  onHide?: (commentId: string) => void;
   maxDepth?: number;
   currentDepth?: number; // Track current nesting depth
   isClosed?: boolean;
@@ -101,6 +102,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
   onVoteChange,
   onReply,
   onDelete,
+  onHide,
   maxDepth = 10,
   currentDepth = 0, // Start at depth 0 for top-level comments
   isClosed = false,
@@ -409,6 +411,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
                   onVoteChange={undefined}
                   onReply={onReply}
                   onDelete={onDelete}
+                  onHide={onHide}
                   maxDepth={maxDepth}
                   currentDepth={currentDepth + 1} // Track depth for reference
                 />
@@ -438,6 +441,12 @@ const CommentCard: React.FC<CommentCardProps> = ({
             // Trigger report dialog - will be handled by parent component
             if (window.dispatchEvent) {
               window.dispatchEvent(new CustomEvent('reportComment', { detail: { commentId, comment } }));
+            }
+          }}
+          onHide={(commentId) => {
+            setContextMenu(null);
+            if (onHide) {
+              onHide(commentId);
             }
           }}
         />

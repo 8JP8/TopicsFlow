@@ -199,7 +199,6 @@ def get_message(message_id):
 
 
 @messages_bp.route('/<message_id>', methods=['DELETE'])
-@require_json
 @require_auth()
 @log_requests
 def delete_message(message_id):
@@ -211,8 +210,10 @@ def delete_message(message_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
 
-        data = request.get_json() or {}
-        deletion_reason = data.get('deletion_reason')  # Optional reason for owner deletions
+        # Support both JSON data and query params
+        data = request.get_json() if request.is_json else {}
+        deletion_reason = data.get('deletion_reason') if data else request.args.get('reason')
+        mode = request.args.get('mode', 'soft')
 
         message_model = Message(current_app.db)
         message = message_model.get_message_by_id(message_id)
@@ -235,7 +236,7 @@ def delete_message(message_id):
         if is_owner_deletion and not deletion_reason:
             return jsonify({'success': False, 'errors': ['Deletion reason is required for owner deletions']}), 400
 
-        success = message_model.delete_message(message_id, user_id, deletion_reason)
+        success = message_model.delete_message(message_id, user_id, deletion_reason, mode)
 
         if success:
             # If owner deleted with reason, create a report for admin
@@ -254,7 +255,7 @@ def delete_message(message_id):
             
             return jsonify({
                 'success': True,
-                'message': 'Message deleted successfully'
+                'message': f'Message {"permanently " if mode == "hard" else ""}deleted successfully'
             }), 200
         else:
             return jsonify({'success': False, 'errors': ['Permission denied or message not found']}), 403

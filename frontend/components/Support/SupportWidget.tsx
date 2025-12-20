@@ -8,12 +8,7 @@ import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import TicketDetailsModal from '@/components/Tickets/TicketDetailsModal';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 
-interface Ticket {
-    id: string;
-    subject: string;
-    status: 'open' | 'in_progress' | 'resolved' | 'closed';
-    created_at: string;
-}
+import { Ticket, getTicketStatusConfig } from '@/utils/ticketUtils';
 
 const SupportWidget: React.FC = () => {
     const { t } = useLanguage();
@@ -92,15 +87,7 @@ const SupportWidget: React.FC = () => {
         setIsOpen(!isOpen);
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'open': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-            case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-            case 'resolved': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-            case 'closed': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
+
 
     if (!user) return null;
 
@@ -144,8 +131,8 @@ const SupportWidget: React.FC = () => {
                                         className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-l-4 border-transparent hover:border-blue-500 group"
                                     >
                                         <div className="flex justify-between items-start mb-1.5">
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
-                                                {ticket.status.replace('_', ' ')}
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${getTicketStatusConfig(ticket.status).bgColor} ${getTicketStatusConfig(ticket.status).color}`}>
+                                                {t(getTicketStatusConfig(ticket.status).label)}
                                             </span>
                                             <span className="text-xs theme-text-muted group-hover:theme-text-primary transition-colors">
                                                 {new Date(ticket.created_at).toLocaleDateString()}

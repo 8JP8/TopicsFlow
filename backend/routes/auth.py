@@ -73,7 +73,8 @@ def register():
             email=email,
             password=password,
             phone=phone if phone else None,
-            security_questions=security_questions
+            security_questions=security_questions,
+            lang=data.get('language', 'en')
         )
 
         if result['success']:

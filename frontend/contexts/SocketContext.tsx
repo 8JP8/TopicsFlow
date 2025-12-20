@@ -61,7 +61,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user?.id) {
       const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],
         autoConnect: true,
         withCredentials: true, // CRITICAL: Send session cookies with WebSocket connection
       });

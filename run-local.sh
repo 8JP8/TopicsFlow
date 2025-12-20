@@ -1,11 +1,11 @@
 #!/bin/bash
 # ========================================
-#   ChatApp - Local Development
+#   TopicsFlow - Local Development
 # ========================================
 
 echo ""
 echo "========================================"
-echo "   Starting ChatApp Locally"
+echo "   Starting TopicsFlow Locally"
 echo "========================================"
 echo ""
 
@@ -13,7 +13,7 @@ echo ""
 cd backend
 if [ ! -f .env ]; then
     echo "FORCE_LOCAL_MODE=true" > .env
-    echo "DATABASE_URL=mongodb://localhost:27017/chatapp" >> .env
+    echo "DATABASE_URL=mongodb://localhost:27017/TopicsFlow" >> .env
 fi
 cd ..
 
@@ -42,7 +42,7 @@ cd ..
 
 echo ""
 echo "========================================"
-echo "   ChatApp Started Successfully!"
+echo "   TopicsFlow Started Successfully!"
 echo "========================================"
 echo ""
 echo "Backend API:  http://localhost:5000"

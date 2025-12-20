@@ -5,51 +5,44 @@ A comprehensive Reddit-style discussion platform with authenticator-based authen
 ## Features
 
 ### 🔐 Security & Authentication
-- **TOTP-based 2FA** with Google/Microsoft Authenticator compatibility
-- **Account Recovery** via SMS verification and security questions
-- **Backup Codes** for account access when authenticator is unavailable
-- **Secure Session Management** with proper encryption
-- **Multi-identifier Banning** (IP, email, phone) for moderators
+- **Passwordless Authentication**: Users log in via email/username + 6-digit TOTP code.
+- **TOTP-based 2FA**: Full compatibility with Google Authenticator, Microsoft Authenticator, and Authy.
+- **Robust Account Recovery**: Multi-step recovery using email verification and original TOTP secrets.
+- **Backup Codes**: 10 high-entropy emergency access codes provided during setup.
+- **Secure Sessions**: Encrypted session storage in Redis with proper cookie security (HttpOnly).
+- **Advanced Banning**: Global banning system targeting IP addresses, emails, and phone numbers.
 
-### 💬 Real-time Chat
-- **WebSocket Communication** via Socket.IO
-- **Topic-based Chat Rooms** with unlimited participants
-- **Chatroom Customization**: Upload profile pictures and background images
-- **Anonymous Mode** with per-topic fake usernames
-- **Private Messaging** between users with "Delete for me" functionality
-- **Message Types**: Text, emojis, GIFs (Tenor integration), images, videos, files
-- **File Attachments**: Images and videos stored externally with deduplication (local filesystem or Azure Blob Storage)
-- **Media Viewing**: Full-screen image viewer and enhanced video player with download/share options
-- **Typing Indicators** and user presence
-- **Content Filtering**: Links blocked, profanity filtered
-- **Message Management**: Delete messages with reason (for owners/moderators), report messages
+### 💬 Real-time Communication
+- **Hybrid Platform**: Seamless integration between Reddit-style forums and instant chat rooms.
+- **WebSocket Foundation**: Built on Socket.IO for sub-100ms latency.
+- **Presence System**: Real-time "online" status and typing indicators across the entire app.
+- **Group Chat Rooms**: Unlimited rooms per Topic with customizable profile/background images.
+- **Direct Messaging (DMs)**: Private 1-on-1 conversations with encryption-ready architecture.
+- **Voice Communication (VOIP)**: Integrated voice rooms with participant lists and active speaker detection.
+- **Media Engine**: Instant sharing of GIFs (Tenor), images, videos, and files with secure cloud storage.
+- **Anonymous Mode**: Per-topic identity masking with custom aliases to encourage open discussion.
 
-### 📝 Topic Management
-- **Public Topics** that anyone can join
-- **Topic Creation** with titles, descriptions, and tags
-- **Topic Sorting**: By activity, member count, or creation date
-- **Search & Filtering**: By name, tags, or content
-- **Topic Ownership**: Creator has full control and moderation powers
+### 📝 Content Management (The "Publications" System)
+- **Dynamic Topics**: Hierarchical community spaces for high-level categorization.
+- **Publications (Posts)**: Reddit-style nested posts with rich text (Markdown) support.
+- **Voting Mechanism**: Positive/Negative reputation system for quality control.
+- **Threaded Comments**: Deeply nested conversations with @mentions and reply tracking.
+- **Navigation Controls**: Advanced sorting (Hot, New, Top) and tag-based discovery.
+- **Search Engine**: Rapid indexing of topics and posts for easy discovery.
 
-### 🛡️ Moderation System
-- **Multi-level Permissions**: Owner (3) → Moderator (2) → User (1)
-- **Comprehensive Reporting System**: Report users, messages, posts, comments, chatrooms, chatroom backgrounds, and chatroom pictures
-- **Context-Aware Reports**: Attach message history, owner/moderator information for admin analysis
-- **Moderation Actions**: Delete messages (with reason for owners), ban users, timeout users, warn users
-- **Ban Management**: Temporary and permanent bans with detailed reasons
-- **Report Review Interface** for moderators and owners with predefined warnings
-- **Content Management**: Silence/hide topics, posts, and chats per user
+### 🛡️ Moderation & Support
+- **Admin Dashboard**: Centralized command center for platform-wide oversight.
+- **Integrated Ticket System**: Direct communication channel between users and administrators for help requests.
+- **Report Lifecycle**: Comprehensive reporting for users/messages/posts with automated context attachment.
+- **Role-based Access Control (RBAC)**: Granular permissions system (Owner -> Moderator -> Member).
+- **Content Filtering**: Integrated profanity filters and link sanitization.
 
-### 🎨 User Experience
-- **Dark/Light Themes** with smooth transitions and harmonized blue/purple color scheme
-- **Internationalization**: Full English and Portuguese support with comprehensive translations
-- **PWA Support**: Install on any device with native browser install prompts and notifications
-- **Responsive Design**: Mobile, tablet, and desktop optimized
-- **Real-time Notifications**: For messages, mentions, and reports
-- **Hidden Items Management**: Organize hidden private messages, publications, chatrooms, and topics with category separators
-- **User Profile Pictures**: Upload, update, and delete profile pictures (stored as binary in database)
-- **Chatroom Visuals**: Custom profile pictures and background images with dimming overlay
-- **Media Handling**: Secure file storage with encryption keys, deduplication, and Azure Blob Storage support
+### 🎨 Design & Accessibility
+- **Responsive Architecture**: Pixel-perfect layouts for Mobile, Tablet, and Desktop.
+- **Modern Theme Engine**: Dynamic Dark/Light mode switching with cohesive HSL color palettes.
+- **Internationalization (i18n)**: Native-level support for English and Portuguese.
+- **PWA Capabilities**: Installable web app with push notifications and offline caching.
+- **Accessibility**: ARIA-compliant components and keyboard-friendly navigation.
 
 ## Technology Stack
 
@@ -174,7 +167,7 @@ Create a `.env` file in the `backend/` directory:
 
 ```env
 # Database Configuration
-DATABASE_URL=mongodb://localhost:27017/chatapp
+DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 REDIS_URL=redis://localhost:6379/0
 
 # Application Configuration

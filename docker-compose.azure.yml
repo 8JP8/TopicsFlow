@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   # Azure-ready unified application
-  chatapp:
+  TopicsFlow:
     build:
       context: .
       dockerfile: Dockerfile.azure
-    image: chatapp-azure:latest
-    container_name: chatapp-azure
+    image: TopicsFlow-azure:latest
+    container_name: TopicsFlow-azure
     ports:
       - "8000:8000"
     environment:
@@ -18,7 +18,7 @@ services:
 
       # Azure CosmosDB (MongoDB API)
       - AZURE_COSMOS_CONNECTIONSTRING=${AZURE_COSMOS_CONNECTIONSTRING}
-      - AZURE_COSMOS_DATABASE=${AZURE_COSMOS_DATABASE:-chatapp}
+      - AZURE_COSMOS_DATABASE=${AZURE_COSMOS_DATABASE:-TopicsFlow}
 
       # Azure Redis Cache (optional)
       - AZURE_REDIS_CONNECTIONSTRING=${AZURE_REDIS_CONNECTIONSTRING}
@@ -35,7 +35,7 @@ services:
       - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,7 +55,7 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password123
-      - MONGO_INITDB_DATABASE=chatapp
+      - MONGO_INITDB_DATABASE=TopicsFlow
     volumes:
       - mongodb_test_data:/data/db
     networks:

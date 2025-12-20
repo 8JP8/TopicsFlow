@@ -49,6 +49,20 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
     return () => window.removeEventListener('preference:support-widget-changed', handlePrefChange);
   }, [user]);
 
+  // Handle startTour query param
+  useEffect(() => {
+    if (router.isReady && router.query.startTour === 'true') {
+      // Remove the query param from URL without reloading
+      const { startTour, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+
+      // Small delay to ensure the page has settled
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('tour:start', { detail: 'dashboard' }));
+      }, 500);
+    }
+  }, [router.isReady, router.query]);
+
   // Tour listener
   useEffect(() => {
     const handleTourStart = (e: CustomEvent) => {
@@ -107,7 +121,18 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
       <header className={`h-16 flex items-center justify-between px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
         {/* ... header content ... */}
         <div className="flex items-center space-x-3">
-          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline">
+          <Link
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              if (router.pathname === '/') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                router.push('/');
+              }
+            }}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline"
+          >
             <img
               src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"
