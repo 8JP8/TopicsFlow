@@ -877,6 +877,8 @@
   "userMenu": {
     "startTour": "Guia de Ajuda",
     "profile": "Perfil",
+    "theme": "Tema",
+    "language": "Idioma",
     "openTicket": "Abrir Ticket de Suporte",
     "myTickets": "Os Meus Tickets",
     "settings": "Definições",
@@ -895,6 +897,8 @@
     "adminsOnline": "Admins Online",
     "toggleDescription": "Mostrar o botão de suporte na barra de topo"
   },
+  "anonymousStateChanged": "Estado anónimo alterado",
+  "tailwindcss": "Tailwindcss",
   "themes": {
     "title": "Temas",
     "createTheme": "Criar Tema",
