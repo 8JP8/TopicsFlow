@@ -56,7 +56,7 @@ jobs:
     - name: Copy frontend build to backend
       run: |
         mkdir -p backend/static
-        cp -r frontend/dist/* backend/static/
+        cp -r frontend/out/* backend/static/
     
     - name: Verify deployment package
       run: |
