@@ -155,7 +155,7 @@ const Profile: React.FC = () => {
         updateUser({
           ...user,
           username: username.trim(),
-          country_code: countryCode || null,
+          country_code: countryCode || undefined,
           profile_picture: previewAvatar || undefined,
           banner: previewBanner || undefined,
         });
