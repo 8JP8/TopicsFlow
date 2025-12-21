@@ -47,6 +47,7 @@ def create_app(config_name=None):
     frontend_url = app.config.get('FRONTEND_URL')
     
     allowed_origins = [
+        "https://topicsflow.me",
         "topicsflow.me",
         "20.101.2.157",
         "20.101.2.157:80",
@@ -65,14 +66,13 @@ def create_app(config_name=None):
     
     logger.info(f"CORS: Configured with allowed origins: {allowed_origins}")
     
-    if app.config.get('IS_AZURE'):
-        logger.info("CORS: Azure environment detected. Disabling Flask-CORS to let Azure handle headers.")
-    else:
-        cors.init_app(app, 
-                     resources={r"/*": {"origins": allowed_origins}},
-                     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-                     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-                     supports_credentials=True)  # Enable credentials for session cookies
+    # Always enable Flask-CORS, even in Azure, to ensure correct headers are sent
+    # Azure's default CORS handling can be problematic with credentials (cookies)
+    cors.init_app(app, 
+                 resources={r"/*": {"origins": allowed_origins}},
+                 allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+                 methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+                 supports_credentials=True)  # Enable credentials for session cookies
     
     session.init_app(app)
 

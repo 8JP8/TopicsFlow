@@ -108,9 +108,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (response.data.user.preferences.theme) {
           document.documentElement.setAttribute('data-theme', response.data.user.preferences.theme);
         }
+      } else {
+        // User is not authenticated (backend now returns 200 with success: false)
+        setUser(null);
       }
     } catch (error) {
-      // User is not authenticated
+      // Fallback for actual errors (network, 500s, etc.)
       setUser(null);
     } finally {
       setLoading(false);

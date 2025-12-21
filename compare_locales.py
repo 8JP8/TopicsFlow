@@ -15,8 +15,8 @@ def find_missing_keys(base, target, path=""):
             missing.extend(find_missing_keys(value, target[key], current_path))
     return missing
 
-base_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\ChatHub_App\frontend\locales\en.json"
-target_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\ChatHub_App\frontend\locales\pt.json"
+base_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\TopicsFlow_App\frontend\locales\en.json"
+target_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\TopicsFlow_App\frontend\locales\pt.json"
 
 try:
     en_data = load_json(base_path)

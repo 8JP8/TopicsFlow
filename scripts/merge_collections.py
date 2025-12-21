@@ -35,7 +35,7 @@ def merge_collections():
     # Update Info
     merged['info']['name'] = "TopicsFlow API - Complete Collection"
     merged['info']['_postman_id'] = "topicsflow-complete-api-merged"
-    merged['info']['description'] = f"Complete API collection for TopicsFlow. Merged from ChatHub_Backend_API and TopicsFlow_API on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."
+    merged['info']['description'] = f"Complete API collection for TopicsFlow. Merged from TopicsFlow_Backend_API and TopicsFlow_API on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."
 
     # Create a set of existing request names/IDs in the base collection to avoid duplicates
     existing_items = set()

@@ -38,7 +38,7 @@ class PasskeyService:
         self.rp_id = rp_id or os.getenv('PASSKEY_RP_ID', 'localhost')
         self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
 
-        # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.com')
+        # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.me')
         self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
         logger.info(f"PasskeyService initialized: RP ID={self.rp_id}, Origin={self.origin}")

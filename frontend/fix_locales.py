@@ -1,7 +1,7 @@
 
 import os
 
-file_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\ChatHub_App\frontend\locales\pt.json"
+file_path = r"c:\Users\JP\OneDrive - Instituto Superior de Engenharia do Porto\RINTE\TopicsFlow_App\frontend\locales\pt.json"
 
 with open(file_path, 'r', encoding='utf-8') as f:
     lines = f.readlines()

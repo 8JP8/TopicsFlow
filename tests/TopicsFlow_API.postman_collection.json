@@ -2,7 +2,7 @@
     "info": {
         "name": "TopicsFlow API - Complete Collection",
         "_postman_id": "topicsflow-complete-api-merged",
-        "description": "Complete API collection for TopicsFlow. Merged from ChatHub_Backend_API and TopicsFlow_API on 2025-12-06 06:28:07.",
+        "description": "Complete API collection for TopicsFlow. Merged from TopicsFlow_Backend_API and TopicsFlow_API on 2025-12-06 06:28:07.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "version": "2.0.0"
     },
