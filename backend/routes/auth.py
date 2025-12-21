@@ -217,7 +217,9 @@ def get_current_user():
         if result['success']:
             return jsonify(result), 200
         else:
-            return jsonify(result), 401
+            # Return 200 with success=False instead of 401 to avoid console errors/logs
+            # for "check session" calls (standard pattern for single-page apps)
+            return jsonify(result), 200
 
     except Exception as e:
         logger.error(f"Get current user error: {str(e)}")
@@ -452,6 +454,7 @@ def register_passwordless():
         # Get client IP for security
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
 
+        data = request.get_json()
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
         language = data.get('language', 'en')

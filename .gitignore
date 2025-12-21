@@ -367,7 +367,7 @@ dist
 
 # Gatsby
 .cache/
-public
+# public
 
 # Storybook
 .out

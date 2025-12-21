@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "TopicsFlow",
+    "languageCode": "pt-PT",
     "loading": "A Carregar...",
     "error": "Erro",
     "success": "Sucesso",
