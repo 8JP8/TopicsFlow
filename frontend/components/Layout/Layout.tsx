@@ -138,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
               alt="TopicsFlow Logo"
               className="h-8 w-8"
             />
-            <h1 className="text-xl font-bold theme-text-primary">TopicsFlow</h1>
+            <h1 className={`text-xl font-bold ${router.pathname === '/about' ? 'text-white' : 'theme-text-primary'}`}>TopicsFlow</h1>
           </Link>
         </div>
 
