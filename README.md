@@ -178,7 +178,7 @@ APP_NAME=TopicsFlow
 
 # Email Service (Resend)
 RESEND_API_KEY=your_resend_api_key
-FROM_EMAIL=chat@taskflow.pt
+FROM_EMAIL=noreply@topicsflow.me
 
 # External Services
 TENOR_API_KEY=your_tenor_api_key

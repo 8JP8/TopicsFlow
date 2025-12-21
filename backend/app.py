@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, send_file
+from flask import Flask, send_from_directory, send_file, redirect
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_session import Session
@@ -47,6 +47,7 @@ def create_app(config_name=None):
     frontend_url = app.config.get('FRONTEND_URL')
     
     allowed_origins = [
+        "topicsflow.me"
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
@@ -200,6 +201,8 @@ def create_app(config_name=None):
 
         @app.route('/')
         def index():
+            if app.config.get('IS_AZURE'):
+                return redirect("https://topicsflow.me", code=302)
             return {'message': 'TopicsFlow Backend API', 'version': '1.0.0'}
 
     return app
