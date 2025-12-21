@@ -36,7 +36,7 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
-          NEXT_PUBLIC_API_URL: "https://api.topicsflow.me"
+          NEXT_PUBLIC_API_URL: https://api.topicsflow.me
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DELIGHTFUL_FIELD_059F79403 }}
           action: "upload"
