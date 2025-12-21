@@ -202,7 +202,85 @@ def create_app(config_name=None):
         @app.route('/')
         def index():
             if app.config.get('IS_AZURE'):
-                return redirect("https://topicsflow.me", code=302)
+                # Return a styled HTML page with JS countdown
+                return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>TopicsFlow API</title>
+                    <style>
+                        body {
+                            background-color: #0f172a;
+                            color: #f8fafc;
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                            margin: 0;
+                            text-align: center;
+                        }
+                        .container {
+                            max-width: 600px;
+                            padding: 2rem;
+                        }
+                        h1 {
+                            font-size: 2.5rem;
+                            font-weight: 700;
+                            margin-bottom: 1rem;
+                            background: linear-gradient(to right, #60a5fa, #a78bfa);
+                            -webkit-background-clip: text;
+                            -webkit-text-fill-color: transparent;
+                        }
+                        p {
+                            font-size: 1.25rem;
+                            color: #94a3b8;
+                            margin-bottom: 2rem;
+                        }
+                        .countdown {
+                            font-weight: 600;
+                            color: #f8fafc;
+                        }
+                        .loader {
+                            width: 40px;
+                            height: 40px;
+                            border: 3px solid #334155;
+                            border-radius: 50%;
+                            border-top-color: #60a5fa;
+                            animation: spin 1s ease-in-out infinite;
+                            margin: 0 auto 1.5rem;
+                        }
+                        @keyframes spin {
+                            to { transform: rotate(360deg); }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="loader"></div>
+                        <h1>TopicsFlow API is Online</h1>
+                        <p>Redirecting to frontend in <span id="timer" class="countdown">3</span>s...</p>
+                    </div>
+                    <script>
+                        let seconds = 3;
+                        const timer = document.getElementById('timer');
+                        
+                        const interval = setInterval(() => {
+                            seconds--;
+                            timer.textContent = seconds;
+                            
+                            if (seconds <= 0) {
+                                clearInterval(interval);
+                                window.location.href = "https://topicsflow.me";
+                            }
+                        }, 1000);
+                    </script>
+                </body>
+                </html>
+                """, 200
             return {'message': 'TopicsFlow Backend API', 'version': '1.0.0'}
 
     return app
