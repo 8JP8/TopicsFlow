@@ -47,7 +47,7 @@ def create_app(config_name=None):
     frontend_url = app.config.get('FRONTEND_URL')
     
     allowed_origins = [
-        "topicsflow.me"
+        "topicsflow.me",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
