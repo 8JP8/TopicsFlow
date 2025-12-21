@@ -36,7 +36,7 @@ The setup scripts will:
 
 1. **Set environment variables for the current session:**
    - `RESEND_API_KEY` - Your Resend email API key
-   - `FROM_EMAIL` - Sender email address (chat@taskflow.pt)
+   - `FROM_EMAIL` - Sender email address (noreply@topicsflow.me)
    - `APP_NAME` - Application name (TopicsFlow)
    - `FRONTEND_URL` - Frontend URL (http://localhost:3000)
    - `DATABASE_URL` - MongoDB connection string
@@ -58,8 +58,8 @@ The setup scripts will:
 ### Resend Email Service
 
 - **API Key**: `re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da`
-- **Domain**: `taskflow.pt`
-- **Sender Email**: `chat@taskflow.pt`
+- **Domain**: `topicsflow.me`
+- **Sender Email**: `noreply@topicsflow.me`
 
 ### Important: Domain Verification Required
 
@@ -67,7 +67,7 @@ Before emails will send, you **must** verify your domain in Resend:
 
 1. Go to https://resend.com/domains
 2. Click "Add Domain"
-3. Enter `taskflow.pt`
+3. Enter `topicsflow.me`
 4. Add the DNS records shown by Resend to your domain provider
 5. Wait for verification (usually 5-15 minutes)
 
@@ -91,7 +91,7 @@ Value: feedback-smtp.us-east-1.amazonses.com (Priority: 10)
 
 **Where to Add DNS Records:**
 
-If you manage `taskflow.pt` through:
+If you manage `topicsflow.me` through:
 - **Cloudflare**: DNS → Add Record
 - **GoDaddy**: DNS Management → Add Record
 - **Namecheap**: Advanced DNS → Add New Record
@@ -131,7 +131,7 @@ cat backend/.env
 You should see all configuration values, including:
 ```
 RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=chat@taskflow.pt
+FROM_EMAIL=noreply@topicsflow.me
 ```
 
 ### 3. Start the Backend
@@ -145,7 +145,7 @@ You should see:
 ```
  * Running on http://127.0.0.1:5000
  * Resend API key configured: ****...g7Da
- * Email sender: chat@taskflow.pt
+ * Email sender: noreply@topicsflow.me
 ```
 
 ### 4. Test Email Sending
@@ -189,7 +189,7 @@ Should show: `re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da`
 
 **Check 2: Domain Verified**
 
-Go to https://resend.com/domains and verify `taskflow.pt` shows as "Verified"
+Go to https://resend.com/domains and verify `topicsflow.me` shows as "Verified"
 
 **Check 3: Backend Logs**
 
@@ -223,7 +223,7 @@ print(result)
 - Run `setx` commands manually:
   ```cmd
   setx RESEND_API_KEY "re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da"
-  setx FROM_EMAIL "chat@taskflow.pt"
+  setx FROM_EMAIL "noreply@topicsflow.me"
   ```
 - Restart Command Prompt/PowerShell after setting
 
@@ -235,7 +235,7 @@ print(result)
 - If not found, add manually:
   ```bash
   echo 'export RESEND_API_KEY="re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da"' >> ~/.bashrc
-  echo 'export FROM_EMAIL="chat@taskflow.pt"' >> ~/.bashrc
+  echo 'export FROM_EMAIL="noreply@topicsflow.me"' >> ~/.bashrc
   source ~/.bashrc
   ```
 
@@ -269,7 +269,7 @@ If you prefer to set up manually:
 cd backend
 (
 echo RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-echo FROM_EMAIL=chat@taskflow.pt
+echo FROM_EMAIL=noreply@topicsflow.me
 echo APP_NAME=TopicsFlow
 echo FRONTEND_URL=http://localhost:3000
 echo DATABASE_URL=mongodb://localhost:27017/TopicsFlow
@@ -284,7 +284,7 @@ echo TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 cd backend
 @"
 RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=chat@taskflow.pt
+FROM_EMAIL=noreply@topicsflow.me
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/TopicsFlow
@@ -299,7 +299,7 @@ TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 cd backend
 cat > .env << 'EOF'
 RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=chat@taskflow.pt
+FROM_EMAIL=noreply@topicsflow.me
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/TopicsFlow
@@ -345,7 +345,7 @@ If you suspect your API key has been exposed:
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `RESEND_API_KEY` | Resend email API key | - | ✅ Yes |
-| `FROM_EMAIL` | Sender email address | chat@taskflow.pt | ✅ Yes |
+| `FROM_EMAIL` | Sender email address | noreply@topicsflow.me | ✅ Yes |
 | `APP_NAME` | Application name | TopicsFlow | ✅ Yes |
 | `FRONTEND_URL` | Frontend URL | http://localhost:3000 | ✅ Yes |
 | `DATABASE_URL` | MongoDB connection string | mongodb://localhost:27017/TopicsFlow | ✅ Yes |
@@ -379,5 +379,5 @@ For complete authentication documentation, see: [PASSWORDLESS_AUTH_SETUP.md](PAS
 ---
 
 **Last Updated**: 2025-11-11
-**Domain**: taskflow.pt
+**Domain**: topicsflow.me
 **API Key**: re_cW2E...g7Da (keep secret!)
