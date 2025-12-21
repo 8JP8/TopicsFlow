@@ -65,11 +65,15 @@ def create_app(config_name=None):
     
     logger.info(f"CORS: Configured with allowed origins: {allowed_origins}")
     
-    cors.init_app(app, 
-                 resources={r"/*": {"origins": allowed_origins}},
-                 allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-                 methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-                 supports_credentials=True)  # Enable credentials for session cookies
+    if app.config.get('IS_AZURE'):
+        logger.info("CORS: Azure environment detected. Disabling Flask-CORS to let Azure handle headers.")
+    else:
+        cors.init_app(app, 
+                     resources={r"/*": {"origins": allowed_origins}},
+                     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+                     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+                     supports_credentials=True)  # Enable credentials for session cookies
+    
     session.init_app(app)
 
     # Initialize SocketIO with session support
