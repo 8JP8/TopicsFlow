@@ -48,6 +48,9 @@ def create_app(config_name=None):
     
     allowed_origins = [
         "topicsflow.me",
+        "20.101.2.157",
+        "20.101.2.157:80",
+        "20.101.2.157:443",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
