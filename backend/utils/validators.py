@@ -1,5 +1,6 @@
 import re
 from typing import List
+import bleach
 
 
 def validate_username(username: str) -> bool:
@@ -241,14 +242,18 @@ def sanitize_input(input_string: str) -> str:
     if not input_string:
         return ''
 
-    # Remove HTML tags
-    sanitized = re.sub(r'<[^>]+>', '', input_string)
+    # Define allowed tags and attributes (if any HTML is allowed)
+    # For now, we strip everything except basic formatting if needed
+    # But usually for inputs like username, we want plain text.
+    # For posts/comments, we might want Markdown, which is rendered on client.
+    # So stripping all tags is safer for API inputs unless rich text is expected.
 
-    # Remove script tags specifically
-    sanitized = re.sub(r'<script.*?</script>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+    # bleach.clean by default allows a small set of tags.
+    # We want to be stricter or allow specific things.
+    # Since the original code removed all tags, let's stick to that default behavior
+    # but use bleach to do it robustly.
 
-    # Remove potentially harmful JavaScript events
-    sanitized = re.sub(r'on\w+\s*=', '', sanitized, flags=re.IGNORECASE)
+    sanitized = bleach.clean(input_string, tags=[], attributes={}, strip=True)
 
     # Trim whitespace
     sanitized = sanitized.strip()
