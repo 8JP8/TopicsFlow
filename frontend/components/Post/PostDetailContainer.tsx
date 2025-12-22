@@ -29,6 +29,7 @@ interface Post {
   created_at: string;
   gif_url?: string;
   profile_picture?: string;
+  is_followed?: boolean;
 }
 
 interface PostDetailContainerProps {
