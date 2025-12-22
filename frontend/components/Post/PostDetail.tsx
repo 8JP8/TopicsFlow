@@ -27,6 +27,7 @@ interface Post {
   gif_url?: string;
   status?: 'open' | 'closed';
   closure_reason?: string;
+  is_followed?: boolean;
 }
 
 interface PostDetailProps {
@@ -44,20 +45,8 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
   useEffect(() => {
     if (postId) {
       loadPost();
-      checkFollowStatus();
     }
   }, [postId]);
-
-  const checkFollowStatus = async () => {
-    try {
-      const response = await api.get(API_ENDPOINTS.NOTIFICATION_SETTINGS.POST_STATUS(postId));
-      if (response.data.success) {
-        setIsFollowing(response.data.data?.following || false);
-      }
-    } catch (error) {
-      console.error('Failed to check follow status:', error);
-    }
-  };
 
   const loadPost = async () => {
     try {
@@ -66,6 +55,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
 
       if (response.data.success) {
         setPost(response.data.data);
+        setIsFollowing(response.data.data.is_followed || false);
       } else {
         toast.error(response.data.errors?.[0] || translate('posts.failedToCreatePost'));
       }

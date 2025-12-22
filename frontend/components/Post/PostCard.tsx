@@ -38,6 +38,7 @@ interface Post {
   is_moderator?: boolean;
   status?: 'open' | 'closed';
   closure_reason?: string;
+  is_followed?: boolean;
 }
 
 interface PostCardProps {
@@ -56,9 +57,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [topicOwner, setTopicOwner] = useState<{ id: string, username: string } | null>(null);
   const [topicModerators, setTopicModerators] = useState<Array<{ id: string, username: string }>>([]);
-  const [followedPosts, setFollowedPosts] = useState<Set<string>>(new Set(
-    JSON.parse(localStorage.getItem('followedPosts') || '[]')
-  ));
+  const [isFollowed, setIsFollowed] = useState(post.is_followed || false);
 
   // Local state for admin actions
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -68,7 +67,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
   const { showBanner, bannerPos, selectedUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
 
   const isOwner = user?.id === post.user_id;
-  const isFollowed = followedPosts.has(post.id);
 
   const formatTimeAgo = (timestamp: string) => {
     try {
@@ -311,19 +309,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
           isFollowed={isFollowed}
           onFollow={async (postId) => {
             try {
-              const newFollowedPosts = new Set(followedPosts);
               if (isFollowed) {
-                newFollowedPosts.delete(postId);
+                await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(postId));
+                setIsFollowed(false);
                 toast.success(t('contextMenu.postUnfollowed') || 'Post unfollowed');
               } else {
-                newFollowedPosts.add(postId);
+                await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_POST(postId));
+                setIsFollowed(true);
                 toast.success(t('contextMenu.postFollowed') || 'Post followed');
               }
-              setFollowedPosts(newFollowedPosts);
-              localStorage.setItem('followedPosts', JSON.stringify(Array.from(newFollowedPosts)));
-
-              // TODO: Replace with backend API call
-              // await api.post(isFollowed ? API_ENDPOINTS.POSTS.UNFOLLOW(postId) : API_ENDPOINTS.POSTS.FOLLOW(postId));
             } catch (error: any) {
               toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
             }

@@ -24,6 +24,7 @@ interface Post {
   created_at: string;
   gif_url?: string;
   tags?: string[];
+  is_followed?: boolean;
 }
 
 interface PostListProps {
