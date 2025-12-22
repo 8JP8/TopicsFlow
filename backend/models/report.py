@@ -144,7 +144,8 @@ class Report:
         report = self.collection.find_one({'_id': ObjectId(report_id)})
         if report:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_message_id' in report and report['reported_message_id']:
+                report['reported_message_id'] = str(report['reported_message_id'])
             report['reported_by'] = str(report['reported_by'])
             if report['reviewed_by']:
                 report['reviewed_by'] = str(report['reviewed_by'])
