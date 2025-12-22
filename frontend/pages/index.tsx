@@ -67,6 +67,7 @@ export default function Home() {
     user_has_downvoted?: boolean;
     created_at: string;
     gif_url?: string;
+    is_followed?: boolean;
   }
 
   interface ChatRoom {

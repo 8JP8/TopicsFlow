@@ -236,7 +236,18 @@ def get_post(post_id):
     try:
         post_model = Post(current_app.db)
 
-        post = post_model.get_post_by_id(post_id)
+        # Get current user ID if authenticated
+        user_id = None
+        try:
+            auth_service = AuthService(current_app.db)
+            if auth_service.is_authenticated():
+                current_user_result = auth_service.get_current_user()
+                if current_user_result.get('success'):
+                    user_id = current_user_result['user']['id']
+        except:
+            pass
+
+        post = post_model.get_post_by_id(post_id, user_id)
         if not post:
             return jsonify({'success': False, 'errors': ['Post not found']}), 404
 

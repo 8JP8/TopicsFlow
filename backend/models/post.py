@@ -70,7 +70,7 @@ class Post:
 
         return post_id
 
-    def get_post_by_id(self, post_id: str) -> Optional[Dict[str, Any]]:
+    def get_post_by_id(self, post_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific post by ID."""
         post = self.collection.find_one({'_id': ObjectId(post_id)})
         if post:
@@ -81,9 +81,9 @@ class Post:
             
             # Convert upvotes and downvotes list ObjectIds to strings
             if 'upvotes' in post and post['upvotes']:
-                post['upvotes'] = [str(user_id) for user_id in post['upvotes']]
+                post['upvotes'] = [str(u) for u in post['upvotes']]
             if 'downvotes' in post and post['downvotes']:
-                post['downvotes'] = [str(user_id) for user_id in post['downvotes']]
+                post['downvotes'] = [str(u) for u in post['downvotes']]
             
             # Calculate score if not present
             if 'score' not in post:
@@ -91,6 +91,20 @@ class Post:
                 down_count = post.get('downvote_count', 0)
                 post['score'] = up_count - down_count
             
+            # Check if user has upvoted, downvoted, or followed
+            if user_id:
+                post['user_has_upvoted'] = user_id in post.get('upvotes', [])
+                post['user_has_downvoted'] = user_id in post.get('downvotes', [])
+
+                # Check if followed
+                from .notification_settings import NotificationSettings
+                notif_settings = NotificationSettings(self.db)
+                post['is_followed'] = notif_settings.is_following_post(user_id, post_id)
+            else:
+                post['user_has_upvoted'] = False
+                post['user_has_downvoted'] = False
+                post['is_followed'] = False
+
             # Convert datetime to ISO string
             if 'created_at' in post and isinstance(post['created_at'], datetime):
                 post['created_at'] = post['created_at'].isoformat()
@@ -162,6 +176,14 @@ class Post:
                     .limit(limit)
                     .skip(offset))
 
+        # Bulk fetch followed posts if user_id is provided
+        followed_post_ids = set()
+        if user_id:
+            from .notification_settings import NotificationSettings
+            notif_settings = NotificationSettings(self.db)
+            followed_posts = notif_settings.get_followed_posts(user_id)
+            followed_post_ids = {p['post_id'] for p in followed_posts}
+
         # Process posts
         for post in posts:
             post['_id'] = str(post['_id'])
@@ -171,9 +193,9 @@ class Post:
             
             # Convert upvotes and downvotes list ObjectIds to strings
             if 'upvotes' in post and post['upvotes']:
-                post['upvotes'] = [str(user_id) for user_id in post['upvotes']]
+                post['upvotes'] = [str(u) for u in post['upvotes']]
             if 'downvotes' in post and post['downvotes']:
-                post['downvotes'] = [str(user_id) for user_id in post['downvotes']]
+                post['downvotes'] = [str(u) for u in post['downvotes']]
             
             # Calculate score if not present
             if 'score' not in post:
@@ -183,12 +205,14 @@ class Post:
             
             # Check if user has upvoted or downvoted
             if user_id:
-                user_obj_id = ObjectId(user_id)
-                post['user_has_upvoted'] = user_obj_id in post.get('upvotes', [])
-                post['user_has_downvoted'] = user_obj_id in post.get('downvotes', [])
+                post['user_has_upvoted'] = user_id in post.get('upvotes', [])
+                post['user_has_downvoted'] = user_id in post.get('downvotes', [])
+                # Check if followed
+                post['is_followed'] = post['id'] in followed_post_ids
             else:
                 post['user_has_upvoted'] = False
                 post['user_has_downvoted'] = False
+                post['is_followed'] = False
             
             # Convert datetime to ISO string
             if 'created_at' in post and isinstance(post['created_at'], datetime):
@@ -251,6 +275,14 @@ class Post:
                     .limit(limit)
                     .skip(offset))
 
+        # Bulk fetch followed posts if user_id is provided
+        followed_post_ids = set()
+        if user_id:
+            from .notification_settings import NotificationSettings
+            notif_settings = NotificationSettings(self.db)
+            followed_posts = notif_settings.get_followed_posts(user_id)
+            followed_post_ids = {p['post_id'] for p in followed_posts}
+
         # Process posts (same as get_posts_by_topic)
         processed_posts = []
         for post in posts:
@@ -266,9 +298,9 @@ class Post:
             
             # Convert upvotes and downvotes list ObjectIds to strings
             if 'upvotes' in post and post['upvotes']:
-                post['upvotes'] = [str(user_id) for user_id in post['upvotes']]
+                post['upvotes'] = [str(u) for u in post['upvotes']]
             if 'downvotes' in post and post['downvotes']:
-                post['downvotes'] = [str(user_id) for user_id in post['downvotes']]
+                post['downvotes'] = [str(u) for u in post['downvotes']]
             
             # Calculate score if not present
             if 'score' not in post:
@@ -278,12 +310,14 @@ class Post:
             
             # Check if user has upvoted or downvoted
             if user_id:
-                user_obj_id = ObjectId(user_id)
-                post['user_has_upvoted'] = user_obj_id in post.get('upvotes', [])
-                post['user_has_downvoted'] = user_obj_id in post.get('downvotes', [])
+                post['user_has_upvoted'] = user_id in post.get('upvotes', [])
+                post['user_has_downvoted'] = user_id in post.get('downvotes', [])
+                # Check if followed
+                post['is_followed'] = post['id'] in followed_post_ids
             else:
                 post['user_has_upvoted'] = False
                 post['user_has_downvoted'] = False
+                post['is_followed'] = False
             
             # Convert datetime to ISO string
             if 'created_at' in post and isinstance(post['created_at'], datetime):
