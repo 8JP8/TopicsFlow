@@ -9,12 +9,14 @@ import ThemeToggle from '@/components/UI/ThemeToggle';
 import LanguageToggle from '@/components/UI/LanguageToggle';
 import UserMenu from '@/components/UI/UserMenu';
 import NotificationCenter from '@/components/UI/NotificationCenter';
-import NotificationsModal from '@/components/UI/NotificationsModal';
+import dynamic from 'next/dynamic';
 import InvitationsButton from '@/components/UI/InvitationsButton';
 import AdminDashboardButton from '@/components/Admin/AdminDashboardButton';
+
+const NotificationsModal = dynamic(() => import('@/components/UI/NotificationsModal'), { ssr: false });
+const SupportWidget = dynamic(() => import('@/components/Support/SupportWidget'), { ssr: false });
+const MyTicketsModal = dynamic(() => import('@/components/Tickets/MyTicketsModal'), { ssr: false });
 import { useState, useEffect, useRef } from 'react';
-import SupportWidget from '@/components/Support/SupportWidget';
-import MyTicketsModal from '@/components/Tickets/MyTicketsModal'; // Import MyTicketsModal
 import { Menu, X, LifeBuoy, Settings } from 'lucide-react'; // Import LifeBuoy and Settings icons
 
 interface LayoutProps {

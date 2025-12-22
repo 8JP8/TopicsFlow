@@ -91,17 +91,21 @@ def rate_limit(limit: str):
                 except Exception as e:
                     logger.error(f"Redis rate limit error: {e}")
                     # Fallback to in-memory if Redis fails
-                    return _check_in_memory_limit(key, count, window, f, *args, **kwargs)
+                    memory_response = _check_in_memory_limit(key, count, window)
+                    if memory_response:
+                        return memory_response
             else:
                 # Fallback to in-memory
-                return _check_in_memory_limit(key, count, window, f, *args, **kwargs)
+                memory_response = _check_in_memory_limit(key, count, window)
+                if memory_response:
+                    return memory_response
 
             return f(*args, **kwargs)
         return decorated_function
     return decorator
 
 
-def _check_in_memory_limit(key, count, window, f, *args, **kwargs):
+def _check_in_memory_limit(key, count, window):
     """Check rate limit using in-memory store."""
     now = int(time.time())
     window_start = now - window

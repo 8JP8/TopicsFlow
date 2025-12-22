@@ -8,11 +8,15 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SocketProvider, useSocket } from '@/contexts/SocketContext';
 import { VoipProvider } from '@/contexts/VoipContext';
 import WarningBanner from '@/components/Warning/WarningBanner';
-import PWAInstallPrompt from '@/components/UI/PWAInstallPrompt';
-import { IncomingCallDialog, VoipControlBar } from '@/components/Voip';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import Snowfall from 'react-snowfall';
+
+// Dynamic imports for heavy or conditional components
+const Snowfall = dynamic(() => import('react-snowfall'), { ssr: false });
+const PWAInstallPrompt = dynamic(() => import('@/components/UI/PWAInstallPrompt'), { ssr: false });
+const IncomingCallDialog = dynamic(() => import('@/components/Voip/IncomingCallDialog'), { ssr: false });
+const VoipControlBar = dynamic(() => import('@/components/Voip/VoipControlBar'), { ssr: false });
 
 function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const { user, refreshUser } = useAuth();

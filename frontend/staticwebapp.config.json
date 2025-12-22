@@ -2,6 +2,12 @@
     "navigationFallback": {
         "rewrite": "/index.html"
     },
+    "globalHeaders": {
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "origin-when-cross-origin",
+        "X-XSS-Protection": "1; mode=block"
+    },
     "routes": [
         {
             "route": "/api/*",

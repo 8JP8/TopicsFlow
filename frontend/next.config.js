@@ -1,8 +1,9 @@
-/** @type {import('next').NextConfig} */
+const isExport = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
+  output: isExport ? 'export' : undefined,
   images: {
     unoptimized: true,
     domains: ['localhost', 'media.tenor.com'], // Tenor API for GIFs
@@ -17,56 +18,17 @@ const nextConfig = {
   // Disable compression in dev to avoid zlib memory errors
   compress: process.env.NODE_ENV === 'production',
 
-  // Allow cross-origin requests from local network
-  // Allow cross-origin requests from local network
-  // experimental: {
-  //   allowedDevOrigins: [
-  //     'localhost:3000',
-  //     '127.0.0.1:3000',
-  //     '192.168.1.252:3000', // User's specific mobile IP
-  //     '192.168.1.252',
-  //   ],
-  // },
-
-  // Security headers
-  async headers() {
-    if (process.env.NODE_ENV !== 'production') {
-      return [
-        {
-          source: '/(.*)',
-          headers: [
-            {
-              key: 'X-Frame-Options',
-              value: 'DENY',
-            },
-            {
-              key: 'X-Content-Type-Options',
-              value: 'nosniff',
-            },
-            {
-              key: 'Referrer-Policy',
-              value: 'origin-when-cross-origin',
-            },
-            {
-              key: 'X-XSS-Protection',
-              value: '1; mode=block',
-            },
-          ],
-        },
-      ];
-    }
-    return [];
-  },
-  // Rewrites for API proxy (development only)
-  async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
+  // Turbopack configuration
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        fs: './utils/empty-mock.js',
+        net: './utils/empty-mock.js',
+        tls: './utils/empty-mock.js',
       },
-    ];
+    },
   },
+
   // Webpack configuration to handle module federation errors
   webpack: (config, { isServer }) => {
     // Suppress module federation warnings/errors in development
@@ -86,5 +48,46 @@ const nextConfig = {
     return config;
   },
 };
+
+// Only add headers and rewrites if NOT in export mode
+if (!isExport) {
+  // Security headers
+  nextConfig.headers = async () => {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ];
+  };
+
+  // Rewrites for API proxy (development only)
+  nextConfig.rewrites = async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiUrl}/api/:path*`,
+      },
+    ];
+  };
+}
 
 module.exports = nextConfig;

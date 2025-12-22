@@ -8,17 +8,22 @@ import Layout from '@/components/Layout/Layout';
 import TopicList from '@/components/Topic/TopicList';
 import PostList from '@/components/Post/PostList';
 import PostCard from '@/components/Post/PostCard';
-import PostDetailContainer from '@/components/Post/PostDetailContainer';
 import ChatList from '@/components/Chat/ChatList';
-import ChatRoomContainer from '@/components/ChatRoom/ChatRoomContainer';
-import TopicCreate from '@/components/Topic/TopicCreate';
-import PrivateMessagesSimplified from '@/components/PrivateMessages/PrivateMessagesSimplified';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import ResizableSidebar from '@/components/UI/ResizableSidebar';
-import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
-import AnonymousModeDialog from '@/components/UI/AnonymousModeDialog';
-import VoipControlBar from '../components/Voip/VoipControlBar';
-import MobileCallWidget from '../components/Voip/MobileCallWidget';
+import dynamic from 'next/dynamic';
+
+const ChatRoomContainer = dynamic(() => import('@/components/ChatRoom/ChatRoomContainer'), {
+  loading: () => <div className="h-full flex items-center justify-center theme-bg-secondary"><LoadingSpinner /></div>,
+  ssr: false
+});
+const PostDetailContainer = dynamic(() => import('@/components/Post/PostDetailContainer'), { ssr: false });
+const TopicCreate = dynamic(() => import('@/components/Topic/TopicCreate'), { ssr: false });
+const PrivateMessagesSimplified = dynamic(() => import('@/components/PrivateMessages/PrivateMessagesSimplified'), { ssr: false });
+const VoipControlBar = dynamic(() => import('../components/Voip/VoipControlBar'), { ssr: false });
+const MobileCallWidget = dynamic(() => import('../components/Voip/MobileCallWidget'), { ssr: false });
+const NotificationPermissionDialog = dynamic(() => import('@/components/UI/NotificationPermissionDialog'), { ssr: false });
+const AnonymousModeDialog = dynamic(() => import('@/components/UI/AnonymousModeDialog'), { ssr: false });
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName, saveLastAnonymousName } from '@/utils/anonymousStorage';
 import { Menu, MessageSquare, Hash, User, ArrowLeft, LayoutList } from 'lucide-react';
 import UserMenu from '@/components/UI/UserMenu';
