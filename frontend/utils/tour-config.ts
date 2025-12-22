@@ -63,10 +63,10 @@ export const getTourSteps = (
                     description: t('tour.sidebarDesc') || 'Access different topics, your themes, and filter discussions by tags here.',
                     side: 'right',
                     align: 'start',
-                    onHighlightStarted: () => {
-                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
-                        window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'topics' }));
-                    }
+                },
+                onHighlightStarted: () => {
+                    window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
+                    window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'topics' }));
                 },
             },
             {
@@ -154,10 +154,10 @@ export const getTourSteps = (
                     description: t('tour.messagesListDesc') || 'Select a conversation to start chatting.',
                     side: 'right',
                     align: 'start',
-                    onHighlightStarted: () => {
-                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
-                        window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'messages' }));
-                    }
+                },
+                onHighlightStarted: () => {
+                    window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
+                    window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'messages' }));
                 },
             },
             {
@@ -167,9 +167,9 @@ export const getTourSteps = (
                     description: t('tour.messageInputDesc') || 'Type your message, send GIFs, or attach files here.',
                     side: 'top',
                     align: 'center',
-                    onHighlightStarted: () => {
-                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'content' }));
-                    }
+                },
+                onHighlightStarted: () => {
+                    window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'content' }));
                 },
             },
             {
@@ -179,13 +179,13 @@ export const getTourSteps = (
                     description: t('tour.userMenuDesc') || 'Access your settings, profile, and more.',
                     side: 'bottom',
                     align: 'end',
+                    onNextClick: () => {
+                        window.dispatchEvent(new CustomEvent('tour:open-user-menu'));
+                    }
                 },
                 onHighlightStarted: () => {
                     window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
                 },
-                onNextClick: () => {
-                    window.dispatchEvent(new CustomEvent('tour:open-user-menu'));
-                }
             },
             {
                 element: '#user-menu-item-settings',
@@ -196,6 +196,12 @@ export const getTourSteps = (
                     align: 'center',
                     nextBtnText: t('tour.continueButton') || 'Continue to Settings',
                     prevBtnText: t('common.previous') || 'Previous',
+                    onNextClick: () => {
+                        if (navigate) {
+                            localStorage.setItem('continue_tour_settings', 'true');
+                            navigate('/settings');
+                        }
+                    }
                 },
                 onHighlightStarted: () => {
                     // Inject "Close" button logic if needed, or rely on Driver default
@@ -213,12 +219,6 @@ export const getTourSteps = (
                         }
                     }, 100);
                 },
-                onNextClick: () => {
-                    if (navigate) {
-                        localStorage.setItem('continue_tour_settings', 'true');
-                        navigate('/settings');
-                    }
-                }
             }
         );
 
