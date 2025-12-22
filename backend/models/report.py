@@ -144,7 +144,8 @@ class Report:
         report = self.collection.find_one({'_id': ObjectId(report_id)})
         if report:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_message_id' in report and report['reported_message_id']:
+                report['reported_message_id'] = str(report['reported_message_id'])
             report['reported_by'] = str(report['reported_by'])
             if report['reviewed_by']:
                 report['reviewed_by'] = str(report['reviewed_by'])
@@ -202,7 +203,18 @@ class Report:
                 reported_message = pm_model.get_message_by_id(content_id)
                 if reported_message:
                     report['reported_content'] = reported_message
-            # TODO: Add support for posts and comments
+            elif report.get('content_type') == 'post':
+                from .post import Post
+                post_model = Post(self.db)
+                reported_post = post_model.get_post_by_id(content_id)
+                if reported_post:
+                    report['reported_content'] = reported_post
+            elif report.get('content_type') == 'comment':
+                from .comment import Comment
+                comment_model = Comment(self.db)
+                reported_comment = comment_model.get_comment_by_id(content_id)
+                if reported_comment:
+                    report['reported_content'] = reported_comment
         
         # Get reported user details
         if report.get('reported_user_id'):
