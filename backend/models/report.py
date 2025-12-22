@@ -202,7 +202,18 @@ class Report:
                 reported_message = pm_model.get_message_by_id(content_id)
                 if reported_message:
                     report['reported_content'] = reported_message
-            # TODO: Add support for posts and comments
+            elif report.get('content_type') == 'post':
+                from .post import Post
+                post_model = Post(self.db)
+                reported_post = post_model.get_post_by_id(content_id)
+                if reported_post:
+                    report['reported_content'] = reported_post
+            elif report.get('content_type') == 'comment':
+                from .comment import Comment
+                comment_model = Comment(self.db)
+                reported_comment = comment_model.get_comment_by_id(content_id)
+                if reported_comment:
+                    report['reported_content'] = reported_comment
         
         # Get reported user details
         if report.get('reported_user_id'):
