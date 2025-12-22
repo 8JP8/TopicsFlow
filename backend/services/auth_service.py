@@ -1,4 +1,4 @@
-from flask import session, request
+from flask import session, request, current_app
 from datetime import datetime, timedelta
 import pyotp
 import secrets
@@ -6,12 +6,17 @@ import random
 import string
 import base64
 import requests
+import logging
+import qrcode
+from io import BytesIO
+import time
+import hashlib
 from models.user import User
 from services.email_service import EmailService
 from services.passkey_service import PasskeyService
+from services.file_storage import FileStorageService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -875,11 +880,15 @@ class AuthService:
             # Send notification email
             self.email_service.send_2fa_reset_notification(user['email'], user['username'], effective_lang)
 
+            # Generate and return QR code data
+            qr_result = self.generate_totp_qr_image_url(user_id=user_id)
+            
             return {
                 'success': True,
                 'message': '2FA reset successfully',
-                'totp_qr_data': qr_data,
+                'totp_qr_data': qr_result.get('qr_data') if qr_result['success'] else qr_data,
                 'totp_secret': new_secret,
+                'qr_code_image': qr_result.get('qr_code_image') if qr_result['success'] else None,
                 'user_id': user_id
             }
 
@@ -1064,6 +1073,80 @@ class AuthService:
 
         except Exception as e:
             return {'success': False, 'errors': ['Failed to retrieve passkeys']}
+
+    def generate_totp_qr_image_url(self, user_id: str = None, email: str = None) -> dict:
+        """Generate QR code image URL for TOTP setup."""
+        try:
+            if not user_id and not email:
+                return {'success': False, 'error': 'User ID or email is required'}
+
+            # If email is provided, get user_id from email
+            if email and not user_id:
+                user = self.user_model.get_user_by_email(email)
+                if not user:
+                    return {'success': False, 'error': 'User not found'}
+                user_id = str(user['_id'])
+
+            # Get TOTP QR data
+            qr_data = self.user_model.get_totp_qr_data(user_id)
+            totp_secret = self.user_model.get_totp_secret(user_id)
+
+            if not qr_data:
+                return {'success': False, 'error': 'Failed to generate QR code data'}
+
+            # Generate QR code image
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+
+            img = qr.make_image(fill_color="black", back_color="white")
+
+            # Convert to bytes
+            buffered = BytesIO()
+            img.save(buffered, format="PNG")
+            img_data = buffered.getvalue()
+
+            # Store using FileStorageService (handles Azure or local)
+            use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+            file_storage = FileStorageService(
+                uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                use_azure=use_azure
+            )
+
+            filename = f"totp_qr_{user_id}_{int(time.time())}.png"
+
+            file_id, _ = file_storage.store_file(
+                file_data=img_data,
+                filename=filename,
+                mime_type='image/png',
+                user_id=user_id,
+                file_id_prefix='totp_qr_'
+            )
+
+            # Generate encryption key for file access
+            secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+            key_data = f"{file_id}:{secret_key}".encode('utf-8')
+            encryption_key = hashlib.sha256(key_data).hexdigest()[:16]
+
+            # Get file URL
+            qr_code_url = file_storage.get_file_url(file_id, encryption_key)
+
+            return {
+                'success': True,
+                'qr_code_image': qr_code_url,
+                'totp_secret': totp_secret,
+                'qr_data': qr_data
+            }
+
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"QR code generation error: {str(e)}")
+            return {'success': False, 'error': 'Failed to generate QR code image'}
 
     def remove_passkey(self, user_id: str, credential_id: str) -> dict:
         """Remove a passkey credential."""

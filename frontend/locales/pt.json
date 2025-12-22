@@ -251,7 +251,8 @@
     "userNotFound": "Utilizador não encontrado",
     "loadingFailed": "Falha ao carregar dados do utilizador",
     "pageNotFound": "Página Não Encontrada",
-    "pageNotFoundDesc": "Parece que este tópico de discussão ainda não existe, ou talvez tenha desaparecido no vazio.",
+    "pageNotFoundDesc": "Parece que esta página ainda não existe, ou talvez tenha desaparecido no vazio.",
+    "didYouMean": "Queria dizer?",
     "whereAreWe": "Onde estamos?"
   },
   "success": {

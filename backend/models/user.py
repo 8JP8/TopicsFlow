@@ -18,12 +18,29 @@ class User:
         self.encryption_key = self._get_or_create_encryption_key()
 
     def _get_or_create_encryption_key(self) -> bytes:
-        """Get or create encryption key for TOTP secrets."""
+        """Get or create encryption key for TOTP secrets. Prioritizes environment variables."""
+        import os
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Prioritize environment variable for Azure and production stability
+        env_key = os.environ.get('ENCRYPTION_KEY')
+        if env_key:
+            try:
+                # Ensure it's a valid Fernet key
+                from cryptography.fernet import Fernet
+                Fernet(env_key.encode())
+                logger.info("Using encryption key from environment variable")
+                return env_key.encode()
+            except Exception as e:
+                logger.error(f"Invalid ENCRYPTION_KEY in environment: {str(e)}")
+
         key_file = 'totp_encryption.key'
         if os.path.exists(key_file):
             with open(key_file, 'rb') as f:
                 return f.read()
         else:
+            from cryptography.fernet import Fernet
             key = Fernet.generate_key()
             with open(key_file, 'wb') as f:
                 f.write(key)

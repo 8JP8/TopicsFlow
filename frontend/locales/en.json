@@ -251,7 +251,8 @@
     "userNotFound": "User not found",
     "loadingFailed": "Failed to load user data",
     "pageNotFound": "Page Not Found",
-    "pageNotFoundDesc": "Looks like this discussion topic doesn't exist yet, or maybe it wandered off into the void.",
+    "pageNotFoundDesc": "Looks like this page doesn't exist yet, or maybe it wandered off into the void.",
+    "didYouMean": "Did you mean?",
     "whereAreWe": "Where are we?"
   },
   "success": {
