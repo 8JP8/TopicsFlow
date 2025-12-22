@@ -148,9 +148,26 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({
                             )}
                         </>
                     ) : (
-                        <span className="text-xs theme-text-muted truncate max-w-[150px]" title={activeCall.room_name}>
-                            {activeCall.room_name || 'Voice Call'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs theme-text-muted truncate max-w-[150px]" title={activeCall.room_name}>
+                                {activeCall.room_name || 'Voice Call'}
+                            </span>
+                            {onDock && isDocked && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onDock();
+                                    }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                                    title={t('voip.undock') || "Undock"}
+                                >
+                                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

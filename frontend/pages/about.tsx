@@ -97,7 +97,7 @@ export default function About() {
                                 <>
                                     <Link
                                         href="/"
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group no-underline hover:no-underline"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white hover:text-white active:text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group no-underline hover:no-underline"
                                     >
                                         <span className="mr-2">{t('about.goToDashboard') || 'Go to Dashboard'}</span>
                                         <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
@@ -113,7 +113,7 @@ export default function About() {
                                 <>
                                     <Link
                                         href="/login"
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 no-underline hover:no-underline"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white hover:text-white active:text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 no-underline hover:no-underline"
                                     >
                                         {t('auth.login')} / {t('auth.register')}
                                     </Link>

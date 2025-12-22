@@ -207,9 +207,9 @@ const LoginPage: React.FC = () => {
         <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
-      <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4">
+      <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4 pt-24">
         {/* Fixed Header with Controls */}
-        <div className="fixed top-0 left-0 right-0 z-50 p-4">
+        <div className="fixed top-0 left-0 right-0 z-50 p-4 theme-bg-primary bg-opacity-90 dark:bg-opacity-90 backdrop-blur-md border-b theme-border">
           <div className="flex justify-between items-center">
             <Link href="/about" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline">
               <img

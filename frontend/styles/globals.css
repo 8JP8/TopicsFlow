@@ -241,7 +241,10 @@ textarea::placeholder {
 
 /* Message bubble styles - Matching login page theme */
 .message-bubble {
-  @apply max-w-xs lg:max-w-md px-4 py-2;
+  /* Allow long messages (no spaces) to wrap instead of overflowing */
+  @apply max-w-xs lg:max-w-md px-4 py-2 break-words whitespace-pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   border-radius: 0.5rem;
   /* rounded-lg: 8px */
 }

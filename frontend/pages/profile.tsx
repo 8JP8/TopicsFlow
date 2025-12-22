@@ -26,6 +26,8 @@ const Profile: React.FC = () => {
   const [previewBanner, setPreviewBanner] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [removeBanner, setRemoveBanner] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +109,7 @@ const Profile: React.FC = () => {
     }
 
     setAvatarFile(file);
+    setRemoveAvatar(false); // Reset removal flag when new avatar is selected
     const reader = new FileReader();
     reader.onload = () => setPreviewAvatar(reader.result as string);
     reader.readAsDataURL(file);
@@ -122,6 +125,7 @@ const Profile: React.FC = () => {
     }
 
     setBannerFile(file);
+    setRemoveBanner(false); // Reset removal flag when new banner is selected
     const reader = new FileReader();
     reader.onload = () => setPreviewBanner(reader.result as string);
     reader.readAsDataURL(file);
@@ -130,11 +134,13 @@ const Profile: React.FC = () => {
   const handleRemoveAvatar = () => {
     setPreviewAvatar(null);
     setAvatarFile(null);
+    setRemoveAvatar(true); // Mark for removal
   };
 
   const handleRemoveBanner = () => {
     setPreviewBanner(null);
     setBannerFile(null);
+    setRemoveBanner(true); // Mark for removal
   };
 
   const handleSave = async () => {
@@ -143,11 +149,12 @@ const Profile: React.FC = () => {
     setLoading(true);
     try {
       // Update profile
+      // Send null explicitly for removal, undefined to keep current, or value to update
       const response = await api.put(API_ENDPOINTS.USERS.PROFILE, {
         username: username.trim(),
         country_code: countryCode || null,
-        profile_picture: previewAvatar,
-        banner: previewBanner,
+        profile_picture: removeAvatar ? null : (previewAvatar || undefined),
+        banner: removeBanner ? null : (previewBanner || undefined),
       });
 
       if (response.data.success) {
@@ -156,9 +163,12 @@ const Profile: React.FC = () => {
           ...user,
           username: username.trim(),
           country_code: countryCode || undefined,
-          profile_picture: previewAvatar || undefined,
-          banner: previewBanner || undefined,
+          profile_picture: removeAvatar ? undefined : (previewAvatar || undefined),
+          banner: removeBanner ? undefined : (previewBanner || undefined),
         });
+        // Reset removal flags after successful save
+        setRemoveAvatar(false);
+        setRemoveBanner(false);
       } else {
         toast.error(response.data.error || t('profile.updateFailed') || 'Failed to update profile');
       }
@@ -225,7 +235,7 @@ const Profile: React.FC = () => {
                 />
                 <button
                   onClick={() => avatarInputRef.current?.click()}
-                  className="px-4 py-2 btn btn-ghost"
+                  className="px-4 py-2 theme-bg-secondary theme-text-primary rounded-lg hover:theme-bg-tertiary transition-colors"
                 >
                   {t('profile.uploadPhoto') || 'Upload Photo'}
                 </button>
@@ -271,7 +281,7 @@ const Profile: React.FC = () => {
               />
               <button
                 onClick={() => bannerInputRef.current?.click()}
-                className="px-4 py-2 btn btn-ghost"
+                className="px-4 py-2 theme-bg-secondary theme-text-primary rounded-lg hover:theme-bg-tertiary transition-colors"
               >
                 {t('profile.uploadBanner') || 'Upload Banner'}
               </button>

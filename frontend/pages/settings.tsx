@@ -547,9 +547,9 @@ const Settings: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center space-x-4 text-xs theme-text-muted mt-2 ml-11">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs theme-text-muted mt-2 ml-11">
                               <span>{identity.message_count} {t('settings.messages') || 'messages'}</span>
-                              <span>•</span>
+                              <span className="hidden sm:inline">•</span>
                               <span>{t('anonymousIdentities.createdAt')} {formatDate(identity.created_at)}</span>
                             </div>
                           </div>
@@ -672,39 +672,47 @@ const Settings: React.FC = () => {
                       <h4 className="font-medium theme-text-primary">{t('settings.enableBrowserNotifications')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.enableBrowserNotificationsDesc')}</p>
                     </div>
-                    <button
-                      onClick={async () => {
-                        if (!preferences.browser_notifications_enabled) {
-                          // Check if browser supports notifications
-                          if (typeof window !== 'undefined' && 'Notification' in window) {
-                            const permission = Notification.permission;
-                            if (permission === 'default') {
-                              // Show permission dialog
-                              setShowNotificationDialog(true);
-                              return;
-                            } else if (permission === 'granted') {
-                              // Already granted, just enable
-                              handlePreferenceChange('browser_notifications_enabled', true);
+                    <div className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2">
+                      <input
+                        type="checkbox"
+                        checked={preferences.browser_notifications_enabled || false}
+                        onChange={async () => {
+                          if (!preferences.browser_notifications_enabled) {
+                            // Check if browser supports notifications
+                            if (typeof window !== 'undefined' && 'Notification' in window) {
+                              const permission = Notification.permission;
+                              if (permission === 'default') {
+                                // Show permission dialog
+                                setShowNotificationDialog(true);
+                                return;
+                              } else if (permission === 'granted') {
+                                // Already granted, just enable
+                                handlePreferenceChange('browser_notifications_enabled', true);
+                              } else {
+                                // Permission denied, inform user
+                                toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
+                              }
                             } else {
-                              // Permission denied, inform user
-                              toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
+                              toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
                             }
                           } else {
-                            toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
+                            // Disable browser notifications
+                            handlePreferenceChange('browser_notifications_enabled', false);
                           }
-                        } else {
-                          // Disable browser notifications
-                          handlePreferenceChange('browser_notifications_enabled', false);
-                        }
-                      }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                    >
+                        }}
+                        className="sr-only"
+                        role="switch"
+                        aria-checked={preferences.browser_notifications_enabled || false}
+                      />
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
+                        className={`absolute inset-0 rounded-full transition-colors duration-200 ease-in-out ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                       />
-                    </button>
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out z-10 ${preferences.browser_notifications_enabled ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between">

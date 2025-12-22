@@ -1418,8 +1418,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         }}
                       />
                     )}
-                    <div className={`max-w-xs lg:max-w-md ${message.is_from_me ? 'order-first' : ''
-                      }`}>
+                    <div className={`w-full max-w-[85%] min-w-0 ${message.is_from_me ? 'order-first' : ''}`}>
                       {!message.is_from_me && (
                         <div className="flex items-center space-x-2 mb-1">
                           <span
@@ -1481,13 +1480,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             <img
                               src={message.gif_url}
                               alt="GIF"
-                              className="max-w-xs rounded-lg"
+                              className="max-w-full h-auto rounded-lg"
                               loading="lazy"
                             />
                           </div>
                         ) : null}
                         {message.attachments && message.attachments.length > 0 ? (
-                          <div className="flex flex-col space-y-2 mb-2 items-center">
+                          <div className="flex flex-col space-y-2 mb-2 items-stretch">
                             {message.attachments.map((attachment, idx) => {
                               const attachmentKey = attachment.url || attachment.filename || `attachment-${idx}`;
                               if (attachment.type === 'image') {
@@ -1496,7 +1495,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                                     key={attachmentKey}
                                     src={attachment.url}
                                     alt={attachment.filename}
-                                    className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                    className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                     onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename })}
                                   />
                                 );
@@ -1506,7 +1505,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                                     key={attachmentKey}
                                     src={attachment.url}
                                     filename={attachment.filename}
-                                    className="max-w-xs h-48"
+                                    className="w-full max-w-full"
                                   />
                                 );
                               } else {

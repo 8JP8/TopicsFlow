@@ -1399,10 +1399,25 @@ def update_chat_picture(room_id):
         if permission_level < 2:  # Only owner (3) or moderator (2) can update
             return jsonify({'success': False, 'errors': ['Only the owner or moderator can update the picture']}), 403
 
+        # Process picture - use imgbb for large images
+        processed_picture = picture
+        if picture:
+            from utils.imgbb_upload import process_image_for_storage
+            image_result = process_image_for_storage(picture)
+            if image_result['success']:
+                if image_result['source'] == 'imgbb':
+                    processed_picture = image_result['url']
+                    logger.info(f"Using imgbb URL for large image: {processed_picture[:50]}...")
+                else:
+                    processed_picture = image_result['data']
+            else:
+                logger.error(f"Failed to process image: {image_result.get('error')}")
+                return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
+
         # Update picture
         result = chat_room_model.collection.update_one(
             {'_id': ObjectId(room_id)},
-            {'$set': {'picture': picture}}
+            {'$set': {'picture': processed_picture}}
         )
 
         if result.modified_count > 0:
@@ -1436,13 +1451,28 @@ def update_chat_background(room_id):
         data = request.get_json()
         background_picture = data.get('background_picture')
         
-        # Darken the background image before storing
+        # Process background picture - use imgbb for large images
+        processed_background = background_picture
         if background_picture:
+            # Darken the background image before processing
             from utils.image_compression import darken_image_base64
             darkened_image = darken_image_base64(background_picture, darkness_factor=0.6)
             if darkened_image:
                 background_picture = darkened_image
                 logger.info("Background image darkened before storage")
+            
+            # Use imgbb for large images
+            from utils.imgbb_upload import process_image_for_storage
+            image_result = process_image_for_storage(background_picture)
+            if image_result['success']:
+                if image_result['source'] == 'imgbb':
+                    processed_background = image_result['url']
+                    logger.info(f"Using imgbb URL for large background image: {processed_background[:50]}...")
+                else:
+                    processed_background = image_result['data']
+            else:
+                logger.error(f"Failed to process background image: {image_result.get('error')}")
+                return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500
 
         chat_room_model = ChatRoom(current_app.db)
         room = chat_room_model.get_chat_room_by_id(room_id)
@@ -1458,7 +1488,7 @@ def update_chat_background(room_id):
         # Update background picture
         result = chat_room_model.collection.update_one(
             {'_id': ObjectId(room_id)},
-            {'$set': {'background_picture': background_picture}}
+            {'$set': {'background_picture': processed_background}}
         )
 
         if result.modified_count > 0:

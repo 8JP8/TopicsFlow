@@ -145,7 +145,7 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                             </div>
 
                             {/* Right Side: Mockup */}
-                            <div className="w-full md:w-7/12 p-10 flex items-center justify-center bg-slate-950/60 relative border-l border-white/5 overflow-hidden">
+                            <div className="w-full md:w-7/12 p-10 flex items-center justify-center bg-slate-950/60 relative border-l border-white/5 overflow-x-auto md:overflow-hidden overflow-y-auto">
                                 {/* Decorative background glow */}
                                 <div className="absolute inset-0 opacity-30 pointer-events-none">
                                     <div
@@ -160,9 +160,9 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                                     animate={{ scale: 1, opacity: 1, rotateY: 0 }}
                                     exit={{ scale: 0.8, opacity: 0, rotateY: 10 }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 100 }}
-                                    className="w-full h-full relative z-10 flex items-center justify-center"
+                                    className="w-full h-full min-h-[400px] md:min-h-0 relative z-10 flex items-center justify-center"
                                 >
-                                    <div className="w-full h-full max-w-[500px] max-h-[500px] bg-slate-900/40 rounded-[3rem] border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden ring-1 ring-white/5">
+                                    <div className="w-full h-full min-h-[400px] max-w-[500px] max-h-[500px] bg-slate-900/40 rounded-[3rem] border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden ring-1 ring-white/5">
                                         <Mockup />
                                     </div>
                                 </motion.div>

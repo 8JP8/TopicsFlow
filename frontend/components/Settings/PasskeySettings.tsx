@@ -61,10 +61,11 @@ const PasskeySettings: React.FC = () => {
         try {
             if (!user) return;
             setIsAdding(true);
-            // 1. Verify TOTP first
+            // 1. Verify TOTP first (general verification, not setup)
             const verifyRes = await api.post(API_ENDPOINTS.AUTH.VERIFY_TOTP, {
                 user_id: user.id,
-                totp_code: tokenToVerify
+                totp_code: tokenToVerify,
+                is_setup: false
             });
 
             if (!verifyRes.data.success) {

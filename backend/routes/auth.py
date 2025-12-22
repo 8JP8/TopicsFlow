@@ -103,11 +103,12 @@ def register():
 @require_json
 @rate_limit('10/minute')
 def verify_totp():
-    """Verify TOTP setup and enable 2FA."""
+    """Verify TOTP code - handles both setup and general verification."""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
         totp_code = data.get('totp_code', '')
+        is_setup = data.get('is_setup', False)  # True for initial setup, False for general verification
 
         if not user_id or not validate_totp_code(totp_code):
             return jsonify({'success': False, 'errors': ['Invalid user ID or TOTP code']}), 400
@@ -115,7 +116,21 @@ def verify_totp():
         from flask import current_app
         auth_service = AuthService(current_app.db)
 
-        result = auth_service.verify_totp_setup(user_id, totp_code)
+        # Check if user is authenticated (for general verification)
+        if not is_setup:
+            current_user_result = auth_service.get_current_user()
+            if current_user_result['success']:
+                # Use authenticated user's ID
+                user_id = current_user_result['user']['id']
+            else:
+                # For passkey setup, allow user_id from request if provided
+                pass
+
+        # Use appropriate verification method
+        if is_setup:
+            result = auth_service.verify_totp_setup(user_id, totp_code)
+        else:
+            result = auth_service.verify_totp_code(user_id, totp_code)
 
         if result['success']:
             return jsonify(result), 200
@@ -123,7 +138,7 @@ def verify_totp():
             return jsonify(result), 400
 
     except Exception as e:
-        logger.error(f"TOTP verification error: {str(e)}")
+        logger.error(f"TOTP verification error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'errors': ['Verification failed. Please try again.']}), 500
 
 
@@ -753,17 +768,26 @@ def complete_recovery_totp():
     """Complete TOTP setup after recovery."""
     try:
         data = request.get_json()
-        user_id = data.get('user_id')
+        email = data.get('email', '').strip()
         totp_code = data.get('totp_code', '')
-        new_secret = data.get('new_secret', '')
+        new_secret = data.get('new_secret', '')  # Optional, can be retrieved from user record
 
-        if not user_id or not totp_code or not new_secret:
-            return jsonify({'success': False, 'errors': ['User ID, TOTP code, and new secret are required']}), 400
+        if not email or not totp_code:
+            return jsonify({'success': False, 'errors': ['Email and TOTP code are required']}), 400
 
         from flask import current_app
         auth_service = AuthService(current_app.db)
 
-        result = auth_service.complete_recovery_totp_setup(user_id, totp_code, new_secret)
+        # Get user_id from email
+        from models.user import User
+        user_model = User(current_app.db)
+        user = user_model.get_user_by_email(email.lower().strip())
+        if not user:
+            return jsonify({'success': False, 'errors': ['User not found']}), 404
+
+        user_id = str(user['_id'])
+
+        result = auth_service.complete_recovery_totp_setup(user_id, totp_code, new_secret if new_secret else None)
 
         if result['success']:
             return jsonify(result), 200
@@ -869,11 +893,13 @@ def passkey_register_options():
         # Check if user is authenticated
         current_user_result = auth_service.get_current_user()
         if current_user_result['success']:
-             user_id = current_user_result['user']['id']
+            user_id = current_user_result['user']['id']
+            logger.info(f"Passkey registration options: Authenticated user {user_id}")
         else:
             # If not authenticated, check if email/user_id is provided in body (for registration flow)
             if not user_id and not email:
-                 return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+                logger.warning("Passkey registration options: No authentication and no user_id/email provided")
+                return jsonify({'success': False, 'errors': ['Authentication required']}), 401
             
             # If email provided, look up user
             if email and not user_id:
@@ -881,19 +907,27 @@ def passkey_register_options():
                 user_model = User(current_app.db)
                 user = user_model.get_user_by_email(email)
                 if not user:
+                    logger.warning(f"Passkey registration options: User not found for email {email}")
                     return jsonify({'success': False, 'errors': ['User not found']}), 404
                 user_id = str(user['_id'])
+                logger.info(f"Passkey registration options: Found user {user_id} by email")
+
+        if not user_id:
+            logger.error("Passkey registration options: No user_id available")
+            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
 
         result = auth_service.generate_passkey_registration_options(user_id)
 
         if result['success']:
+            logger.info(f"Passkey registration options generated successfully for user {user_id}")
             return jsonify(result), 200
         else:
+            logger.error(f"Passkey registration options failed: {result.get('errors', [])}")
             return jsonify(result), 400
 
     except Exception as e:
-        logger.error(f"Passkey registration options error: {str(e)}")
-        return jsonify({'success': False, 'errors': ['Failed to generate passkey options']}), 500
+        logger.error(f"Passkey registration options error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': [f'Failed to generate passkey options: {str(e)}']}), 500
 
 
 @auth_bp.route('/passkey/register-verify', methods=['POST'])

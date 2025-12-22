@@ -644,8 +644,7 @@ const PrivateMessages: React.FC = () => {
                           size="sm"
                         />
                       )}
-                      <div className={`max-w-xs lg:max-w-md ${message.is_from_me ? 'order-first' : ''
-                        }`}>
+                      <div className={`w-full max-w-[85%] min-w-0 ${message.is_from_me ? 'order-first' : ''}`}>
                         <div
                           className={`message-bubble ${message.is_from_me ? 'message-bubble-own' : 'message-bubble-other'
                             }`}

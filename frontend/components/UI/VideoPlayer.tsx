@@ -27,6 +27,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+  const [uiDensity, setUiDensity] = useState<'normal' | 'compact' | 'tiny'>('normal');
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +56,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('pause', handlePause);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
+  }, []);
+
+  // Adapt control sizes based on available height (DM/video embeds can be very short)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const h = entry?.contentRect?.height ?? el.getBoundingClientRect().height;
+
+      // Tune thresholds to avoid overlap in cramped UI
+      if (h < 180) setUiDensity('tiny');
+      else if (h < 260) setUiDensity('compact');
+      else setUiDensity('normal');
+    });
+
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   const togglePlay = () => {
@@ -143,13 +164,46 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     },
   ];
 
+  // If the caller doesn't provide an explicit height, prefer intrinsic aspect ratio
+  // so the video doesn't consume unnecessary vertical space.
+  const hasExplicitHeight =
+    /(^|\s)h-/.test(className) ||
+    /(^|\s)min-h-/.test(className) ||
+    /(^|\s)max-h-/.test(className) ||
+    className.includes('h[') ||
+    className.includes('h-[');
+
+  const overlayPadding =
+    uiDensity === 'tiny'
+      ? 'pt-3 pb-1 px-1.5'
+      : uiDensity === 'compact'
+        ? 'pt-4 pb-1.5 px-2'
+        : 'pt-6 sm:pt-8 pb-2 sm:pb-3 px-2 sm:px-3';
+
+  const playButtonPadding =
+    uiDensity === 'tiny' ? 'p-1.5' : uiDensity === 'compact' ? 'p-2' : 'p-2 sm:p-3';
+
+  const playIconSize =
+    uiDensity === 'tiny' ? 'w-5 h-5' : uiDensity === 'compact' ? 'w-6 h-6' : 'w-6 h-6 sm:w-8 sm:h-8';
+
+  const iconSize =
+    uiDensity === 'tiny' ? 'w-3 h-3' : uiDensity === 'compact' ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 sm:w-5 sm:h-5';
+
+  const timeText =
+    uiDensity === 'tiny'
+      ? `${formatTime(currentTime)}`
+      : `${formatTime(currentTime)}/${formatTime(duration)}`;
+
+  const progressMargin =
+    uiDensity === 'tiny' ? 'mb-2' : uiDensity === 'compact' ? 'mb-3' : 'mb-4';
+
   return (
     <div ref={containerRef} className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
       <video
         ref={videoRef}
         src={src}
         poster={poster}
-        className="w-full h-full object-contain"
+        className={`w-full ${hasExplicitHeight ? 'h-full' : 'h-auto'} object-contain`}
         onClick={togglePlay}
         onContextMenu={handleContextMenu}
       />
@@ -160,24 +214,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           {/* Play/Pause Button */}
           <button
             onClick={togglePlay}
-            className="opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 rounded-full p-3 text-white hover:bg-opacity-70"
+            className={`opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 rounded-full ${playButtonPadding} text-white hover:bg-opacity-70`}
           >
             {isPlaying ? (
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+              <svg className={playIconSize} fill="currentColor" viewBox="0 0 24 24">
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
             ) : (
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+              <svg className={playIconSize} fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
             )}
           </button>
 
           {/* Bottom Controls Bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent pt-8 pb-3 px-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent ${overlayPadding} opacity-0 group-hover:opacity-100 transition-opacity`}>
             {/* Custom Progress Bar */}
             <div
-              className="relative w-full h-1 group/progress cursor-pointer mb-4 flex items-center"
+              className={`relative w-full h-1 group/progress cursor-pointer ${progressMargin} flex items-center`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -230,16 +284,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               />
             </div>
 
-            {/* Time, Download, and Fullscreen */}
-            <div className="flex items-center justify-between text-white text-sm">
-              <span className="font-medium text-xs">{formatTime(currentTime)} / {formatTime(duration)}</span>
-              <div className="flex items-center gap-3">
+            {/* Time + Actions (responsive: stack on cramped layouts) */}
+            <div className={`flex flex-col ${uiDensity === 'tiny' ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between sm:gap-2 text-white`}>
+              <span className={`font-medium whitespace-nowrap leading-none ${uiDensity === 'tiny' ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}>
+                {timeText}
+              </span>
+              <div className={`flex items-center ${uiDensity === 'tiny' ? 'gap-1' : 'gap-1.5 sm:gap-3'} flex-shrink-0 self-end`}>
                 <button
                   onClick={handleDownload}
-                  className="hover:text-blue-400 transition-colors"
+                  className="hover:text-blue-400 transition-colors p-1.5 sm:p-0"
                   title={t('common.download') || 'Download'}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={iconSize} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </button>
@@ -248,7 +304,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   className="hover:text-blue-400 transition-colors"
                   title={t('common.fullscreen') || 'Fullscreen'}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={iconSize} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                   </svg>
                 </button>

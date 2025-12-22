@@ -24,6 +24,7 @@ import { VoipButton, VoipControlBar } from '@/components/Voip';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName } from '@/utils/anonymousStorage';
+import { analyzeImageBrightness, getTextColorClass } from '@/utils/imageBrightness';
 
 interface Message {
   id: string;
@@ -161,6 +162,8 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const [chatContextMenu, setChatContextMenu] = useState<{ x: number, y: number } | null>(null);
   const [reportType, setReportType] = useState<'chatroom' | 'chatroom_background' | 'chatroom_picture' | null>(null);
   const [viewingImage, setViewingImage] = useState<{ url: string, filename: string } | null>(null);
+  const [isBackgroundDark, setIsBackgroundDark] = useState<boolean | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
 
   // Interaction State
@@ -256,6 +259,53 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
       loadRoomData();
     }
   }, [room?.id]);
+
+  // Analyze background image brightness when background changes
+  useEffect(() => {
+    const analyzeBackground = async () => {
+      if (roomData?.background_picture) {
+        try {
+          // Get image URL (handle both base64 and URLs)
+          let imageUrl = roomData.background_picture;
+          if (!imageUrl.startsWith('data:') && !imageUrl.startsWith('http')) {
+            // Assume it's base64, add data URL prefix
+            imageUrl = `data:image/jpeg;base64,${imageUrl}`;
+          }
+          
+          const isDark = await analyzeImageBrightness(imageUrl);
+          setIsBackgroundDark(isDark);
+        } catch (error) {
+          console.error('Failed to analyze background brightness:', error);
+          // Default to dark if analysis fails
+          setIsBackgroundDark(true);
+        }
+      } else {
+        // No background, reset
+        setIsBackgroundDark(null);
+      }
+    };
+
+    analyzeBackground();
+  }, [roomData?.background_picture]);
+
+  // Detect theme
+  useEffect(() => {
+    const detectTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark') || 
+                    document.documentElement.getAttribute('data-theme') === 'dark';
+      setTheme(isDark ? 'dark' : 'light');
+    };
+    
+    detectTheme();
+    // Watch for theme changes
+    const observer = new MutationObserver(detectTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Load messages
   useEffect(() => {
@@ -806,7 +856,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span
-                          className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:underline"
+                          className={`font-medium cursor-pointer hover:underline ${
+                            isBackgroundDark !== null 
+                              ? getTextColorClass(isBackgroundDark, theme === 'light')
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`}
                           onClick={(e) => {
                             if (message.user_id) {
                               const rect = e?.currentTarget?.getBoundingClientRect();
@@ -840,7 +894,13 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                           isModerator={message.is_moderator}
                           isAnonymous={message.is_anonymous}
                         />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className={`text-xs ${
+                          isBackgroundDark !== null 
+                            ? isBackgroundDark 
+                              ? 'text-gray-300' 
+                              : 'text-gray-600'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           {new Date(message.created_at).toLocaleTimeString()}
                         </span>
                       </div>
@@ -900,7 +960,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                               }
                             })}
                             {message.content && message.content !== '[Attachment]' && (
-                              <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              <div className={`whitespace-pre-wrap ${
+                                isBackgroundDark !== null 
+                                  ? getTextColorClass(isBackgroundDark, theme === 'light')
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>
                                 {message.content.split(/(@\w+)/g).map((part, idx) => {
                                   if (part.startsWith('@')) {
                                     const username = part.substring(1);
@@ -923,7 +987,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                             )}
                           </div>
                         ) : (
-                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                          <div className={`whitespace-pre-wrap ${
+                            isBackgroundDark !== null 
+                              ? getTextColorClass(isBackgroundDark, theme === 'light')
+                              : 'text-gray-700 dark:text-gray-300'
+                          }`}>
                             {message.content.split(/(@\w+)/g).map((part, idx) => {
                               if (part.startsWith('@')) {
                                 const username = part.substring(1);

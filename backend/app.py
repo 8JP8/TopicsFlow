@@ -197,11 +197,21 @@ def create_app(config_name=None):
             if path != "" and os.path.exists(os.path.join(static_folder, path)):
                 return send_from_directory(static_folder, path)
 
+            # Check for 404.html first
+            not_found_path = os.path.join(static_folder, '404.html')
+            if path == '404' or path == '404.html':
+                if os.path.exists(not_found_path):
+                    return send_file(not_found_path), 404
+            
             # Serve index.html for all other routes (SPA)
             index_path = os.path.join(static_folder, 'index.html')
             if os.path.exists(index_path):
                 return send_file(index_path)
 
+            # If we get here and it's a 404 request, return 404.html
+            if os.path.exists(not_found_path):
+                return send_file(not_found_path), 404
+            
             from flask import abort
             abort(404)
     else:
@@ -398,6 +408,22 @@ def create_db_indexes(app):
 
         # Anonymous identities collection indexes
         db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)
+
+        # Friends collection indexes (for Azure Cosmos DB compatibility)
+        try:
+            db.friends.create_index([("from_user_id", 1), ("status", 1), ("updated_at", -1)])
+            db.friends.create_index([("to_user_id", 1), ("status", 1), ("updated_at", -1)])
+            db.friends.create_index([("from_user_id", 1), ("status", 1)])
+            db.friends.create_index([("to_user_id", 1), ("status", 1)])
+        except Exception as e:
+            logger.warning(f"Failed to create some friends indexes (may already exist): {e}")
+
+        # Comments composite index for order-by queries (Azure Cosmos DB)
+        try:
+            db.comments.create_index([("post_id", 1), ("upvote_count", -1), ("created_at", -1)])
+            db.comments.create_index([("post_id", 1), ("created_at", -1), ("upvote_count", -1)])
+        except Exception as e:
+            logger.warning(f"Failed to create some comments indexes (may already exist): {e}")
 
         logger.info("Database indexes created successfully")
 

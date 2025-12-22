@@ -115,7 +115,7 @@ const TopicCreate: React.FC<TopicCreateProps> = ({ onCancel, onClose, onTopicCre
 
       const topicData = {
         title: formData.title.trim(),
-        description: formData.description.trim(),
+        description: formData.description.trim() || '', // Ensure empty string if description is empty
         tags,
         allow_anonymous: formData.allow_anonymous,
         require_approval: formData.require_approval,

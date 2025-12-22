@@ -144,6 +144,26 @@ class AuthService:
         else:
             return {'success': False, 'errors': ['Failed to enable 2FA']}
 
+    def verify_totp_code(self, user_id: str, totp_code: str) -> dict:
+        """Verify TOTP code for general verification (e.g., for passkey setup)."""
+        if not totp_code or len(totp_code) != 6:
+            return {'success': False, 'errors': ['Invalid verification code']}
+
+        # Check if TOTP is enabled
+        user = self.user_model.get_user_by_id(user_id)
+        if not user:
+            return {'success': False, 'errors': ['User not found']}
+
+        totp_enabled = user.get('totp_enabled', False)
+        if not totp_enabled:
+            return {'success': False, 'errors': ['2FA is not enabled. Please enable 2FA first.']}
+
+        # Verify TOTP code (require_enabled=True for already-enabled TOTP)
+        if not self.user_model.verify_totp(user_id, totp_code, require_enabled=True):
+            return {'success': False, 'errors': ['Invalid verification code']}
+
+        return {'success': True, 'message': 'TOTP code verified successfully'}
+
     def login_user(self, username: str, password: str, totp_code: str, ip_address: str = None) -> dict:
         """Authenticate user with username, password, and TOTP code."""
         validation_errors = []
@@ -817,13 +837,14 @@ class AuthService:
         except Exception as e:
             return {'success': False, 'errors': ['Failed to reset 2FA']}
 
-    def complete_recovery_totp_setup(self, user_id: str, totp_code: str, new_secret: str) -> dict:
+    def complete_recovery_totp_setup(self, user_id: str, totp_code: str, new_secret: str = None) -> dict:
         """Complete TOTP setup after recovery."""
         if not totp_code or len(totp_code) != 6:
             return {'success': False, 'errors': ['Invalid verification code']}
 
-        # Verify TOTP code
-        if not self.user_model.verify_totp(user_id, totp_code):
+        # Verify TOTP code without requiring it to be enabled (like initial setup)
+        # After recovery, TOTP is reset but not yet enabled
+        if not self.user_model.verify_totp(user_id, totp_code, require_enabled=False):
             return {'success': False, 'errors': ['Invalid authentication code']}
 
         # Enable TOTP
@@ -833,8 +854,19 @@ class AuthService:
         # Generate new backup codes
         backup_codes = self.user_model.generate_backup_codes(user_id)
 
-        # Store new original secret for future recovery
-        self.user_model.store_original_totp_secret(user_id, new_secret)
+        # Store new original secret for future recovery if provided
+        if new_secret:
+            self.user_model.store_original_totp_secret(user_id, new_secret)
+        else:
+            # Get the current secret from user record
+            user = self.user_model.get_user_by_id(user_id)
+            if user and user.get('totp_secret'):
+                # Decrypt to get plain secret for storage
+                from models.user import User
+                user_model = User(self.user_model.db)
+                decrypted_secret = user_model._decrypt_totp_secret(user['totp_secret'])
+                if decrypted_secret:
+                    self.user_model.store_original_totp_secret(user_id, decrypted_secret)
 
         return {
             'success': True,
