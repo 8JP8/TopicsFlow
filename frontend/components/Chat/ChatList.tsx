@@ -406,8 +406,13 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
             }}
             onHide={async (chatId) => {
               try {
-                // TODO: Add API endpoint for hiding chats
-                toast.error('Chat hiding not yet implemented');
+                const response = await api.post(API_ENDPOINTS.CONTENT_SETTINGS.HIDE_CHAT(chatId));
+                if (response.data.success) {
+                  setHiddenChats(prev => new Set([...prev, chatId]));
+                  toast.success(t('chat.chatHidden') || 'Chat hidden');
+                } else {
+                  toast.error(response.data.errors?.[0] || t('errors.generic'));
+                }
               } catch (error: any) {
                 toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
               }
