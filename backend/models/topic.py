@@ -454,17 +454,36 @@ class Topic:
         if not topic:
             return 0
 
+        return self.calculate_permission_level(topic, user_id)
+
+    def calculate_permission_level(self, topic: Dict[str, Any], user_id: str) -> int:
+        """Calculate user's permission level in topic using provided topic data."""
+        if not topic:
+            return 0
+
         # Check if owner
-        if topic['owner_id'] == ObjectId(user_id):
+        # owner_id might be string or ObjectId depending on source
+        owner_id = topic.get('owner_id')
+        if str(owner_id) == str(user_id):
             return 3
 
         # Check if moderator
+        # moderators list might contain dicts or IDs
         for mod in topic.get('moderators', []):
-            if mod['user_id'] == ObjectId(user_id):
+            if isinstance(mod, dict):
+                mod_id = mod.get('user_id')
+            else:
+                mod_id = mod
+
+            if str(mod_id) == str(user_id):
                 return 2
 
         # Check if member
-        if ObjectId(user_id) in topic.get('members', []):
+        # members is list of IDs
+        members = topic.get('members', [])
+        # Convert all to strings for comparison
+        member_ids = [str(m) for m in members]
+        if str(user_id) in member_ids:
             return 1
 
         return 0
