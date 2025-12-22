@@ -57,6 +57,15 @@ def get_topic_conversations(topic_id):
             search=search if search else None
         )
 
+        # Filter hidden chats if user is authenticated
+        if user_id:
+            from models.user_content_settings import UserContentSettings
+            settings_model = UserContentSettings(current_app.db)
+            hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, topic_id)
+
+            if hidden_chat_ids:
+                rooms = [room for room in rooms if room['id'] not in hidden_chat_ids]
+
         return jsonify({
             'success': True,
             'data': rooms
@@ -151,6 +160,14 @@ def get_user_group_chats():
         
         chat_room_model = ChatRoom(current_app.db)
         rooms = chat_room_model.get_group_chats(user_id)
+
+        # Filter hidden chats
+        from models.user_content_settings import UserContentSettings
+        settings_model = UserContentSettings(current_app.db)
+        hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, None)
+
+        if hidden_chat_ids:
+            rooms = [room for room in rooms if room['id'] not in hidden_chat_ids]
 
         return jsonify({
             'success': True,
