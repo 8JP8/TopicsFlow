@@ -293,6 +293,28 @@ def create_app(config_name=None):
 
     return app
 
+def cleanup_temp_files(app):
+    """Cleanup temporary files (like QR codes) on startup."""
+    try:
+        from services.file_storage import FileStorageService
+
+        logger.info("Cleaning up old temporary files...")
+
+        # Initialize storage service
+        use_azure = app.config.get('USE_AZURE_STORAGE', False)
+        file_storage = FileStorageService(
+            uploads_dir=app.config.get('UPLOADS_DIR'),
+            use_azure=use_azure
+        )
+
+        # Cleanup QR codes older than 1 hour (3600 seconds)
+        count = file_storage.cleanup_old_files(prefix="totp_qr_", max_age_seconds=3600)
+
+        logger.info(f"Cleanup complete. Deleted {count} old files.")
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup temp files: {e}")
+
 def create_db_indexes(app):
     """Create database indexes for better performance."""
     try:
@@ -409,6 +431,9 @@ app = create_app()
 
 # Create database indexes
 create_db_indexes(app)
+
+# Cleanup temporary files
+cleanup_temp_files(app)
 
 if __name__ == '__main__':
 

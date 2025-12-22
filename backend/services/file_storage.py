@@ -165,12 +165,15 @@ class FileStorageService:
             logger.error(f"Error checking Azure duplicate: {e}")
             return None
     
-    def _generate_file_id(self, filename: str, file_data: bytes) -> str:
+    def _generate_file_id(self, filename: str, file_data: bytes, prefix: str = None) -> str:
         """Generate unique file ID based on hash and timestamp."""
         file_hash = self._calculate_file_hash(file_data)
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         # Use first 8 chars of hash + timestamp for unique ID
-        return f"{file_hash[:8]}_{timestamp}"
+        base_id = f"{file_hash[:8]}_{timestamp}"
+        if prefix:
+             return f"{prefix}{base_id}"
+        return base_id
     
     def _get_file_type_dir(self, mime_type: str) -> str:
         """Get subdirectory based on file type."""
@@ -182,7 +185,7 @@ class FileStorageService:
         return 'files'
     
     def store_file(self, file_data: bytes, filename: str, mime_type: str = None, 
-                   user_id: str = None) -> Tuple[str, str]:
+                   user_id: str = None, file_id_prefix: str = None) -> Tuple[str, str]:
         """
         Store file with deduplication.
         
@@ -191,21 +194,25 @@ class FileStorageService:
             filename: Original filename
             mime_type: MIME type of the file
             user_id: ID of user uploading the file (optional)
+            file_id_prefix: Optional prefix for the generated file ID
         
         Returns:
             Tuple of (file_id, file_path_or_url)
         """
         metadata = self._get_file_metadata(filename, file_data, mime_type)
         
-        # Check for duplicate
-        existing_file_id = self._check_duplicate(metadata)
-        if existing_file_id:
-            logger.info(f"Duplicate file found: {filename}, reusing existing file")
-            # Return existing file_id
-            return existing_file_id, existing_file_id
+        # Check for duplicate - only if no prefix is forced (duplicates with prefix are rare/handled by ID gen)
+        # Actually, if we want to support prefixes, we should probably skip dedup or verify if existing ID has same prefix
+        # For simplicity, if prefix is present, we skip deduplication check or assume it's unique enough for now
+        if not file_id_prefix:
+             existing_file_id = self._check_duplicate(metadata)
+             if existing_file_id:
+                 logger.info(f"Duplicate file found: {filename}, reusing existing file")
+                 # Return existing file_id
+                 return existing_file_id, existing_file_id
         
         # New file, generate ID and store
-        file_id = self._generate_file_id(filename, file_data)
+        file_id = self._generate_file_id(filename, file_data, prefix=file_id_prefix)
         
         if self.use_azure:
             stored_id = self._store_azure_file(file_id, file_data, filename, mime_type, metadata)
@@ -341,3 +348,71 @@ class FileStorageService:
             logger.error(f"Failed to delete file {file_id}: {e}")
             return False
 
+    def cleanup_old_files(self, prefix: str, max_age_seconds: int) -> int:
+        """
+        Cleanup old files starting with prefix.
+
+        Args:
+            prefix: File ID prefix to match
+            max_age_seconds: Maximum age in seconds
+
+        Returns:
+            Number of files deleted
+        """
+        count = 0
+        now = datetime.utcnow()
+
+        try:
+            if self.use_azure:
+                container_client = self.blob_service_client.get_container_client(self.container_name)
+                # List blobs matching prefix
+                # Note: This is an approximation as name_starts_with matches blob name, which is file_id.ext
+                # Since our file_id starts with prefix, this works.
+                blobs = container_client.list_blobs(name_starts_with=prefix)
+
+                for blob in blobs:
+                    # Check age
+                    creation_time = blob.creation_time.replace(tzinfo=None)
+                    age = (now - creation_time).total_seconds()
+
+                    if age > max_age_seconds:
+                        # Delete blob
+                        # We use delete_blob directly to avoid re-listing
+                        try:
+                            container_client.delete_blob(blob.name)
+                            count += 1
+                            logger.info(f"Cleaned up old Azure blob: {blob.name}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete old blob {blob.name}: {e}")
+
+            else:
+                # Local cleanup
+                # Iterate through all type directories
+                type_dirs = ['images', 'videos', 'files']
+
+                for type_dir in type_dirs:
+                    dir_path = self.uploads_dir / type_dir
+                    if not dir_path.exists():
+                        continue
+
+                    # Find files starting with prefix
+                    for file_path in dir_path.iterdir():
+                        if file_path.is_file() and file_path.name.startswith(prefix):
+                            # Check age
+                            stat = file_path.stat()
+                            mtime = datetime.utcfromtimestamp(stat.st_mtime)
+                            age = (now - mtime).total_seconds()
+
+                            if age > max_age_seconds:
+                                # Get file_id (filename without extension)
+                                file_id = file_path.stem
+
+                                # Use delete_file to handle index cleanup
+                                if self.delete_file(file_id):
+                                    count += 1
+                                    logger.info(f"Cleaned up old local file: {file_path.name}")
+
+        except Exception as e:
+            logger.error(f"Error during file cleanup: {e}")
+
+        return count
