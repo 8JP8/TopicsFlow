@@ -1067,9 +1067,11 @@ def get_totp_qrcode():
 
         from flask import current_app
         from models.user import User
+        from services.file_storage import FileStorageService
         import qrcode
         from io import BytesIO
-        import base64
+        import time
+        import hashlib
 
         user_model = User(current_app.db)
 
@@ -1099,14 +1101,41 @@ def get_totp_qrcode():
 
         img = qr.make_image(fill_color="black", back_color="white")
 
-        # Convert to base64
+        # Convert to bytes
         buffered = BytesIO()
         img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
+        img_data = buffered.getvalue()
+
+        # Store using FileStorageService (handles Azure or local)
+        # Note: This creates a persistent file in storage.
+        # Future improvement: Implement a TTL or cleanup mechanism for these temporary QR codes.
+        use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+        file_storage = FileStorageService(
+            uploads_dir=current_app.config.get('UPLOADS_DIR'),
+            use_azure=use_azure
+        )
+
+        filename = f"totp_qr_{user_id}_{int(time.time())}.png"
+
+        file_id, _ = file_storage.store_file(
+            file_data=img_data,
+            filename=filename,
+            mime_type='image/png',
+            user_id=user_id,
+            file_id_prefix='totp_qr_'
+        )
+
+        # Generate encryption key for file access
+        secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+        key_data = f"{file_id}:{secret_key}".encode('utf-8')
+        encryption_key = hashlib.sha256(key_data).hexdigest()[:16]
+
+        # Get file URL
+        qr_code_url = file_storage.get_file_url(file_id, encryption_key)
 
         return jsonify({
             'success': True,
-            'qr_code_image': f'data:image/png;base64,{img_base64}',
+            'qr_code_image': qr_code_url,
             'totp_secret': totp_secret,
             'qr_data': qr_data
         }), 200
