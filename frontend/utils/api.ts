@@ -135,6 +135,14 @@ export const API_ENDPOINTS = {
     RECOVERY_VERIFY_QUESTIONS: '/api/auth/recovery/verify-questions',
     RECOVERY_CONFIRM_TOTP: '/api/auth/recovery/confirm-totp',
     SESSION: '/api/auth/session',
+    PASSKEY: {
+      REGISTER_OPTIONS: '/api/auth/passkey/register-options',
+      REGISTER_VERIFY: '/api/auth/passkey/register-verify',
+      AUTH_OPTIONS: '/api/auth/passkey/auth-options',
+      AUTH_VERIFY: '/api/auth/passkey/auth-verify',
+      LIST: '/api/auth/passkey/list',
+      DELETE: (id: string) => `/api/auth/passkey/${id}`,
+    },
   },
 
   // Topics

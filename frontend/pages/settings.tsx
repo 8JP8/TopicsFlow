@@ -308,16 +308,6 @@ const Settings: React.FC = () => {
               {t('settings.account')}
             </button>
             <button
-              id="anonymous-identities-tab-btn"
-              onClick={() => updateTab('anonymous-identities')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'anonymous-identities'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
-                }`}
-            >
-              {t('settings.anonymousIdentities') || 'Anonymous Identities'}
-            </button>
-            <button
               id="privacy-tab-btn"
               onClick={() => updateTab('privacy')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'privacy'
@@ -326,6 +316,16 @@ const Settings: React.FC = () => {
                 }`}
             >
               {t('settings.privacy')}
+            </button>
+            <button
+              id="anonymous-identities-tab-btn"
+              onClick={() => updateTab('anonymous-identities')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'anonymous-identities'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent theme-text-secondary hover:theme-text-primary hover:border-gray-300'
+                }`}
+            >
+              {t('settings.anonymousIdentities') || 'Anonymous Identities'}
             </button>
           </nav>
         </div>
@@ -336,7 +336,10 @@ const Settings: React.FC = () => {
             <div className="space-y-8">
               {/* Profile Details Group */}
               <div>
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.profileDetails') || 'Profile Details'}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+                  {t('settings.profileDetails') || 'Profile Details'}
+                </h2>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium theme-text-primary">{t('settings.username')}</label>
@@ -367,7 +370,10 @@ const Settings: React.FC = () => {
 
               {/* Content & Safety Group */}
               <div className="pt-6 border-t theme-border">
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.contentAndSafety') || 'Content & Safety'}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-table-of-contents-icon lucide-table-of-contents"><path d="M16 5H3" /><path d="M16 12H3" /><path d="M16 19H3" /><path d="M21 5h.01" /><path d="M21 12h.01" /><path d="M21 19h.01" /></svg>
+                  {t('settings.contentAndSafety') || 'Content & Safety'}
+                </h2>
                 <div id="content-safety-group" className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                   <button
                     id="blocked-users-btn"
@@ -433,7 +439,10 @@ const Settings: React.FC = () => {
 
               {/* Danger Zone Group */}
               <div className="pt-6 border-t theme-border">
-                <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">{t('settings.dangerZone')}</h2>
+                <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-triangle-alert-icon lucide-triangle-alert"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+                  {t('settings.dangerZone')}
+                </h2>
 
                 <div className="space-y-4">
                   {/* Logout Button */}
@@ -457,7 +466,7 @@ const Settings: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-medium text-red-700 dark:text-red-300">{t('settings.deleteAccount') || 'Delete Account'}</h3>
-                        <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
+                        <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1 pr-6">
                           {t('settings.deleteAccountDesc') || 'Permanently delete your account and all data. This action cannot be undone.'}
                         </p>
                       </div>
@@ -477,7 +486,10 @@ const Settings: React.FC = () => {
           {activeTab === 'anonymous-identities' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold theme-text-primary mb-2">{t('settings.anonymousIdentities') || 'Anonymous Identities'}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-2 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-hat-glasses-icon lucide-hat-glasses"><path d="M14 18a2 2 0 0 0-4 0" /><path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11" /><path d="M2 11h20" /><circle cx="17" cy="18" r="3" /><circle cx="7" cy="18" r="3" /></svg>
+                  {t('settings.anonymousIdentities') || 'Anonymous Identities'}
+                </h2>
                 <p className="text-sm theme-text-secondary mb-6">
                   {t('anonymousIdentities.subtitle') || 'Manage your anonymous identities across different topics.'}
                 </p>
@@ -579,7 +591,10 @@ const Settings: React.FC = () => {
           {activeTab === 'preferences' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.appearance')}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-palette-icon lucide-palette"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></svg>
+                  {t('settings.appearance')}
+                </h2>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium theme-text-primary mb-2">{t('settings.theme')}</label>
@@ -630,7 +645,10 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="pt-4 border-t theme-border">
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.notifications')}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-bell-icon lucide-bell"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></svg>
+                  {t('settings.notifications')}
+                </h2>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -733,7 +751,10 @@ const Settings: React.FC = () => {
           {activeTab === 'privacy' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold theme-text-primary mb-4">{t('settings.privacy')}</h2>
+                <h2 className="text-xl font-semibold theme-text-primary mb-4 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-shield-check-icon lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
+                  {t('settings.privacy')}
+                </h2>
                 <div className="space-y-4">
                   <div className="p-4 theme-bg-tertiary rounded-lg">
                     <div className="flex items-start">
@@ -766,7 +787,10 @@ const Settings: React.FC = () => {
 
 
                   <div className="p-4 theme-bg-tertiary rounded-lg">
-                    <h4 className="font-medium theme-text-primary mb-2">{t('settings.dataPrivacy')}</h4>
+                    <h4 className="font-medium theme-text-primary mb-2 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-database-icon lucide-database"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg>
+                      {t('settings.dataPrivacy')}
+                    </h4>
                     <p className="text-sm theme-text-secondary">
                       {t('settings.dataPrivacyDesc')}
                     </p>

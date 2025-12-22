@@ -89,7 +89,7 @@ def rate_limit(limit: str):
                     pipe.execute()
 
                 except Exception as e:
-                    logger.error(f"Redis rate limit error: {e}")
+                    logger.warning(f"Redis rate limit error (using in-memory fallback): {e}")
                     # Fallback to in-memory if Redis fails
                     memory_response = _check_in_memory_limit(key, count, window)
                     if memory_response:

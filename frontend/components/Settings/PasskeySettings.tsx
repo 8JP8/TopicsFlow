@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { startRegistration } from '@simplewebauthn/browser';
+import TOTPInput from '@/components/Auth/TOTPInput';
 
 interface Passkey {
     id: string;
@@ -21,6 +22,7 @@ const PasskeySettings: React.FC = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [totpCode, setTotpCode] = useState('');
     const [showTotpModal, setShowTotpModal] = useState(false);
+    const [totpKey, setTotpKey] = useState(0); // For resetting input
 
     useEffect(() => {
         fetchPasskeys();
@@ -29,7 +31,7 @@ const PasskeySettings: React.FC = () => {
     const fetchPasskeys = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/auth/passkey/list');
+            const response = await api.get(API_ENDPOINTS.AUTH.PASSKEY.LIST);
             if (response.data.success) {
                 setPasskeys(response.data.passkeys || []);
             }
@@ -49,18 +51,20 @@ const PasskeySettings: React.FC = () => {
         setShowTotpModal(true);
     };
 
-    const verifyTotpAndRegister = async () => {
-        if (!totpCode || totpCode.length !== 6) {
+    const verifyTotpAndRegister = async (code?: string) => {
+        const tokenToVerify = code || totpCode;
+        if (!tokenToVerify || tokenToVerify.length !== 6) {
             toast.error(t('settings.invalidTotp') || 'Invalid TOTP code');
             return;
         }
 
         try {
+            if (!user) return;
             setIsAdding(true);
             // 1. Verify TOTP first
-            const verifyRes = await api.post('/auth/totp/verify', {
-                code: totpCode,
-                is_setup: false // Verifying existing TOTP setup
+            const verifyRes = await api.post(API_ENDPOINTS.AUTH.VERIFY_TOTP, {
+                user_id: user.id,
+                totp_code: tokenToVerify
             });
 
             if (!verifyRes.data.success) {
@@ -72,9 +76,10 @@ const PasskeySettings: React.FC = () => {
             // Close modal on success
             setShowTotpModal(false);
             setTotpCode('');
+            setTotpKey(prev => prev + 1);
 
             // 2. Start Passkey Registration
-            const optionsRes = await api.post('/auth/passkey/register-options', {
+            const optionsRes = await api.post(API_ENDPOINTS.AUTH.PASSKEY.REGISTER_OPTIONS, {
                 email: user?.email // Optional, backend might infer from token
             });
 
@@ -84,7 +89,7 @@ const PasskeySettings: React.FC = () => {
 
             const attResp = await startRegistration(optionsRes.data.options);
 
-            const verifyPasskeyRes = await api.post('/auth/passkey/register-verify', {
+            const verifyPasskeyRes = await api.post(API_ENDPOINTS.AUTH.PASSKEY.REGISTER_VERIFY, {
                 credential: attResp,
                 email: user?.email
             });
@@ -111,7 +116,7 @@ const PasskeySettings: React.FC = () => {
         }
 
         try {
-            const response = await api.delete(`/auth/passkey/${credentialId}`);
+            const response = await api.delete(API_ENDPOINTS.AUTH.PASSKEY.DELETE(credentialId));
             if (response.data.success) {
                 toast.success(t('settings.passkeyDeleted') || 'Passkey removed');
                 setPasskeys(passkeys.filter(pk => pk.credential_id !== credentialId));
@@ -123,19 +128,44 @@ const PasskeySettings: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-lg font-medium theme-text-primary">{t('settings.passkeys') || 'Passkeys'}</h3>
-                    <p className="text-sm theme-text-secondary">
-                        {t('settings.passkeysDesc') || 'Use existing devices to sign in without a password.'}
-                    </p>
+            <div className="flex justify-between items-start">
+                <div className="flex items-start">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="17"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-lock-keyhole theme-text-primary mr-2 mt-1"
+                        style={{ minWidth: '17px', minHeight: '20px' }}
+                    >
+                        <circle cx="12" cy="16" r="1" />
+                        <rect x="3" y="10" width="18" height="12" rx="2" />
+                        <path d="M7 10V7a5 5 0 0 1 10 0v3" />
+                    </svg>
+                    <div>
+                        <h4 className="font-medium theme-text-primary">{t('settings.passkeys') || 'Passkeys'}</h4>
+                        <p className="text-sm theme-text-secondary mt-1">
+                            {t('settings.passkeysDesc') || 'Add biometric login (Face ID, Touch ID or Windows Hello) for faster and more secure access.'}
+                        </p>
+                    </div>
                 </div>
+            </div>
+
+            <div className="flex justify-end">
                 <button
                     onClick={handleCreatePasskey}
                     disabled={isAdding}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                 >
-                    {isAdding ? '...' : t('settings.addPasskey') || 'Add Passkey'}
+                    {isAdding ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-loader-circle-icon lucide-loader-circle animate-spin inline-block mr-2 w-4 h-4"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                    ) : null}
+                    {t('settings.addPasskey') || 'Add Passkey'}
                 </button>
             </div>
 
@@ -181,48 +211,51 @@ const PasskeySettings: React.FC = () => {
             </div>
 
             {/* TOTP Verification Modal */}
-            {showTotpModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95">
-                        <h3 className="text-lg font-bold theme-text-primary mb-4">{t('settings.verifyIdentity') || 'Verify Identity'}</h3>
-                        <p className="text-sm theme-text-secondary mb-4">
-                            {t('settings.enterTotpForPasskey') || 'Please enter your 2FA code to add a new passkey.'}
-                        </p>
-                        <input
-                            type="text"
-                            value={totpCode}
-                            onChange={(e) => {
-                                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                                setTotpCode(val);
-                            }}
-                            placeholder="000000"
-                            className="w-full text-center text-2xl tracking-widest px-4 py-2 border theme-border rounded-lg theme-text-primary bg-transparent focus:ring-2 focus:ring-blue-500 mb-6"
-                            autoFocus
-                        />
+            {
+                showTotpModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold theme-text-primary">{t('settings.verifyIdentity') || 'Verify Identity'}</h3>
+                                <button
+                                    onClick={() => {
+                                        setShowTotpModal(false);
+                                        setTotpCode('');
+                                        setTotpKey(prev => prev + 1);
+                                    }}
+                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
 
-                        <div className="flex space-x-3">
-                            <button
-                                onClick={() => {
-                                    setShowTotpModal(false);
-                                    setTotpCode('');
-                                }}
-                                className="flex-1 px-4 py-2 text-sm font-medium theme-text-secondary bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                            >
-                                {t('common.cancel')}
-                            </button>
-                            <button
-                                onClick={verifyTotpAndRegister}
-                                disabled={totpCode.length !== 6 || isAdding}
-                                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                            >
-                                {isAdding ? <span className="animate-spin inline-block mr-2">⟳</span> : null}
-                                {t('common.verify')}
-                            </button>
+                            <p className="text-sm theme-text-secondary mb-6">
+                                {t('settings.enterTotpForPasskey') || 'Please enter your 2FA code to add a new passkey.'}
+                            </p>
+
+                            <div className="flex justify-center mb-2">
+                                <TOTPInput
+                                    key={totpKey}
+                                    length={6}
+                                    onComplete={(code) => {
+                                        setTotpCode(code);
+                                        verifyTotpAndRegister(code);
+                                    }}
+                                    disabled={isAdding}
+                                    autoFocus={true}
+                                />
+                            </div>
+                            {isAdding && (
+                                <div className="flex justify-center mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-loader-circle-icon lucide-loader-circle animate-spin text-white"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

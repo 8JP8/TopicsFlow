@@ -64,7 +64,7 @@ class Config:
     SMS_SERVICE_API_KEY = os.getenv('SMS_SERVICE_API_KEY')
     SMS_SERVICE_NUMBER = os.getenv('SMS_SERVICE_NUMBER')
     RESEND_API_KEY = os.getenv('RESEND_API_KEY')  # Resend email service API key
-    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@topicsflow.com')  # Sender email address
+    FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@topicsflow.me')  # Sender email address
     APP_NAME = os.getenv('APP_NAME', 'TopicsFlow')  # Application name for emails
     TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 

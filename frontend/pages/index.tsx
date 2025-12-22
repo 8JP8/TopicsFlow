@@ -56,6 +56,17 @@ export default function Home() {
   const { socket, connected, onlineUsers } = useSocket();
   const { t } = useLanguage();
   const router = useRouter();
+
+  // First-time visitor redirect
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasVisited = localStorage.getItem('tf_has_visited');
+      if (!hasVisited) {
+        localStorage.setItem('tf_has_visited', 'true');
+        router.push('/about');
+      }
+    }
+  }, [router]);
   interface Post {
     id: string;
     title: string;

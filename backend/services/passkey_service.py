@@ -31,7 +31,7 @@ class PasskeyService:
         Initialize passkey service.
 
         Args:
-            rp_id: Relying Party ID (your domain, e.g., 'localhost' or 'topicsflow.com')
+            rp_id: Relying Party ID (your domain, e.g., 'localhost' or 'topicsflow.me')
             rp_name: Relying Party name (your app name)
         """
         # Use environment variable or default

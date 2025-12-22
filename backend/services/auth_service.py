@@ -14,7 +14,6 @@ import hashlib
 from models.user import User
 from services.email_service import EmailService
 from services.passkey_service import PasskeyService
-from services.file_storage import FileStorageService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
 
@@ -933,6 +932,7 @@ class AuthService:
             credential_data = self.passkey_service.verify_registration(credential, challenge_bytes)
 
             if not credential_data:
+                logger.error(f"Passkey verification failed for user {user_id}: passkey_service.verify_registration returned None")
                 return {'success': False, 'errors': ['Passkey registration verification failed']}
 
             # Store credential
@@ -946,9 +946,13 @@ class AuthService:
                     'credential_id': credential_data['credential_id']
                 }
             else:
+                logger.error(f"Failed to store passkey credential for user {user_id}")
                 return {'success': False, 'errors': ['Failed to store passkey']}
 
         except Exception as e:
+            logger.error(f"Passkey registration exception: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {'success': False, 'errors': [f'Passkey registration failed: {str(e)}']}
 
     def generate_passkey_authentication_options(self, identifier: str = None) -> dict:
@@ -1106,39 +1110,15 @@ class AuthService:
 
             img = qr.make_image(fill_color="black", back_color="white")
 
-            # Convert to bytes
+            # Convert to base64 data URI
             buffered = BytesIO()
             img.save(buffered, format="PNG")
-            img_data = buffered.getvalue()
-
-            # Store using FileStorageService (handles Azure or local)
-            use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
-            file_storage = FileStorageService(
-                uploads_dir=current_app.config.get('UPLOADS_DIR'),
-                use_azure=use_azure
-            )
-
-            filename = f"totp_qr_{user_id}_{int(time.time())}.png"
-
-            file_id, _ = file_storage.store_file(
-                file_data=img_data,
-                filename=filename,
-                mime_type='image/png',
-                user_id=user_id,
-                file_id_prefix='totp_qr_'
-            )
-
-            # Generate encryption key for file access
-            secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
-            key_data = f"{file_id}:{secret_key}".encode('utf-8')
-            encryption_key = hashlib.sha256(key_data).hexdigest()[:16]
-
-            # Get file URL
-            qr_code_url = file_storage.get_file_url(file_id, encryption_key)
+            img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            qr_code_data_uri = f"data:image/png;base64,{img_base64}"
 
             return {
                 'success': True,
-                'qr_code_image': qr_code_url,
+                'qr_code_image': qr_code_data_uri,
                 'totp_secret': totp_secret,
                 'qr_data': qr_data
             }

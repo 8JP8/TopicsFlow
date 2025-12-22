@@ -107,7 +107,7 @@ class User:
             'last_online': None,  # Timestamp of last WebSocket disconnect
             'preferences': {
                 'theme': 'dark',
-                'language': 'en',
+                'language': 'pt',
                 'anonymous_mode': False
             },
             'backup_codes': [],  # Will be generated during TOTP setup

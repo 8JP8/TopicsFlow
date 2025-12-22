@@ -17,7 +17,7 @@ class EmailService:
         """Initialize email service with Resend API key."""
         self.api_key = os.getenv('RESEND_API_KEY')
         self.api_url = 'https://api.resend.com/emails'
-        self.from_email = os.getenv('FROM_EMAIL', 'noreply@topicsflow.com')
+        self.from_email = os.getenv('FROM_EMAIL', 'noreply@topicsflow.me')
         self.app_name = os.getenv('APP_NAME', 'TopicsFlow')
         self.locales = self._load_locales()
 

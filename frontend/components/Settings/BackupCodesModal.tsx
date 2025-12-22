@@ -91,18 +91,11 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
                             />
                         </div>
 
-                        <div className="flex justify-center h-6">
-                            {isLoading && <LoadingSpinner size="md" />}
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            <button
-                                onClick={onClose}
-                                className="px-4 py-2 text-sm font-medium btn-ghost rounded-lg"
-                            >
-                                {t('common.cancel')}
-                            </button>
-                        </div>
+                        {isLoading && (
+                            <div className="flex justify-center h-6">
+                                <LoadingSpinner size="md" />
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-6">
