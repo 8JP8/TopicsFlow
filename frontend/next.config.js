@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'export',
+  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
   images: {
     unoptimized: true,
     domains: ['localhost', 'media.tenor.com'], // Tenor API for GIFs
@@ -14,31 +14,47 @@ const nextConfig = {
     NEXT_PUBLIC_TENOR_API_KEY: process.env.NEXT_PUBLIC_TENOR_API_KEY || '',
   },
 
+  // Disable compression in dev to avoid zlib memory errors
+  compress: process.env.NODE_ENV === 'production',
+
+  // Allow cross-origin requests from local network
+  experimental: {
+    allowedDevOrigins: [
+      'localhost:3000',
+      '127.0.0.1:3000',
+      '192.168.1.252:3000', // User's specific mobile IP
+      '192.168.1.252',
+    ],
+  },
+
   // Security headers
   async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-        ],
-      },
-    ];
+    if (process.env.NODE_ENV !== 'production') {
+      return [
+        {
+          source: '/(.*)',
+          headers: [
+            {
+              key: 'X-Frame-Options',
+              value: 'DENY',
+            },
+            {
+              key: 'X-Content-Type-Options',
+              value: 'nosniff',
+            },
+            {
+              key: 'Referrer-Policy',
+              value: 'origin-when-cross-origin',
+            },
+            {
+              key: 'X-XSS-Protection',
+              value: '1; mode=block',
+            },
+          ],
+        },
+      ];
+    }
+    return [];
   },
   // Rewrites for API proxy (development only)
   async rewrites() {

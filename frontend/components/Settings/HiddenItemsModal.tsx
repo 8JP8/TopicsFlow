@@ -169,7 +169,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-2xl font-bold theme-text-primary flex items-center gap-2">
               <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,7 +187,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
         </div>
 
         {/* Categories Tabs */}
-        <div className="px-6 pt-2 border-b border-gray-100 dark:border-gray-800">
+        <div className="px-4 sm:px-6 pt-2 border-b border-gray-100 dark:border-gray-800">
           <div className="flex relative w-full overflow-x-auto no-scrollbar">
             <div
               className="absolute bottom-0 h-0.5 bg-blue-500 transition-all duration-300 ease-out z-10"
@@ -211,7 +211,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
 
         {/* Message Sub-Tabs */}
         {activeTab === 'messages' && (
-          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex gap-2 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-gray-800">
+          <div className="px-4 sm:px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex gap-2 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-gray-800">
             {subTabs.map((sub) => (
               <button
                 key={sub.id}
@@ -224,7 +224,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30 dark:bg-gray-900/30">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/30 dark:bg-gray-900/30">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <LoadingSpinner />
@@ -245,9 +245,9 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex items-start justify-between"
+                  className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0"
                 >
-                  <div className="flex-1 min-w-0 pr-4">
+                  <div className="flex-1 min-w-0 pr-0 sm:pr-4 w-full">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                         {item.author_username || item.owner_username || item.target_username || (activeTab === 'chatrooms' ? 'Topic' : activeTab === 'groups' ? 'Group' : 'Item')}
@@ -272,7 +272,7 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
+                  <div className="flex flex-row sm:flex-col gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 border-gray-100 dark:border-gray-700 pt-3 sm:pt-0">
                     <button
                       onClick={() => handleRestore(
                         activeTab === 'messages' ? (messageSubTab === 'private' ? 'private_message' : 'chat_message') :

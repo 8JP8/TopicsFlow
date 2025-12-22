@@ -615,39 +615,71 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
         {/* Main Chat Column */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between theme-bg-primary bg-opacity-90 dark:bg-opacity-90 backdrop-blur-sm">
-            <div className="flex-1 flex items-center gap-3">
-              {/* Chat Room Picture */}
-              {roomData?.picture ? (
-                <img
-                  src={roomData.picture.startsWith('data:') ? roomData.picture : `data:image/jpeg;base64,${roomData.picture}`}
-                  alt={room.name}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 theme-border"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-lg theme-bg-secondary flex items-center justify-center flex-shrink-0 border-2 theme-border">
-                  <span className="text-xl font-semibold theme-text-primary">
-                    {room.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
-              <div
-                className="flex-1"
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setChatContextMenu({ x: e.clientX, y: e.clientY });
-                }}
-              >
-                <h2 className="text-xl font-bold theme-text-primary">
-                  {room.name}
-                </h2>
-                {room.description && (
-                  <p className="text-sm theme-text-secondary mt-1">
-                    {room.description}
-                  </p>
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 theme-bg-primary bg-opacity-90 dark:bg-opacity-90 backdrop-blur-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+              <div className="flex items-start gap-3">
+                {/* Chat Room Picture */}
+                {roomData?.picture ? (
+                  <img
+                    src={roomData.picture.startsWith('data:') ? roomData.picture : `data:image/jpeg;base64,${roomData.picture}`}
+                    alt={room.name}
+                    className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 theme-border"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg theme-bg-secondary flex items-center justify-center flex-shrink-0 border-2 theme-border">
+                    <span className="text-xl font-semibold theme-text-primary">
+                      {room.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
                 )}
-                <div className="flex items-center gap-3 mt-2 text-xs theme-text-muted">
+
+                <div
+                  className="flex-1 min-w-0"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setChatContextMenu({ x: e.clientX, y: e.clientY });
+                  }}
+                >
+                  <h2 className="text-xl font-bold theme-text-primary break-words">
+                    {room.name}
+                  </h2>
+                  {room.description && (
+                    <p className="text-sm theme-text-secondary mt-1 line-clamp-2">
+                      {room.description}
+                    </p>
+                  )}
+
+                  {/* Desktop Stats */}
+                  <div className="hidden sm:flex items-center gap-3 mt-2 text-xs theme-text-muted">
+                    <button
+                      onClick={() => {
+                        if (!room.is_public) {
+                          setMembersModalMode('view');
+                          setShowMembersModal(true);
+                        }
+                      }}
+                      className={`flex items-center gap-1 transition-colors ${!room.is_public ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
+                      title={!room.is_public ? (t('chat.viewMembers') || 'View Members') : ''}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      {room.is_public ? (t('chatRooms.public') || 'Public') : `${room.member_count} ${t('chat.members')} `}
+                    </button>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                      {room.message_count} {room.message_count === 1 ? t('chat.message') : t('chat.messages')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mobile Stats - Top Right */}
+                <div className="sm:hidden flex flex-col items-end gap-1 ml-2 text-xs theme-text-muted whitespace-nowrap">
                   <button
                     onClick={() => {
                       if (!room.is_public) {
@@ -656,60 +688,66 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                       }
                     }}
                     className={`flex items-center gap-1 transition-colors ${!room.is_public ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
-                    title={!room.is_public ? (t('chat.viewMembers') || 'View Members') : ''}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    {room.is_public ? (t('chatRooms.public') || 'Public') : `${room.member_count} ${t('chat.members')} `}
+                    {room.is_public ? (t('chatRooms.public') || 'Public') : `${room.member_count} ${t('chat.members')}`}
                   </button>
                   <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                     </svg>
-                    {room.message_count} {room.message_count === 1 ? t('chat.message') : t('chat.messages')}
+                    {room.message_count} {t('chat.messages')}
                   </span>
                 </div>
               </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-row items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                {/* VOIP Button */}
+                {!room.is_public && (
+                  <div className="flex-1 sm:flex-none">
+                    <VoipButton
+                      roomId={room.id}
+                      roomType="group"
+                      roomName={room.name}
+                      disabled={!room.voip_enabled}
+                      className="w-full sm:w-auto justify-center"
+                    />
+                  </div>
+                )}
+                {isOwner && (
+                  <button
+                    onClick={() => {
+                      setMembersModalMode('manage');
+                      setShowMembersModal(true);
+                    }}
+                    className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                    title={t('chat.manageChat') || 'Manage Chat'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="truncate">{t('chat.manageChat') || 'Manage'}</span>
+                  </button>
+                )}
+                {onBack && (
+                  <button
+                    onClick={onBack}
+                    className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>{t('common.back')}</span>
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* VOIP Button for voice calls */}
-              {!room.is_public && (
-                <VoipButton
-                  roomId={room.id}
-                  roomType="group"
-                  roomName={room.name}
-                  disabled={!room.voip_enabled}
-                />
-              )}
-              {isOwner && (
-                <button
-                  onClick={() => {
-                    setMembersModalMode('manage');
-                    setShowMembersModal(true);
-                  }}
-                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                  title={t('chat.manageChat') || 'Manage Chat'}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {t('chat.manageChat') || 'Manage Chat'}
-                </button>
-              )}
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  {t('common.back')}
-                </button>
-              )}
-            </div>
+
+
           </div>
 
           {/* Messages */}

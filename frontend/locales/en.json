@@ -63,7 +63,11 @@
     "welcomeBack": "Welcome Back",
     "dashboard": "Dashboard",
     "closeModal": "Close Modal",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "notifications": "Notifications",
+    "invitations": "Invitations",
+    "menu": "Menu",
+    "content": "Content"
   },
   "chats": {
     "title": "Chats",
@@ -266,7 +270,7 @@
   },
   "home": {
     "title": "Welcome to TopicsFlow",
-    "subtitle": "Select a topic from the sidebar to start chatting, or create a new topic to begin a conversation.",
+    "description": "Start by selecting a topic or join the conversation in the chat rooms.",
     "browseTopics": "Browse Topics",
     "topics": "Topics",
     "message": "Messagem",
@@ -468,7 +472,8 @@
     "deleteChatroomWarning": "Deleting this chatroom is permanent and cannot be undone.",
     "leaveChatroom": "Leave Chatroom",
     "confirmLeave": "Are you sure you want to leave \"{name}\"?",
-    "leftChatroom": "Left chatroom"
+    "leftChatroom": "Left chatroom",
+    "backToChat": "Back to Chat"
   },
   "gifPicker": {
     "searchPlaceholder": "Search GIFs...",
@@ -587,6 +592,7 @@
     "settings": "Settings",
     "logout": "Log Out",
     "profile": "Profile",
+    "userMenu": "User Menu",
     "theme": "Theme",
     "language": "Language",
     "twoFactorEnabled": "2FA Enabled",
@@ -1813,5 +1819,8 @@
     "goToDashboard": "Go to Dashboard",
     "takeATour": "Take the Tour",
     "allRightsReserved": "All rights reserved."
+  },
+  "support": {
+    "title": "Support"
   }
 }

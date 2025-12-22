@@ -8,7 +8,7 @@ export default function Custom404() {
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
             <Head>
-                <title>404 - {t('errors.pageNotFound')} | {t('common.appName')}</title>
+                <title>{`404 - ${t('errors.pageNotFound')} | ${t('common.appName')}`}</title>
             </Head>
 
             {/* Background Blobs - Changed to Blue/Slate/Cyan */}

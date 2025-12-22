@@ -853,6 +853,7 @@ def verify_user_recovery_code():
 
 
 # Passkey/WebAuthn Endpoints
+# Passkey/WebAuthn Endpoints
 @auth_bp.route('/passkey/register-options', methods=['POST'])
 @require_json
 def passkey_register_options():
@@ -860,13 +861,29 @@ def passkey_register_options():
     try:
         from flask import current_app
         auth_service = AuthService(current_app.db)
+        
+        data = request.get_json() or {}
+        user_id = data.get('user_id')
+        email = data.get('email')
 
         # Check if user is authenticated
         current_user_result = auth_service.get_current_user()
-        if not current_user_result['success']:
-            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+        if current_user_result['success']:
+             user_id = current_user_result['user']['id']
+        else:
+            # If not authenticated, check if email/user_id is provided in body (for registration flow)
+            if not user_id and not email:
+                 return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+            
+            # If email provided, look up user
+            if email and not user_id:
+                from models.user import User
+                user_model = User(current_app.db)
+                user = user_model.get_user_by_email(email)
+                if not user:
+                    return jsonify({'success': False, 'errors': ['User not found']}), 404
+                user_id = str(user['_id'])
 
-        user_id = current_user_result['user']['id']
         result = auth_service.generate_passkey_registration_options(user_id)
 
         if result['success']:
@@ -887,18 +904,31 @@ def passkey_register_verify():
         from flask import current_app
         auth_service = AuthService(current_app.db)
 
-        # Check if user is authenticated
-        current_user_result = auth_service.get_current_user()
-        if not current_user_result['success']:
-            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
-
         data = request.get_json()
         credential = data.get('credential')
+        user_id = data.get('user_id')
+        email = data.get('email')
 
         if not credential:
             return jsonify({'success': False, 'errors': ['Credential data is required']}), 400
 
-        user_id = current_user_result['user']['id']
+        # Check if user is authenticated
+        current_user_result = auth_service.get_current_user()
+        if current_user_result['success']:
+             user_id = current_user_result['user']['id']
+        else:
+             # Fallback for registration flow
+             if not user_id and not email:
+                 return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+             
+             if email and not user_id:
+                from models.user import User
+                user_model = User(current_app.db)
+                user = user_model.get_user_by_email(email)
+                if not user:
+                    return jsonify({'success': False, 'errors': ['User not found']}), 404
+                user_id = str(user['_id'])
+
         result = auth_service.verify_passkey_registration(user_id, credential)
 
         if result['success']:

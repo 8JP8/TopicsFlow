@@ -70,19 +70,26 @@ def create_message(topic_id):
         message_type = data.get('message_type', 'text')
         use_anonymous = data.get('use_anonymous', False)
         gif_url = data.get('gif_url')
+        attachments = data.get('attachments', [])
 
-        # Allow empty content if it's a GIF message
-        if not content and not gif_url:
-            return jsonify({'success': False, 'errors': ['Message content or GIF URL is required']}), 400
-        
-        # If it's a GIF message but no content, set a default
-        if message_type == 'gif' and gif_url and not content:
-            content = '[GIF]'
+        # For GIF messages, content can be empty if gif_url is provided
+        if message_type == 'gif' and gif_url:
+            if not content:
+                content = '[GIF]'
+        elif attachments and len(attachments) > 0:
+            # For attachment messages, content can be empty
+            if not content:
+                content = '[Attachment]'
+        else:
+            # For non-GIF, non-attachment messages, content is required
+            if not content:
+                return jsonify({'success': False, 'errors': ['Message content, GIF URL, or attachment is required']}), 400
 
         # Validate message content
-        validation_result = validate_message_content(content)
-        if not validation_result['valid']:
-            return jsonify({'success': False, 'errors': validation_result['errors']}), 400
+        if message_type != 'gif' and content and content != '[GIF]' and content != '[Attachment]':
+            validation_result = validate_message_content(content)
+            if not validation_result['valid']:
+                return jsonify({'success': False, 'errors': validation_result['errors']}), 400
 
         auth_service = AuthService(current_app.db)
         current_user_result = auth_service.get_current_user()
@@ -101,6 +108,32 @@ def create_message(topic_id):
         if topic_model.is_user_banned_from_topic(topic_id, user_id):
             return jsonify({'success': False, 'errors': ['You are banned from this topic']}), 403
 
+        # Process attachments: convert base64 to files and store them
+        if attachments:
+            from services.file_storage import FileStorageService
+            from utils.file_helpers import process_attachments
+            
+            use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+            file_storage = FileStorageService(
+                uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                use_azure=use_azure
+            )
+            
+            # Get secret key for encryption
+            secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+            
+            processed_attachments, errors = process_attachments(
+                attachments,
+                file_storage,
+                user_id=user_id,
+                secret_key=secret_key
+            )
+            
+            if errors:
+                logger.warning(f"Errors processing attachments: {errors}")
+            
+            attachments = processed_attachments
+
         # Handle anonymous identity
         anonymous_identity = None
         if use_anonymous and topic.get('settings', {}).get('allow_anonymous', True):
@@ -116,7 +149,8 @@ def create_message(topic_id):
             content=content,
             message_type=message_type,
             anonymous_identity=anonymous_identity,
-            gif_url=gif_url
+            gif_url=gif_url,
+            attachments=attachments if attachments else None
         )
 
         # Get created message
@@ -151,6 +185,7 @@ def create_message(topic_id):
                     'content': new_message.get('content', ''),
                     'message_type': new_message.get('message_type', 'text'),
                     'gif_url': new_message.get('gif_url'),
+                    'attachments': new_message.get('attachments', []),
                     'created_at': created_at_str,
                     'display_name': new_message.get('display_name', user.get('username', 'Unknown') if user else 'Unknown'),
                     'sender_username': new_message.get('sender_username', user.get('username', 'Unknown') if user else 'Unknown'),

@@ -17,8 +17,11 @@ import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import ResizableSidebar from '@/components/UI/ResizableSidebar';
 import NotificationPermissionDialog from '@/components/UI/NotificationPermissionDialog';
 import AnonymousModeDialog from '@/components/UI/AnonymousModeDialog';
-import { VoipControlBar } from '@/components/Voip';
+import VoipControlBar from '../components/Voip/VoipControlBar';
+import MobileCallWidget from '../components/Voip/MobileCallWidget';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName, saveLastAnonymousName } from '@/utils/anonymousStorage';
+import { Menu, MessageSquare, Hash, User, ArrowLeft, LayoutList } from 'lucide-react';
+import UserMenu from '@/components/UI/UserMenu';
 
 interface Topic {
   id: string;
@@ -103,6 +106,7 @@ export default function Home() {
   const [expandedChatRoom, setExpandedChatRoom] = useState<ChatRoom | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const [mobileView, setMobileView] = useState<'sidebar' | 'content'>('sidebar');
 
 
   // Listen for tour events
@@ -262,6 +266,7 @@ export default function Home() {
       const { userId, username } = event.detail;
       setExpandedPrivateMessage({ userId, username });
       setActiveSidebarTab('messages');
+      setMobileView('content');
     };
 
     const handleOpenChatRoom = async (event: CustomEvent) => {
@@ -283,6 +288,7 @@ export default function Home() {
             setExpandedChatRoom(chatRoom);
             setExpandedPrivateMessage(null);
           }
+          setMobileView('content');
         }
       } catch (error) {
         console.error("Failed to open chat room from notification", error);
@@ -303,6 +309,7 @@ export default function Home() {
             setSelectedPost(post);
             setActiveContentTab('posts');
             setSelectedChat(null);
+            setMobileView('content');
           }
         }
       } catch (error) {
@@ -520,6 +527,7 @@ export default function Home() {
     setSelectedChat(null);
     setExpandedChatRoom(null);
     setExpandedPrivateMessage(null);
+    setMobileView('content');
     // Do not reset activeContentTab; preserve whether user was in 'posts' or 'chats'
     // This allows "keeping the user on the chat separator" if they were in chats
     // and "showing the publication list" if they were in posts (by clearing selectedPost).
@@ -533,7 +541,10 @@ export default function Home() {
     setSelectedTopic(topicWithOwnerPermission);
     setSelectedChat(null);
     setSelectedPost(null);
+    setExpandedChatRoom(null);
+    setExpandedPrivateMessage(null);
     setActiveContentTab('posts');
+    setMobileView('content');
   };
 
   const loadTopicPosts = async (topicId: string) => {
@@ -569,140 +580,152 @@ export default function Home() {
   return (
     <>
       <Layout>
-        <div className="flex h-full">
+        <div className="flex h-full md:pb-0 pb-16">
           {/* Left Sidebar */}
-          <ResizableSidebar
-            defaultWidth={400}
-            minWidth={250}
-            maxWidth={600}
-          >
-            <div
-              ref={sidebarRef}
-              className={`h-full border-r theme-border flex flex-col transition-all duration-500 ${sidebarHighlight ? 'ring-4 ring-blue-500 ring-opacity-50 shadow-lg' : ''
-                }`}
+          <div className={`${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block h-full md:w-auto`}>
+            <ResizableSidebar
+              defaultWidth={350}
+              minWidth={280}
+              maxWidth={500}
+              onWidthChange={(w) => {
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('sidebar-width', w.toString());
+                }
+              }}
+              className={`border-r theme-border transition-all duration-300 h-full ${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block scrollbar-hide`}
             >
-              {/* Header */}
-              <div className="p-4 border-b theme-border">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <span className="text-sm font-medium theme-text-primary">
-                      {connected ? (t('home.connected') || 'Connected') : (t('home.connecting') || 'Connecting...')}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-sm theme-text-secondary">
-                      {onlineUsers} {t('home.online')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Tab Navigation */}
-
-                <div className="relative flex p-1 theme-bg-secondary rounded-lg space-x-1">
-                  <div
-                    className={`absolute top-1 bottom-1 w-[calc(50%-0.375rem)] bg-white dark:bg-neutral-700 rounded-md shadow-sm transition-all duration-300 ease-in-out ${activeSidebarTab === 'topics' ? 'left-1' : 'left-[calc(50%+0.125rem)]'
-                      }`}
-                  />
-                  <button
-                    onClick={() => setActiveSidebarTab('topics')}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'topics'
-                      ? 'theme-text-primary'
-                      : 'theme-text-secondary hover:theme-text-primary'
-                      }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    {t('topics.title') || 'Topics'}
-                  </button>
-                  <button
-                    onClick={() => setActiveSidebarTab('messages')}
-                    id="messages-tab-btn"
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'messages'
-                      ? 'theme-text-primary'
-                      : 'theme-text-secondary hover:theme-text-primary'
-                      }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    {t('home.messages')}
-                    {unreadMessagesCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 animate-bounce-in border-2 theme-bg-secondary">
-                        {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+              <div
+                ref={sidebarRef}
+                className={`h-full border-r theme-border flex flex-col transition-all duration-500 ${sidebarHighlight ? 'ring-4 ring-blue-500 ring-opacity-50 shadow-lg' : ''
+                  }`}
+              >
+                {/* Header */}
+                <div className="p-4 border-b theme-border">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm font-medium theme-text-primary">
+                        {connected ? (t('home.connected') || 'Connected') : (t('home.connecting') || 'Connecting...')}
                       </span>
-                    )}
-                  </button>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-sm theme-text-secondary">
+                        {onlineUsers} {t('home.online')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tab Navigation */}
+
+                  <div className="relative flex p-1 theme-bg-secondary rounded-lg space-x-1">
+                    <div
+                      className={`absolute top-1 bottom-1 w-[calc(50%-0.375rem)] bg-white dark:bg-neutral-700 rounded-md shadow-sm transition-all duration-300 ease-in-out ${activeSidebarTab === 'topics' ? 'left-1' : 'left-[calc(50%+0.125rem)]'
+                        }`}
+                    />
+                    <button
+                      onClick={() => setActiveSidebarTab('topics')}
+                      className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'topics'
+                        ? 'theme-text-primary'
+                        : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      {t('topics.title') || 'Topics'}
+                    </button>
+                    <button
+                      onClick={() => setActiveSidebarTab('messages')}
+                      id="messages-tab-btn"
+                      className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'messages'
+                        ? 'theme-text-primary'
+                        : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      {t('home.messages')}
+                      {unreadMessagesCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 animate-bounce-in border-2 theme-bg-secondary">
+                          {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {/* Content */}
-              <div className="flex-1 overflow-hidden">
-                {activeSidebarTab === 'topics' && (
-                  <div className="h-full flex flex-col">
-                    {showCreateTopic ? (
-                      <div className="p-4 overflow-y-auto">
-                        <TopicCreate
-                          onTopicCreated={handleTopicCreated}
-                          onCancel={() => setShowCreateTopic(false)}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="p-4">
-                          <button
-                            onClick={() => setShowCreateTopic(true)}
-                            id="create-topic-btn"
-                            className="w-full btn btn-primary flex items-center justify-center gap-2"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            {t('topics.createTopic') || 'Criar Tópico'}
-                          </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto">
-                          <TopicList
-                            topics={topics}
-                            loading={loading}
-                            onTopicSelect={handleTopicSelect}
-                            onRefresh={loadTopics}
-                            selectedTopicId={selectedTopic?.id}
-                            unreadCounts={unreadTopicMessages}
+                {/* Content */}
+                <div className="flex-1 overflow-hidden">
+                  {activeSidebarTab === 'topics' && (
+                    <div className="h-full flex flex-col">
+                      {showCreateTopic ? (
+                        <div className="p-4 overflow-y-auto">
+                          <TopicCreate
+                            onTopicCreated={handleTopicCreated}
+                            onCancel={() => setShowCreateTopic(false)}
                           />
                         </div>
-                      </>
-                    )}
-                  </div>
-                )}
+                      ) : (
+                        <>
+                          <div className="p-4">
+                            <button
+                              onClick={() => setShowCreateTopic(true)}
+                              id="create-topic-btn"
+                              className="w-full btn btn-primary flex items-center justify-center gap-2"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              {t('topics.createTopic') || 'Criar Tópico'}
+                            </button>
+                          </div>
+                          <div className="flex-1 overflow-y-auto">
+                            <TopicList
+                              topics={topics}
+                              loading={loading}
+                              onTopicSelect={handleTopicSelect}
+                              onRefresh={loadTopics}
+                              selectedTopicId={selectedTopic?.id}
+                              unreadCounts={unreadTopicMessages}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
 
-                {activeSidebarTab === 'messages' && (
-                  <div className="h-full">
-                    <PrivateMessagesSimplified
-                      onExpandMessage={(userId, username) => {
-                        setExpandedPrivateMessage({ userId, username });
-                        setExpandedChatRoom(null);
-                        setActiveSidebarTab('messages');
-                      }}
-                      expandedMessage={expandedPrivateMessage}
-                      onGroupSelect={(group) => {
-                        setExpandedChatRoom(group);
-                        setExpandedPrivateMessage(null);
-                        setActiveSidebarTab('messages');
-                      }}
-                      unreadGroupCounts={unreadChatRoomMessages}
-                    />
-                  </div>
-                )}
+                  {activeSidebarTab === 'messages' && (
+                    <div className="h-full">
+                      <PrivateMessagesSimplified
+                        onExpandMessage={(userId, username) => {
+                          setExpandedPrivateMessage({ userId, username });
+                          setExpandedChatRoom(null);
+                          setActiveSidebarTab('messages');
+                          setMobileView('content');
+                        }}
+                        expandedMessage={expandedPrivateMessage}
+                        onGroupSelect={(group) => {
+                          setExpandedChatRoom(group);
+                          setExpandedPrivateMessage(null);
+                          setActiveSidebarTab('messages');
+                          setMobileView('content');
+                        }}
+                        unreadGroupCounts={unreadChatRoomMessages}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* VOIP Control Bar - At bottom of left sidebar (Desktop only) */}
+                <div className="hidden md:block">
+                  <VoipControlBar />
+                </div>
               </div>
-
-              {/* VOIP Control Bar - At bottom of left sidebar */}
-              <VoipControlBar />
-            </div>
-          </ResizableSidebar>
+            </ResizableSidebar>
+          </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col">
+          <div className={`flex-1 flex flex-col ${mobileView === 'content' ? 'block w-full' : 'hidden'} md:flex`}>
             {expandedPrivateMessage ? (
               <PrivateMessagesSimplified
                 expandedMessage={expandedPrivateMessage}
@@ -728,7 +751,12 @@ export default function Home() {
                 <div className="pt-4 px-4 pb-0 border-b theme-border">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
-                      <h2 className="text-2xl font-bold theme-text-primary mb-2">{selectedTopic.title}</h2>
+                      <div className="flex items-center gap-2 mb-2">
+                        <button onClick={() => setMobileView('sidebar')} className="md:hidden p-1 -ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full">
+                          <ArrowLeft size={20} className="theme-text-primary" />
+                        </button>
+                        <h2 className="text-2xl font-bold theme-text-primary">{selectedTopic.title}</h2>
+                      </div>
                       <p className="theme-text-secondary text-sm mb-4">{selectedTopic.description}</p>
                     </div>
 
@@ -877,7 +905,40 @@ export default function Home() {
             )}
           </div>
         </div >
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 theme-bg-secondary border-t theme-border flex items-center z-50 pb-safe">
+          <button
+            onClick={() => setMobileView('sidebar')}
+            className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'sidebar' ? 'theme-text-primary' : 'theme-text-secondary'}`}
+          >
+            <LayoutList size={24} />
+            <span className="text-[10px] font-medium">{t('common.menu') || 'Menu'}</span>
+          </button>
+
+          <button
+            onClick={() => setMobileView('content')}
+            className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'content' ? 'theme-text-primary' : 'theme-text-secondary'}`}
+          >
+            <div className="relative">
+              <MessageSquare size={24} />
+              {(unreadPostsCount + unreadChatsCount > 0) && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 theme-border box-content"></span>
+              )}
+            </div>
+            <span className="text-[10px] font-medium">{t('common.content') || 'View'}</span>
+          </button>
+
+          <div className="flex-1 flex flex-col items-center justify-center h-full">
+            <div className="origin-bottom">
+              <UserMenu placement="mobile-bottom" />
+            </div>
+            <span className="text-[10px] theme-text-secondary font-medium mt-1">{t('userMenu.userMenu') || 'User Menu'}</span>
+          </div>
+        </div>
       </Layout >
+
+      {/* Mobile VoIP Widget - Floating/Dockable */}
+      <MobileCallWidget />
 
       {/* Notification Permission Dialog */}
       {

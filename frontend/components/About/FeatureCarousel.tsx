@@ -166,7 +166,7 @@ export default function FeatureCarousel() {
                 >
                     <motion.div
                         style={{ x: xRaw }}
-                        className="flex gap-10 items-center will-change-transform"
+                        className="flex gap-4 md:gap-10 items-center will-change-transform"
                     >
                         {loopedFeatures.map((feature, idx) => {
                             const Icon = iconMap[feature.key] || Zap;
@@ -198,7 +198,7 @@ export default function FeatureCarousel() {
                                         transition: { type: "spring", stiffness: 400, damping: 25 }
                                     }}
                                     onClick={() => setSelectedFeature(feature.key)}
-                                    className={`relative w-[300px] h-[440px] shrink-0 rounded-[3rem] p-10 overflow-hidden cursor-pointer bg-slate-950/40 border transition-all duration-300 ${isHovered
+                                    className={`relative w-[260px] md:w-[300px] h-[440px] shrink-0 rounded-[3rem] p-8 md:p-10 overflow-hidden cursor-pointer bg-slate-950/40 border transition-all duration-300 ${isHovered
                                         ? 'border-blue-500/50 ring-4 ring-blue-500/10'
                                         : 'border-white/5 shadow-xl'
                                         }`}

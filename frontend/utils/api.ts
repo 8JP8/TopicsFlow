@@ -6,8 +6,19 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    let baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+    // Dynamic backend URL for local network testing
+    if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
+      const hostname = window.location.hostname;
+      // If using local network IP (not localhost and not production), point to backend on same IP:5000
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.includes('topicsflow.me')) {
+        baseURL = `http://${hostname}:5000`;
+      }
+    }
+
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+      baseURL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

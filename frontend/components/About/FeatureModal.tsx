@@ -87,46 +87,46 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                         className={`relative w-full max-w-6xl h-full max-h-[90vh] bg-gradient-to-br ${gradientMap[feature.color] || gradientMap.blue} border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col`}
                     >
                         {/* Header Controls */}
-                        <div className="flex items-center justify-between px-10 py-8 border-b border-white/5 bg-slate-950/40">
-                            <div className="flex items-center gap-6">
-                                <button onClick={prev} className="p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
-                                    <ChevronLeft size={24} />
+                        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 md:px-10 md:py-8 border-b border-white/5 bg-slate-950/40 shrink-0">
+                            <div className="flex items-center gap-2 sm:gap-6">
+                                <button onClick={prev} className="p-2 sm:p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
+                                    <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
                                 </button>
-                                <span className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase italic">
+                                <span className="hidden sm:inline text-xs font-black text-slate-500 tracking-[0.3em] uppercase italic">
                                     {String(currentIndex + 1).padStart(2, '0')} — {String(allFeatures.length).padStart(2, '0')}
                                 </span>
-                                <button onClick={next} className="p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
-                                    <ChevronRight size={24} />
+                                <button onClick={next} className="p-2 sm:p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
+                                    <ChevronRight size={20} className="sm:w-6 sm:h-6" />
                                 </button>
                             </div>
 
-                            <div className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-xl">
-                                <Icon size={20} style={{ color: featureColor }} />
-                                <span className="text-base font-black text-white tracking-tight italic uppercase">{feature.title}</span>
+                            <div className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-6 sm:py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-xl overflow-hidden max-w-[150px] sm:max-w-none">
+                                <Icon size={16} className="sm:w-5 sm:h-5 shrink-0" style={{ color: featureColor }} />
+                                <span className="text-xs sm:text-base font-black text-white tracking-tight italic uppercase truncate">{feature.title}</span>
                             </div>
 
-                            <button onClick={onClose} className="p-3 rounded-2xl hover:bg-red-500 transition-all text-slate-400 hover:text-white border border-white/5 group active:scale-90">
-                                <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                            <button onClick={onClose} className="p-2 sm:p-3 rounded-2xl hover:bg-red-500 transition-all text-slate-400 hover:text-white border border-white/5 group active:scale-90">
+                                <X size={20} className="sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
                             </button>
                         </div>
 
                         {/* Main Content */}
-                        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                        <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden custom-scrollbar">
                             {/* Left Side: Info */}
-                            <div className="w-full md:w-5/12 p-10 md:p-14 flex flex-col justify-center bg-slate-950/20">
+                            <div className="w-full md:w-5/12 p-6 sm:p-10 md:p-14 flex flex-col justify-center bg-slate-950/20 shrink-0">
                                 <motion.div
                                     key={`${feature.key}-title`}
                                     initial={{ x: -30, opacity: 0 }}
                                     animate={{ x: 0, opacity: 1 }}
                                     transition={{ delay: 0.1, duration: 0.6 }}
                                 >
-                                    <span className="font-black text-[10px] uppercase tracking-[0.3em] mb-6 block italic" style={{ color: featureColor }}>
+                                    <span className="font-black text-[10px] uppercase tracking-[0.3em] mb-4 md:mb-6 block italic" style={{ color: featureColor }}>
                                         Platform Core Architecture
                                     </span>
-                                    <h2 className="text-4xl md:text-6xl font-black text-white mb-8 leading-[1.1] tracking-tighter">
+                                    <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white mb-6 md:mb-8 leading-[1.1] tracking-tighter">
                                         {feature.title}
                                     </h2>
-                                    <p className="text-xl text-slate-300/80 leading-relaxed mb-10 font-medium italic">
+                                    <p className="text-lg md:text-xl text-slate-300/80 leading-relaxed mb-8 md:mb-10 font-medium italic">
                                         {feature.longDesc}
                                     </p>
 

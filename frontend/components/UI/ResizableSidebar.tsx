@@ -6,6 +6,7 @@ interface ResizableSidebarProps {
   minWidth?: number;
   maxWidth?: number;
   onWidthChange?: (width: number) => void;
+  className?: string;
 }
 
 const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
@@ -14,6 +15,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   minWidth = 250,
   maxWidth = 600,
   onWidthChange,
+  className,
 }) => {
   const [width, setWidth] = useState(() => {
     // Load from localStorage or use default
@@ -28,8 +30,27 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check for mobile breakpoint
+  useEffect(() => {
+    const handleResizeCheck = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.innerWidth < 768);
+      }
+    };
+
+    handleResizeCheck();
+    window.addEventListener('resize', handleResizeCheck);
+    return () => window.removeEventListener('resize', handleResizeCheck);
+  }, []);
+
   // Apply presets based on window width
   useEffect(() => {
+    // ... existing handleResize logic ...
+    // But actually I need to preserve the handleResize logic from lines 32-64 roughly, or just acknowledge it exists.
+    // The user asked me to REPLACE lines.
+    // I will just insert the new state and effect at the top of component body.
     const handleResize = () => {
       const windowWidth = window.innerWidth;
       let presetWidth = defaultWidth;
@@ -107,8 +128,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     <div
       id="sidebar"
       ref={sidebarRef}
-      className="relative flex flex-col"
-      style={{ width: `${width}px` }}
+      className={`relative flex flex-col h-full ${isMobile ? 'w-full' : ''} ${className || ''}`}
+      style={{ width: isMobile ? '100%' : `${width}px` }}
     >
       {children}
       <div
