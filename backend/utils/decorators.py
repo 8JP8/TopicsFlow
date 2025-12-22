@@ -1,18 +1,22 @@
 from functools import wraps
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from datetime import datetime, timedelta
 import time
 from collections import defaultdict
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory rate limiting store (use Redis in production)
+# Simple in-memory rate limiting store (fallback)
 rate_limit_store = defaultdict(list)
 
 
 def rate_limit(limit: str):
     """Rate limiting decorator.
+
+    Supports Redis for distributed rate limiting if REDIS_URL is configured.
+    Falls back to in-memory storage.
 
     Args:
         limit: Rate limit string in format "count/period" where period is minute, hour, etc.
@@ -31,38 +35,90 @@ def rate_limit(limit: str):
 
             # Get client identifier
             client_id = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
-            endpoint = f"{request.method}:{request.endpoint}"
+            # Use request.endpoint if available, otherwise fallback to function name
+            endpoint = request.endpoint or f.__name__
 
-            key = f"{client_id}:{endpoint}"
+            # Key prefix for rate limiting
+            key = f"ratelimit:{client_id}:{endpoint}"
 
-            # Calculate time window
-            now = int(time.time())
+            # Calculate time window in seconds
             if period == 'minute':
-                window_start = now - 60
+                window = 60
             elif period == 'hour':
-                window_start = now - 3600
+                window = 3600
             elif period == 'day':
-                window_start = now - 86400
+                window = 86400
             else:
-                # Default to minute
-                window_start = now - 60
+                window = 60
 
-            # Clean old entries
-            rate_limit_store[key] = [timestamp for timestamp in rate_limit_store[key] if timestamp > window_start]
+            # Check if Redis is available
+            redis_client = None
+            try:
+                # Try to get redis client from app config/extensions if initialized
+                # This depends on how Redis is set up in extensions.py
+                # For now, we'll try to check if we can access it via current_app
+                if hasattr(current_app, 'extensions') and 'redis' in current_app.extensions:
+                    redis_client = current_app.extensions['redis']
+                elif os.getenv('REDIS_URL'):
+                    # Lazy import to avoid circular dependencies
+                    import redis
+                    redis_client = redis.from_url(os.getenv('REDIS_URL'))
+            except Exception as e:
+                logger.warning(f"Redis not available for rate limiting: {e}")
+                redis_client = None
 
-            # Check if limit exceeded
-            if len(rate_limit_store[key]) >= count:
-                return jsonify({
-                    'success': False,
-                    'errors': [f'Rate limit exceeded. Maximum {count} requests per {period}.']
-                }), 429
+            if redis_client:
+                # Use Redis for rate limiting (Distributed)
+                try:
+                    # Uses a sliding window log or simple counter with expiration
+                    # Simple counter implementation:
+                    current = redis_client.get(key)
 
-            # Add current request
-            rate_limit_store[key].append(now)
+                    if current and int(current) >= count:
+                         return jsonify({
+                            'success': False,
+                            'errors': [f'Rate limit exceeded. Maximum {count} requests per {period}.']
+                        }), 429
+
+                    # Increment counter
+                    pipe = redis_client.pipeline()
+                    pipe.incr(key)
+                    if not current:
+                        # Set expiration on first request
+                        pipe.expire(key, window)
+                    pipe.execute()
+
+                except Exception as e:
+                    logger.error(f"Redis rate limit error: {e}")
+                    # Fallback to in-memory if Redis fails
+                    return _check_in_memory_limit(key, count, window, f, *args, **kwargs)
+            else:
+                # Fallback to in-memory
+                return _check_in_memory_limit(key, count, window, f, *args, **kwargs)
 
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+def _check_in_memory_limit(key, count, window, f, *args, **kwargs):
+    """Check rate limit using in-memory store."""
+    now = int(time.time())
+    window_start = now - window
+
+    # Clean old entries
+    rate_limit_store[key] = [timestamp for timestamp in rate_limit_store[key] if timestamp > window_start]
+
+    # Check if limit exceeded
+    if len(rate_limit_store[key]) >= count:
+        return jsonify({
+            'success': False,
+            'errors': [f'Rate limit exceeded.']
+        }), 429
+
+    # Add current request
+    rate_limit_store[key].append(now)
+    return None # Indicates not blocked
 
 
 def require_json(f):
