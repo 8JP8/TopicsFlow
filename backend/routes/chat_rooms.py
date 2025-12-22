@@ -402,6 +402,30 @@ def get_chat_room_messages(room_id):
 
         # Reverse to get chronological order and convert ObjectIds
         messages.reverse()
+
+        # Optimization: Batch fetch users
+        user_ids = set()
+        for message in messages:
+            if not message.get('anonymous_identity') and 'user_id' in message:
+                uid = message['user_id']
+                if isinstance(uid, ObjectId):
+                    user_ids.add(str(uid))
+                elif isinstance(uid, str) and ObjectId.is_valid(uid):
+                    user_ids.add(uid)
+
+        users_map = {}
+        if user_ids:
+            try:
+                from models.user import User
+                user_model = User(current_app.db)
+                # We'll use pymongo directly for the batch fetch to avoid multiple get_user_by_id calls
+                user_object_ids = [ObjectId(uid) for uid in user_ids]
+                users_list = list(current_app.db.users.find({'_id': {'$in': user_object_ids}}))
+                for user in users_list:
+                    users_map[str(user['_id'])] = user
+            except Exception as e:
+                logger.error(f"Error batch fetching users: {e}")
+
         for message in messages:
             # Convert all ObjectId fields to strings
             msg_id = str(message['_id'])
@@ -425,9 +449,17 @@ def get_chat_room_messages(room_id):
                 message['is_owner'] = False
                 message['is_moderator'] = False
             else:
-                from models.user import User
-                user_model = User(current_app.db)
-                user = user_model.get_user_by_id(message['user_id'])
+                user = users_map.get(message['user_id'])
+
+                # Fallback if not in map (e.g., failed batch fetch)
+                if not user and message['user_id']:
+                     try:
+                         from models.user import User
+                         user_model = User(current_app.db)
+                         user = user_model.get_user_by_id(message['user_id'])
+                     except:
+                         pass
+
                 if user:
                     message['display_name'] = user['username']
                     message['sender_username'] = user['username']

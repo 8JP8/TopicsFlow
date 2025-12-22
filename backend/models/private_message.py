@@ -120,6 +120,27 @@ class PrivateMessage:
 
         # Reverse to get chronological order and add details
         messages.reverse()
+
+        # Optimization: Fetch involved users once (there are only two in a private conversation)
+        from .user import User
+        user_model = User(self.db)
+
+        # Fetch current user and other user
+        # We can try to fetch them in one go if they are different
+        users_to_fetch = {str(user_id)}
+        users_to_fetch.add(str(other_user_id))
+
+        users_map = {}
+        try:
+            user_object_ids = [ObjectId(uid) for uid in users_to_fetch if ObjectId.is_valid(uid)]
+            if user_object_ids:
+                users = list(self.db.users.find({'_id': {'$in': user_object_ids}}))
+                for user in users:
+                    users_map[str(user['_id'])] = user
+        except Exception as e:
+            # Fallback
+            pass
+
         for message in messages:
             message['_id'] = str(message['_id'])
             message['from_user_id'] = str(message['from_user_id'])
@@ -132,9 +153,13 @@ class PrivateMessage:
                 message['read_at'] = message['read_at'].isoformat()
 
             # Add sender details
-            from .user import User
-            user_model = User(self.db)
-            sender = user_model.get_user_by_id(message['from_user_id'])
+            sender_id = message['from_user_id']
+            sender = users_map.get(sender_id)
+
+            # Fallback if not found in map (should be rare)
+            if not sender:
+                sender = user_model.get_user_by_id(sender_id)
+
             if sender:
                 message['sender_username'] = sender['username']
 
@@ -282,6 +307,27 @@ class PrivateMessage:
         from .user import User
         user_model = User(self.db)
 
+        # Optimization: Batch fetch users to avoid N+1 queries
+        # Collect all unique other_user_ids
+        other_user_ids = set()
+        for conv in conversations:
+            if '_id' in conv:
+                # Ensure we have the ID as string
+                uid = str(conv['_id']) if not isinstance(conv['_id'], str) else conv['_id']
+                other_user_ids.add(uid)
+
+        # Batch fetch users
+        users_map = {}
+        if other_user_ids:
+            try:
+                user_object_ids = [ObjectId(uid) for uid in other_user_ids if ObjectId.is_valid(uid)]
+                users = list(self.db.users.find({'_id': {'$in': user_object_ids}}))
+                for user in users:
+                    users_map[str(user['_id'])] = user
+            except Exception as e:
+                # Fallback or log error
+                print(f"Error batch fetching users: {e}")
+
         for conv in conversations:
             
             # Ensure other_user_id is set correctly (from _id which is the other user's ID)
@@ -311,8 +357,10 @@ class PrivateMessage:
                 if '_id' in last_msg:
                     last_msg['id'] = str(last_msg['_id']) if not isinstance(last_msg['_id'], str) else last_msg['_id']
 
-            # Get other user details (after conversion)
-            other_user = user_model.get_user_by_id(conv['other_user_id'])
+            # Get other user details (from batch map)
+            other_user_id = conv.get('other_user_id')
+            other_user = users_map.get(other_user_id)
+
             if other_user:
                 conv['other_user'] = {
                     'id': str(other_user['_id']),
@@ -325,7 +373,7 @@ class PrivateMessage:
                 # If user not found, still set basic fields to prevent frontend errors
                 # This should not happen, but handle gracefully
                 conv['username'] = 'Unknown User'
-                conv['user_id'] = str(conv['other_user_id'])
+                conv['user_id'] = str(conv.get('other_user_id'))
 
             # Determine if last message is from current user
             if 'last_message' in conv and conv['last_message']:
