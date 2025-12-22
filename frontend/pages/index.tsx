@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useVoip } from '@/contexts/VoipContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import Layout from '@/components/Layout/Layout';
 import TopicList from '@/components/Topic/TopicList';
@@ -579,6 +580,8 @@ export default function Home() {
     }
   };
 
+  const { isDocked, activeCall, setIsDocked } = useVoip();
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center theme-bg-primary">
@@ -594,353 +597,369 @@ export default function Home() {
   return (
     <>
       <Layout>
-        <div className="flex h-full md:pb-0 pb-16">
-          {/* Left Sidebar */}
-          <div className={`${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block h-full md:w-auto`}>
-            <ResizableSidebar
-              defaultWidth={350}
-              minWidth={280}
-              maxWidth={500}
-              onWidthChange={(w) => {
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('sidebar-width', w.toString());
-                }
-              }}
-              className={`border-r theme-border transition-all duration-300 h-full ${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block scrollbar-hide`}
-            >
-              <div
-                ref={sidebarRef}
-                className={`h-full border-r theme-border flex flex-col transition-all duration-500 ${sidebarHighlight ? 'ring-4 ring-blue-500 ring-opacity-50 shadow-lg' : ''
-                  }`}
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Main Dashboard Area */}
+          <div className="flex flex-1 min-h-0 md:pb-0">
+            {/* Left Sidebar */}
+            <div className={`${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block h-full md:w-auto`}>
+              <ResizableSidebar
+                defaultWidth={350}
+                minWidth={280}
+                maxWidth={500}
+                onWidthChange={(w) => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('sidebar-width', w.toString());
+                  }
+                }}
+                className={`border-r theme-border transition-all duration-300 h-full ${mobileView === 'sidebar' ? 'block w-full' : 'hidden'} md:block scrollbar-hide`}
               >
-                {/* Header */}
-                <div className="p-4 border-b theme-border">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-                      <span className="text-sm font-medium theme-text-primary">
-                        {connected ? (t('home.connected') || 'Connected') : (t('home.connecting') || 'Connecting...')}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm theme-text-secondary">
-                        {onlineUsers} {t('home.online')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Tab Navigation */}
-
-                  <div className="relative flex p-1 theme-bg-secondary rounded-lg space-x-1">
-                    <div
-                      className={`absolute top-1 bottom-1 w-[calc(50%-0.375rem)] bg-white dark:bg-neutral-700 rounded-md shadow-sm transition-all duration-300 ease-in-out ${activeSidebarTab === 'topics' ? 'left-1' : 'left-[calc(50%+0.125rem)]'
-                        }`}
-                    />
-                    <button
-                      onClick={() => setActiveSidebarTab('topics')}
-                      className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'topics'
-                        ? 'theme-text-primary'
-                        : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                      {t('topics.title') || 'Topics'}
-                    </button>
-                    <button
-                      onClick={() => setActiveSidebarTab('messages')}
-                      id="messages-tab-btn"
-                      className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'messages'
-                        ? 'theme-text-primary'
-                        : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                      {t('home.messages')}
-                      {unreadMessagesCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 animate-bounce-in border-2 theme-bg-secondary">
-                          {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                <div
+                  ref={sidebarRef}
+                  className={`h-full border-r theme-border flex flex-col transition-all duration-500 ${sidebarHighlight ? 'ring-4 ring-blue-500 ring-opacity-50 shadow-lg' : ''
+                    }`}
+                >
+                  {/* Header */}
+                  <div className="p-4 border-b theme-border">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-sm font-medium theme-text-primary">
+                          {connected ? (t('home.connected') || 'Connected') : (t('home.connecting') || 'Connecting...')}
                         </span>
-                      )}
-                    </button>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm theme-text-secondary">
+                          {onlineUsers} {t('home.online')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Tab Navigation */}
+
+                    <div className="relative flex p-1 theme-bg-secondary rounded-lg space-x-1">
+                      <div
+                        className={`absolute top-1 bottom-1 w-[calc(50%-0.375rem)] bg-white dark:bg-neutral-700 rounded-md shadow-sm transition-all duration-300 ease-in-out ${activeSidebarTab === 'topics' ? 'left-1' : 'left-[calc(50%+0.125rem)]'
+                          }`}
+                      />
+                      <button
+                        onClick={() => setActiveSidebarTab('topics')}
+                        className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'topics'
+                          ? 'theme-text-primary'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        {t('topics.title') || 'Topics'}
+                      </button>
+                      <button
+                        onClick={() => setActiveSidebarTab('messages')}
+                        id="messages-tab-btn"
+                        className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 flex items-center justify-center gap-2 ${activeSidebarTab === 'messages'
+                          ? 'theme-text-primary'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                        {t('home.messages')}
+                        {unreadMessagesCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 animate-bounce-in border-2 theme-bg-secondary">
+                            {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                {/* Content */}
-                <div className="flex-1 overflow-hidden">
-                  {activeSidebarTab === 'topics' && (
-                    <div className="h-full flex flex-col">
-                      {showCreateTopic ? (
-                        <div className="p-4 overflow-y-auto">
-                          <TopicCreate
-                            onTopicCreated={handleTopicCreated}
-                            onCancel={() => setShowCreateTopic(false)}
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="p-4">
-                            <button
-                              onClick={() => setShowCreateTopic(true)}
-                              id="create-topic-btn"
-                              className="w-full btn btn-primary flex items-center justify-center gap-2"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              {t('topics.createTopic') || 'Criar Tópico'}
-                            </button>
-                          </div>
-                          <div className="flex-1 overflow-y-auto">
-                            <TopicList
-                              topics={topics}
-                              loading={loading}
-                              onTopicSelect={handleTopicSelect}
-                              onRefresh={loadTopics}
-                              selectedTopicId={selectedTopic?.id}
-                              unreadCounts={unreadTopicMessages}
+                  {/* Content */}
+                  <div className="flex-1 overflow-hidden">
+                    {activeSidebarTab === 'topics' && (
+                      <div className="h-full flex flex-col">
+                        {showCreateTopic ? (
+                          <div className="p-4 overflow-y-auto">
+                            <TopicCreate
+                              onTopicCreated={handleTopicCreated}
+                              onCancel={() => setShowCreateTopic(false)}
                             />
                           </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {activeSidebarTab === 'messages' && (
-                    <div className="h-full">
-                      <PrivateMessagesSimplified
-                        onExpandMessage={(userId, username) => {
-                          setExpandedPrivateMessage({ userId, username });
-                          setExpandedChatRoom(null);
-                          setActiveSidebarTab('messages');
-                          setMobileView('content');
-                        }}
-                        expandedMessage={expandedPrivateMessage}
-                        onGroupSelect={(group) => {
-                          setExpandedChatRoom(group);
-                          setExpandedPrivateMessage(null);
-                          setActiveSidebarTab('messages');
-                          setMobileView('content');
-                        }}
-                        unreadGroupCounts={unreadChatRoomMessages}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* VOIP Control Bar - At bottom of left sidebar (Desktop only) */}
-                <div className="hidden md:block">
-                  <VoipControlBar />
-                </div>
-              </div>
-            </ResizableSidebar>
-          </div>
-
-          {/* Main Content */}
-          <div className={`flex-1 flex flex-col ${mobileView === 'content' ? 'block w-full' : 'hidden'} md:flex`}>
-            {expandedPrivateMessage ? (
-              <PrivateMessagesSimplified
-                expandedMessage={expandedPrivateMessage}
-                onCloseExpanded={() => {
-                  setExpandedPrivateMessage(null);
-                  setActiveSidebarTab('messages');
-                }}
-                isExpanded={true}
-                onGroupSelect={(group) => {
-                  setExpandedChatRoom(group);
-                  setExpandedPrivateMessage(null);
-                }}
-                unreadGroupCounts={unreadChatRoomMessages}
-              />
-            ) : expandedChatRoom ? (
-              <ChatRoomContainer
-                room={expandedChatRoom}
-                onBack={() => setExpandedChatRoom(null)}
-              />
-            ) : selectedTopic ? (
-              <div className="h-full flex flex-col">
-                {/* Topic Header */}
-                <div className="pt-4 px-4 pb-0 border-b theme-border">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <button onClick={() => setMobileView('sidebar')} className="md:hidden p-1 -ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full">
-                          <ArrowLeft size={20} className="theme-text-primary" />
-                        </button>
-                        <h2 className="text-2xl font-bold theme-text-primary">{selectedTopic.title}</h2>
+                        ) : (
+                          <>
+                            <div className="p-4">
+                              <button
+                                onClick={() => setShowCreateTopic(true)}
+                                id="create-topic-btn"
+                                className="w-full btn btn-primary flex items-center justify-center gap-2"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                {t('topics.createTopic') || 'Criar Tópico'}
+                              </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto">
+                              <TopicList
+                                topics={topics}
+                                loading={loading}
+                                onTopicSelect={handleTopicSelect}
+                                onRefresh={loadTopics}
+                                selectedTopicId={selectedTopic?.id}
+                                unreadCounts={unreadTopicMessages}
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <p className="theme-text-secondary text-sm mb-4">{selectedTopic.description}</p>
-                    </div>
+                    )}
 
-                    {/* Anonymous Mode Selector - Top Right */}
-                    {selectedTopic.settings?.allow_anonymous && (
-                      <div className="ml-4">
-                        <button
-                          id="anonymous-mode-toggle"
-                          onClick={() => setShowAnonymousModeDialog(true)}
-                          className="flex items-center gap-2 px-3 py-2 theme-bg-secondary rounded-lg border theme-border hover:theme-bg-tertiary transition-colors cursor-pointer"
-                          title={t('topics.configureAnonymousMode') || 'Configurar Modo Anónimo'}
-                        >
-                          <svg className="w-4 h-4 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          <span className="text-xs theme-text-primary font-medium whitespace-nowrap">
-                            {topicAnonymousMode[selectedTopic.id]?.isAnonymous
-                              ? `${t('topics.anonymousMode') || 'Modo Anónimo'}: ${topicAnonymousMode[selectedTopic.id]?.name}`
-                              : t('topics.anonymousMode') || 'Modo Anónimo'
-                            }
-                          </span>
-                          {topicAnonymousMode[selectedTopic.id]?.isAnonymous && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full" />
-                          )}
-                        </button>
+                    {activeSidebarTab === 'messages' && (
+                      <div className="h-full">
+                        <PrivateMessagesSimplified
+                          onExpandMessage={(userId, username) => {
+                            setExpandedPrivateMessage({ userId, username });
+                            setExpandedChatRoom(null);
+                            setActiveSidebarTab('messages');
+                            setMobileView('content');
+                          }}
+                          expandedMessage={expandedPrivateMessage}
+                          onGroupSelect={(group) => {
+                            setExpandedChatRoom(group);
+                            setExpandedPrivateMessage(null);
+                            setActiveSidebarTab('messages');
+                            setMobileView('content');
+                          }}
+                          unreadGroupCounts={unreadChatRoomMessages}
+                        />
                       </div>
                     )}
                   </div>
 
-                  {/* Tabs: Posts / Chats */}
-                  <div className="mt-4">
-                    <div className="flex relative w-full">
-                      {/* Sliding Underline - Blue line only, no full gray border */}
-                      <div
-                        className={`absolute bottom-0 h-[2px] bg-blue-500 transition-all duration-300 ease-out z-10 ${activeContentTab === 'posts' ? 'left-0 w-1/2' : 'left-1/2 w-1/2'
-                          }`}
-                      />
+                  {/* VOIP Control Bar - At bottom of left sidebar (Desktop only) */}
+                  <div className="hidden md:block">
+                    <VoipControlBar />
+                  </div>
+                </div>
+              </ResizableSidebar>
+            </div>
 
-                      <button
-                        onClick={() => {
-                          setActiveContentTab('posts');
-                          setSelectedPost(null);
-                        }}
-                        className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 text-center select-none outline-none flex items-center justify-center gap-2 ${activeContentTab === 'posts'
-                          ? 'theme-text-primary'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            {/* Main Content */}
+            <div className={`flex-1 flex flex-col ${mobileView === 'content' ? 'block w-full' : 'hidden'} md:flex`}>
+              {expandedPrivateMessage ? (
+                <PrivateMessagesSimplified
+                  expandedMessage={expandedPrivateMessage}
+                  onCloseExpanded={() => {
+                    setExpandedPrivateMessage(null);
+                    setActiveSidebarTab('messages');
+                  }}
+                  isExpanded={true}
+                  onGroupSelect={(group) => {
+                    setExpandedChatRoom(group);
+                    setExpandedPrivateMessage(null);
+                  }}
+                  unreadGroupCounts={unreadChatRoomMessages}
+                />
+              ) : expandedChatRoom ? (
+                <ChatRoomContainer
+                  room={expandedChatRoom}
+                  onBack={() => setExpandedChatRoom(null)}
+                />
+              ) : selectedTopic ? (
+                <div className="h-full flex flex-col">
+                  {/* Topic Header */}
+                  <div className="pt-4 px-4 pb-0 border-b theme-border">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <button onClick={() => setMobileView('sidebar')} className="md:hidden p-1 -ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full">
+                            <ArrowLeft size={20} className="theme-text-primary" />
+                          </button>
+                          <h2 className="text-2xl font-bold theme-text-primary">{selectedTopic.title}</h2>
+                        </div>
+                        <p className="theme-text-secondary text-sm mb-4">{selectedTopic.description}</p>
+                      </div>
+
+                      {/* Anonymous Mode Selector - Top Right */}
+                      {selectedTopic.settings?.allow_anonymous && (
+                        <div className="ml-4">
+                          <button
+                            id="anonymous-mode-toggle"
+                            onClick={() => setShowAnonymousModeDialog(true)}
+                            className="flex items-center gap-2 px-3 py-2 theme-bg-secondary rounded-lg border theme-border hover:theme-bg-tertiary transition-colors cursor-pointer"
+                            title={t('topics.configureAnonymousMode') || 'Configurar Modo Anónimo'}
+                          >
+                            <svg className="w-4 h-4 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="text-xs theme-text-primary font-medium whitespace-nowrap">
+                              {topicAnonymousMode[selectedTopic.id]?.isAnonymous
+                                ? `${t('topics.anonymousMode') || 'Modo Anónimo'}: ${topicAnonymousMode[selectedTopic.id]?.name}`
+                                : t('topics.anonymousMode') || 'Modo Anónimo'
+                              }
+                            </span>
+                            {topicAnonymousMode[selectedTopic.id]?.isAnonymous && (
+                              <div className="w-2 h-2 bg-green-500 rounded-full" />
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tabs: Posts / Chats */}
+                    <div className="mt-4">
+                      <div className="flex relative w-full">
+                        {/* Sliding Underline - Blue line only, no full gray border */}
+                        <div
+                          className={`absolute bottom-0 h-[2px] bg-blue-500 transition-all duration-300 ease-out z-10 ${activeContentTab === 'posts' ? 'left-0 w-1/2' : 'left-1/2 w-1/2'
+                            }`}
+                        />
+
+                        <button
+                          onClick={() => {
+                            setActiveContentTab('posts');
+                            setSelectedPost(null);
+                          }}
+                          className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 text-center select-none outline-none flex items-center justify-center gap-2 ${activeContentTab === 'posts'
+                            ? 'theme-text-primary'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                            }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                          </svg>
+                          {t('posts.title') || 'Posts'}
+                          {unreadPostsCount > 0 && (
+                            <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                              {unreadPostsCount > 9 ? '9+' : unreadPostsCount}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveContentTab('chats');
+                            setSelectedChat(null);
+                          }}
+                          className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 text-center select-none outline-none flex items-center justify-center gap-2 ${activeContentTab === 'chats'
+                            ? 'theme-text-primary'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                            }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
+                          </svg>
+                          {t('chats.title') || 'Chats'}
+                          {unreadChatsCount > 0 && (
+                            <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                              {unreadChatsCount > 9 ? '9+' : unreadChatsCount}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content based on active tab */}
+                  <div className="flex-1 overflow-hidden">
+                    {activeContentTab === 'posts' && (
+                      selectedPost ? (
+                        <PostDetailContainer
+                          post={selectedPost}
+                          topicId={selectedTopic.id}
+                          posts={topicPosts}
+                          onBack={() => setSelectedPost(null)}
+                          onPostChange={(post) => {
+                            setSelectedPost(post);
+                            // Reload post data
+                          }}
+                        />
+                      ) : (
+                        <PostList
+                          topicId={selectedTopic.id}
+                          onPostSelect={(post) => {
+                            setSelectedPost(post);
+                            // Load all posts for navigation
+                            loadTopicPosts(selectedTopic.id);
+                          }}
+                        />
+                      )
+                    )}
+                    {activeContentTab === 'chats' && (
+                      selectedChat ? (
+                        <ChatRoomContainer
+                          room={selectedChat}
+                          onBack={() => setSelectedChat(null)}
+                        />
+                      ) : (
+                        <ChatList
+                          topicId={selectedTopic.id}
+                          onChatSelect={(chat) => setSelectedChat(chat)}
+                          unreadCounts={unreadChatRoomMessages}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex">
+                  {/* Main Content - Welcome Message */}
+                  <div className="flex-1 flex items-center justify-center theme-bg-primary">
+                    <div className="text-center">
+                      <div className="mb-4">
+                        <svg className="w-24 h-24 mx-auto theme-text-muted" fill="none" stroke="currentColor" viewBox="0 0 800 800">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={28} d="M114.000 40.695 C 105.031 41.701,87.033 49.222,77.474 55.958 C 67.950 62.671,63.958 66.377,58.124 73.927 C 48.682 86.145,42.952 98.516,39.980 113.100 C 38.014 122.747,37.987 126.442,38.242 354.698 L 38.500 586.500 41.000 590.911 C 45.827 599.428,54.311 603.634,64.708 602.663 C 71.680 602.012,73.659 600.941,83.500 592.495 C 91.794 585.377,93.497 583.950,101.605 577.314 C 105.513 574.116,111.138 569.442,114.105 566.928 C 125.182 557.539,155.502 532.313,161.885 527.174 C 165.523 524.245,169.840 520.645,171.477 519.174 C 173.114 517.703,178.570 513.125,183.601 509.000 C 188.632 504.875,195.528 499.137,198.926 496.250 L 205.104 491.000 374.302 491.013 C 528.058 491.024,544.185 490.875,551.000 489.371 C 565.378 486.200,576.862 480.822,589.744 471.227 C 597.835 465.201,601.990 460.696,608.345 451.057 C 615.334 440.458,615.831 439.426,621.596 423.500 C 623.306 418.776,623.424 410.368,623.734 271.373 C 623.937 180.444,623.695 121.620,623.099 117.373 C 621.546 106.305,619.910 101.098,614.720 90.709 C 603.376 68.003,585.020 52.255,559.500 43.335 L 551.500 40.539 334.500 40.421 C 215.150 40.356,115.925 40.479,114.000 40.695 M559.000 47.799 C 564.225 49.614,571.425 52.701,575.000 54.660 C 582.374 58.700,595.632 69.146,598.551 73.216 C 611.847 91.752,616.623 102.173,619.052 117.948 C 620.566 127.780,619.878 414.529,618.331 418.500 C 617.689 420.150,616.376 424.200,615.414 427.500 C 608.520 451.157,586.978 473.200,562.607 481.536 C 545.824 487.276,555.434 487.000,372.162 487.000 L 203.456 487.000 199.478 490.224 C 197.290 491.997,168.781 515.735,136.124 542.974 C 103.467 570.213,74.995 593.825,72.853 595.444 C 69.462 598.007,68.086 598.395,62.229 598.438 C 57.238 598.475,54.655 597.978,52.227 596.515 C 47.962 593.944,44.359 588.622,43.076 583.000 C 41.611 576.582,41.611 135.406,43.076 122.272 C 44.367 110.697,47.903 98.842,52.703 90.000 C 57.217 81.684,68.214 67.573,72.412 64.711 C 89.532 53.035,91.356 52.052,102.255 48.616 C 108.440 46.667,114.850 44.895,116.500 44.678 C 118.150 44.461,216.250 44.333,334.500 44.392 L 549.500 44.500 559.000 47.799 M188.500 172.328 C 180.431 175.492,175.786 179.502,172.102 186.485 C 170.505 189.513,170.000 192.279,170.000 198.000 C 170.000 208.928,174.062 215.843,183.969 221.783 L 188.500 224.500 330.676 224.500 L 472.851 224.500 478.613 221.500 C 491.657 214.709,496.532 199.893,490.131 186.500 C 486.708 179.338,484.301 176.970,477.000 173.576 L 471.500 171.020 331.500 171.086 C 226.685 171.135,190.746 171.448,188.500 172.328 M478.733 179.788 C 485.658 185.273,487.500 189.204,487.500 198.500 C 487.500 205.849,487.256 206.819,484.500 210.428 C 482.850 212.588,479.499 215.625,477.054 217.178 L 472.608 220.000 331.554 219.977 L 190.500 219.953 185.534 217.227 C 175.664 211.807,171.438 199.581,175.927 189.433 C 178.764 183.018,180.521 181.178,186.500 178.359 L 191.500 176.001 333.041 176.251 L 474.581 176.500 478.733 179.788 M667.667 220.667 C 667.300 221.033,666.983 260.521,666.963 308.417 C 666.942 356.313,666.533 401.125,666.054 408.000 C 662.956 452.422,637.444 492.455,597.335 515.837 C 580.657 525.559,562.941 530.905,540.500 532.986 C 534.884 533.506,461.999 533.932,374.250 533.956 L 218.000 534.000 218.000 570.912 C 218.000 614.312,218.513 618.450,225.694 632.986 C 229.566 640.824,231.857 643.953,238.702 650.750 C 243.271 655.288,247.415 659.000,247.909 659.000 C 248.403 659.000,251.439 660.481,254.654 662.291 C 257.869 664.101,263.875 666.578,268.000 667.794 L 275.500 670.006 444.779 670.003 L 614.057 670.000 623.279 677.191 C 628.350 681.145,633.274 685.162,634.221 686.117 C 635.167 687.072,637.642 689.124,639.721 690.676 C 645.398 694.916,663.629 709.439,671.000 715.593 C 674.575 718.578,684.385 726.528,692.801 733.260 C 726.170 759.954,727.417 760.679,738.248 759.706 C 745.937 759.016,752.434 754.469,756.260 747.101 L 759.021 741.786 758.760 508.143 C 758.511 284.057,758.425 274.295,756.659 269.500 C 747.611 244.929,732.068 229.226,710.000 222.363 C 703.389 220.306,700.476 220.028,685.417 220.015 C 676.021 220.007,668.033 220.300,667.667 220.667 M708.954 226.502 C 719.778 229.704,726.391 233.735,735.510 242.687 C 743.758 250.783,748.696 258.882,752.162 270.000 L 754.500 277.500 754.500 510.152 L 754.500 742.803 751.352 747.149 C 745.911 754.660,737.833 757.497,729.000 754.999 C 727.075 754.455,719.875 749.453,713.000 743.885 C 689.486 724.840,681.586 718.499,678.884 716.500 C 677.397 715.400,663.799 704.521,648.667 692.324 C 633.535 680.127,619.902 669.327,618.372 668.324 C 615.714 666.582,607.885 666.477,444.044 665.980 L 272.500 665.459 266.500 663.309 C 246.057 655.985,231.972 641.602,224.784 620.713 C 222.777 614.882,222.622 612.153,222.259 576.287 L 221.872 538.074 383.686 537.745 C 554.093 537.399,547.579 537.573,566.500 532.872 C 576.955 530.274,583.130 527.755,596.493 520.637 C 611.635 512.572,618.989 507.211,629.500 496.579 C 640.392 485.562,646.278 477.466,654.135 462.694 C 661.016 449.760,665.081 438.894,668.162 425.199 C 670.306 415.669,670.350 413.848,670.701 320.500 C 670.898 268.250,671.283 224.868,671.557 224.096 C 672.408 221.698,698.365 223.369,708.954 226.502 M185.500 263.387 C 179.853 266.061,175.193 270.617,172.100 276.485 C 170.523 279.479,170.000 282.286,170.000 287.768 C 170.000 299.153,174.709 306.810,185.000 312.160 L 189.500 314.500 283.495 314.770 C 345.815 314.949,379.180 314.689,382.506 313.999 C 389.362 312.575,396.530 306.932,400.144 300.112 C 407.175 286.846,401.352 269.932,387.500 263.383 L 382.500 261.020 286.500 261.020 L 190.500 261.020 185.500 263.387 M385.500 267.165 C 389.376 269.316,394.317 274.590,396.490 278.897 C 397.767 281.428,398.112 284.119,397.842 289.450 C 397.524 295.746,397.088 297.101,394.202 300.744 C 392.399 303.021,389.253 305.923,387.212 307.192 L 383.500 309.500 288.000 309.779 C 182.357 310.088,187.535 310.382,180.871 303.717 C 173.778 296.624,172.248 287.052,176.761 278.020 C 180.095 271.349,185.999 266.882,192.775 265.905 C 195.374 265.530,239.125 265.286,290.000 265.362 C 374.261 265.488,382.767 265.648,385.500 267.165" />
                         </svg>
-                        {t('posts.title') || 'Posts'}
-                        {unreadPostsCount > 0 && (
-                          <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                            {unreadPostsCount > 9 ? '9+' : unreadPostsCount}
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveContentTab('chats');
-                          setSelectedChat(null);
-                        }}
-                        className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 text-center select-none outline-none flex items-center justify-center gap-2 ${activeContentTab === 'chats'
-                          ? 'theme-text-primary'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8H19C20.1046 8 21 8.89543 21 10V16C21 17.1046 20.1046 18 19 18H17V22L13 18H9C8.44772 18 7.94772 17.7761 7.58579 17.4142M7.58579 17.4142L11 14H15C16.1046 14 17 13.1046 17 12V6C17 4.89543 16.1046 4 15 4H5C3.89543 4 3 4.89543 3 6V12C3 13.1046 3.89543 14 5 14H7V18L7.58579 17.4142Z" />
-                        </svg>
-                        {t('chats.title') || 'Chats'}
-                        {unreadChatsCount > 0 && (
-                          <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                            {unreadChatsCount > 9 ? '9+' : unreadChatsCount}
-                          </span>
-                        )}
-                      </button>
+                      </div>
+                      <h2 className="text-2xl font-bold theme-text-primary mb-2">
+                        {t('home.title')}
+                      </h2>
+                      <p className="theme-text-secondary mb-6 max-w-md">
+                        {t('home.description')}
+                      </p>
                     </div>
                   </div>
                 </div>
-
-                {/* Content based on active tab */}
-                <div className="flex-1 overflow-hidden">
-                  {activeContentTab === 'posts' && (
-                    selectedPost ? (
-                      <PostDetailContainer
-                        post={selectedPost}
-                        topicId={selectedTopic.id}
-                        posts={topicPosts}
-                        onBack={() => setSelectedPost(null)}
-                        onPostChange={(post) => {
-                          setSelectedPost(post);
-                          // Reload post data
-                        }}
-                      />
-                    ) : (
-                      <PostList
-                        topicId={selectedTopic.id}
-                        onPostSelect={(post) => {
-                          setSelectedPost(post);
-                          // Load all posts for navigation
-                          loadTopicPosts(selectedTopic.id);
-                        }}
-                      />
-                    )
-                  )}
-                  {activeContentTab === 'chats' && (
-                    selectedChat ? (
-                      <ChatRoomContainer
-                        room={selectedChat}
-                        onBack={() => setSelectedChat(null)}
-                      />
-                    ) : (
-                      <ChatList
-                        topicId={selectedTopic.id}
-                        onChatSelect={(chat) => setSelectedChat(chat)}
-                        unreadCounts={unreadChatRoomMessages}
-                      />
-                    )
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex">
-                {/* Main Content - Welcome Message */}
-                <div className="flex-1 flex items-center justify-center theme-bg-primary">
-                  <div className="text-center">
-                    <div className="mb-4">
-                      <svg className="w-24 h-24 mx-auto theme-text-muted" fill="none" stroke="currentColor" viewBox="0 0 800 800">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={28} d="M114.000 40.695 C 105.031 41.701,87.033 49.222,77.474 55.958 C 67.950 62.671,63.958 66.377,58.124 73.927 C 48.682 86.145,42.952 98.516,39.980 113.100 C 38.014 122.747,37.987 126.442,38.242 354.698 L 38.500 586.500 41.000 590.911 C 45.827 599.428,54.311 603.634,64.708 602.663 C 71.680 602.012,73.659 600.941,83.500 592.495 C 91.794 585.377,93.497 583.950,101.605 577.314 C 105.513 574.116,111.138 569.442,114.105 566.928 C 125.182 557.539,155.502 532.313,161.885 527.174 C 165.523 524.245,169.840 520.645,171.477 519.174 C 173.114 517.703,178.570 513.125,183.601 509.000 C 188.632 504.875,195.528 499.137,198.926 496.250 L 205.104 491.000 374.302 491.013 C 528.058 491.024,544.185 490.875,551.000 489.371 C 565.378 486.200,576.862 480.822,589.744 471.227 C 597.835 465.201,601.990 460.696,608.345 451.057 C 615.334 440.458,615.831 439.426,621.596 423.500 C 623.306 418.776,623.424 410.368,623.734 271.373 C 623.937 180.444,623.695 121.620,623.099 117.373 C 621.546 106.305,619.910 101.098,614.720 90.709 C 603.376 68.003,585.020 52.255,559.500 43.335 L 551.500 40.539 334.500 40.421 C 215.150 40.356,115.925 40.479,114.000 40.695 M559.000 47.799 C 564.225 49.614,571.425 52.701,575.000 54.660 C 582.374 58.700,595.632 69.146,598.551 73.216 C 611.847 91.752,616.623 102.173,619.052 117.948 C 620.566 127.780,619.878 414.529,618.331 418.500 C 617.689 420.150,616.376 424.200,615.414 427.500 C 608.520 451.157,586.978 473.200,562.607 481.536 C 545.824 487.276,555.434 487.000,372.162 487.000 L 203.456 487.000 199.478 490.224 C 197.290 491.997,168.781 515.735,136.124 542.974 C 103.467 570.213,74.995 593.825,72.853 595.444 C 69.462 598.007,68.086 598.395,62.229 598.438 C 57.238 598.475,54.655 597.978,52.227 596.515 C 47.962 593.944,44.359 588.622,43.076 583.000 C 41.611 576.582,41.611 135.406,43.076 122.272 C 44.367 110.697,47.903 98.842,52.703 90.000 C 57.217 81.684,68.214 67.573,72.412 64.711 C 89.532 53.035,91.356 52.052,102.255 48.616 C 108.440 46.667,114.850 44.895,116.500 44.678 C 118.150 44.461,216.250 44.333,334.500 44.392 L 549.500 44.500 559.000 47.799 M188.500 172.328 C 180.431 175.492,175.786 179.502,172.102 186.485 C 170.505 189.513,170.000 192.279,170.000 198.000 C 170.000 208.928,174.062 215.843,183.969 221.783 L 188.500 224.500 330.676 224.500 L 472.851 224.500 478.613 221.500 C 491.657 214.709,496.532 199.893,490.131 186.500 C 486.708 179.338,484.301 176.970,477.000 173.576 L 471.500 171.020 331.500 171.086 C 226.685 171.135,190.746 171.448,188.500 172.328 M478.733 179.788 C 485.658 185.273,487.500 189.204,487.500 198.500 C 487.500 205.849,487.256 206.819,484.500 210.428 C 482.850 212.588,479.499 215.625,477.054 217.178 L 472.608 220.000 331.554 219.977 L 190.500 219.953 185.534 217.227 C 175.664 211.807,171.438 199.581,175.927 189.433 C 178.764 183.018,180.521 181.178,186.500 178.359 L 191.500 176.001 333.041 176.251 L 474.581 176.500 478.733 179.788 M667.667 220.667 C 667.300 221.033,666.983 260.521,666.963 308.417 C 666.942 356.313,666.533 401.125,666.054 408.000 C 662.956 452.422,637.444 492.455,597.335 515.837 C 580.657 525.559,562.941 530.905,540.500 532.986 C 534.884 533.506,461.999 533.932,374.250 533.956 L 218.000 534.000 218.000 570.912 C 218.000 614.312,218.513 618.450,225.694 632.986 C 229.566 640.824,231.857 643.953,238.702 650.750 C 243.271 655.288,247.415 659.000,247.909 659.000 C 248.403 659.000,251.439 660.481,254.654 662.291 C 257.869 664.101,263.875 666.578,268.000 667.794 L 275.500 670.006 444.779 670.003 L 614.057 670.000 623.279 677.191 C 628.350 681.145,633.274 685.162,634.221 686.117 C 635.167 687.072,637.642 689.124,639.721 690.676 C 645.398 694.916,663.629 709.439,671.000 715.593 C 674.575 718.578,684.385 726.528,692.801 733.260 C 726.170 759.954,727.417 760.679,738.248 759.706 C 745.937 759.016,752.434 754.469,756.260 747.101 L 759.021 741.786 758.760 508.143 C 758.511 284.057,758.425 274.295,756.659 269.500 C 747.611 244.929,732.068 229.226,710.000 222.363 C 703.389 220.306,700.476 220.028,685.417 220.015 C 676.021 220.007,668.033 220.300,667.667 220.667 M708.954 226.502 C 719.778 229.704,726.391 233.735,735.510 242.687 C 743.758 250.783,748.696 258.882,752.162 270.000 L 754.500 277.500 754.500 510.152 L 754.500 742.803 751.352 747.149 C 745.911 754.660,737.833 757.497,729.000 754.999 C 727.075 754.455,719.875 749.453,713.000 743.885 C 689.486 724.840,681.586 718.499,678.884 716.500 C 677.397 715.400,663.799 704.521,648.667 692.324 C 633.535 680.127,619.902 669.327,618.372 668.324 C 615.714 666.582,607.885 666.477,444.044 665.980 L 272.500 665.459 266.500 663.309 C 246.057 655.985,231.972 641.602,224.784 620.713 C 222.777 614.882,222.622 612.153,222.259 576.287 L 221.872 538.074 383.686 537.745 C 554.093 537.399,547.579 537.573,566.500 532.872 C 576.955 530.274,583.130 527.755,596.493 520.637 C 611.635 512.572,618.989 507.211,629.500 496.579 C 640.392 485.562,646.278 477.466,654.135 462.694 C 661.016 449.760,665.081 438.894,668.162 425.199 C 670.306 415.669,670.350 413.848,670.701 320.500 C 670.898 268.250,671.283 224.868,671.557 224.096 C 672.408 221.698,698.365 223.369,708.954 226.502 M185.500 263.387 C 179.853 266.061,175.193 270.617,172.100 276.485 C 170.523 279.479,170.000 282.286,170.000 287.768 C 170.000 299.153,174.709 306.810,185.000 312.160 L 189.500 314.500 283.495 314.770 C 345.815 314.949,379.180 314.689,382.506 313.999 C 389.362 312.575,396.530 306.932,400.144 300.112 C 407.175 286.846,401.352 269.932,387.500 263.383 L 382.500 261.020 286.500 261.020 L 190.500 261.020 185.500 263.387 M385.500 267.165 C 389.376 269.316,394.317 274.590,396.490 278.897 C 397.767 281.428,398.112 284.119,397.842 289.450 C 397.524 295.746,397.088 297.101,394.202 300.744 C 392.399 303.021,389.253 305.923,387.212 307.192 L 383.500 309.500 288.000 309.779 C 182.357 310.088,187.535 310.382,180.871 303.717 C 173.778 296.624,172.248 287.052,176.761 278.020 C 180.095 271.349,185.999 266.882,192.775 265.905 C 195.374 265.530,239.125 265.286,290.000 265.362 C 374.261 265.488,382.767 265.648,385.500 267.165" />
-                      </svg>
-                    </div>
-                    <h2 className="text-2xl font-bold theme-text-primary mb-2">
-                      {t('home.title')}
-                    </h2>
-                    <p className="theme-text-secondary mb-6 max-w-md">
-                      {t('home.description')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div >
-        {/* Mobile Bottom Navigation Bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 theme-bg-secondary border-t theme-border flex items-center z-50 pb-safe">
-          <button
-            onClick={() => setMobileView('sidebar')}
-            className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'sidebar' ? 'theme-text-primary' : 'theme-text-secondary'}`}
-          >
-            <LayoutList size={24} />
-            <span className="text-[10px] font-medium">{t('common.menu') || 'Menu'}</span>
-          </button>
-
-          <button
-            onClick={() => setMobileView('content')}
-            className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'content' ? 'theme-text-primary' : 'theme-text-secondary'}`}
-          >
-            <div className="relative">
-              <MessageSquare size={24} />
-              {(unreadPostsCount + unreadChatsCount > 0) && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 theme-border box-content"></span>
               )}
             </div>
-            <span className="text-[10px] font-medium">{t('common.content') || 'View'}</span>
-          </button>
+          </div>
 
-          <div className="flex-1 h-full">
-            <UserMenu placement="mobile-bottom" />
+          {/* VoIP docked row (Mobile only) */}
+          {activeCall && isDocked && (
+            <div className="md:hidden theme-bg-secondary border-t theme-border animate-in slide-in-from-bottom duration-300">
+              <VoipControlBar
+                variant="embedded"
+                showLabels={true}
+                onDock={() => setIsDocked(!isDocked)}
+                isDocked={true}
+              />
+            </div>
+          )}
+
+          {/* Mobile Bottom Navigation Bar - Flow based, not fixed anymore */}
+          <div className="md:hidden h-16 theme-bg-secondary border-t theme-border flex items-center flex-shrink-0 pb-safe">
+            <button
+              onClick={() => setMobileView('sidebar')}
+              className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'sidebar' ? 'theme-text-primary' : 'theme-text-secondary'}`}
+            >
+              <LayoutList size={24} />
+              <span className="text-[10px] font-medium">{t('common.menu') || 'Menu'}</span>
+            </button>
+
+            <button
+              onClick={() => setMobileView('content')}
+              className={`flex-1 flex flex-col items-center justify-center h-full space-y-1 ${mobileView === 'content' ? 'theme-text-primary' : 'theme-text-secondary'}`}
+            >
+              <div className="relative">
+                <MessageSquare size={24} />
+                {(unreadPostsCount + unreadChatsCount > 0) && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 theme-border box-content"></span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">{t('common.content') || 'View'}</span>
+            </button>
+
+            <div className="flex-1 h-full">
+              <UserMenu placement="mobile-bottom" />
+            </div>
           </div>
         </div>
       </Layout >

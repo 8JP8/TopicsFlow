@@ -60,8 +60,10 @@ interface VoipContextType {
     isTestingMicrophone: boolean;
     availableDevices: MediaDeviceInfo[];
     selectedDeviceId: string;
+    isDocked: boolean;
 
     // Actions
+    setIsDocked: (value: boolean) => void;
     createCall: (roomId: string, roomType: 'group' | 'dm', roomName?: string) => Promise<void>;
     joinCall: (callId: string) => Promise<void>;
     leaveCall: () => void;
@@ -95,6 +97,8 @@ export const useVoip = () => {
                 isTestingMicrophone: false,
                 availableDevices: [],
                 selectedDeviceId: '',
+                isDocked: false,
+                setIsDocked: () => { },
                 createCall: async () => { },
                 joinCall: async () => { },
                 leaveCall: () => { },
@@ -135,6 +139,7 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
     const [isTestingMicrophone, setIsTestingMicrophone] = useState(false);
     const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
+    const [isDocked, setIsDocked] = useState(false);
 
     // State for remote streams (explicit rendering to prevent GC)
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
@@ -959,6 +964,8 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         stopMicrophoneTest,
         selectMicrophoneDevice,
         refreshDevices,
+        isDocked,
+        setIsDocked,
     };
 
     return (

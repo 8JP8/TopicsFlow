@@ -5,32 +5,16 @@ import VoipControlBar from './VoipControlBar';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const MobileCallWidget: React.FC = () => {
-    const { activeCall } = useVoip();
-    const [isDocked, setIsDocked] = useState(false);
+    const { activeCall, isDocked, setIsDocked } = useVoip();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const constraintsRef = useRef<HTMLDivElement>(null);
 
     // Only render on mobile and when there is an active call
-    if (!activeCall || !isMobile) return null;
+    if (!activeCall || !isMobile || isDocked) return null;
 
     const toggleDock = () => {
         setIsDocked(!isDocked);
     };
-
-    if (isDocked) {
-        return (
-            <div className="fixed bottom-16 left-0 right-0 z-50 px-4 py-2 bg-transparent pointer-events-none flex justify-center">
-                <div className="pointer-events-auto w-full max-w-md shadow-2xl">
-                    <VoipControlBar
-                        variant="floating" // Use floating variant for rounded look
-                        showLabels={true}
-                        onDock={toggleDock}
-                        isDocked={true}
-                    />
-                </div>
-            </div>
-        );
-    }
 
     return (
         <>

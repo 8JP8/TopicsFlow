@@ -20,13 +20,13 @@ const RegisterPage: React.FC = () => {
       {/* Fixed Header with Controls */}
       <div className="fixed top-0 left-0 right-0 z-50 p-4">
         <div className="flex justify-between items-center">
-          <Link href="/about" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+          <Link href="/about" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline">
             <img
               src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"
               className="h-10 w-10"
             />
-            <span className="text-xl font-bold theme-text-primary">
+            <span className="text-xl font-bold theme-text-primary no-underline">
               {t('common.appName')}
             </span>
           </Link>

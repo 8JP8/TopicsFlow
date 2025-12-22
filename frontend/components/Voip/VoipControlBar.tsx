@@ -129,19 +129,19 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({
                                 <button
                                     onClick={(e) => {
                                         e.preventDefault();
-                                        e.stopPropagation(); // Prevent drag start if needed
+                                        e.stopPropagation();
                                         onDock();
                                     }}
                                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-                                    title={isDocked ? "Undock" : "Dock to bottom"}
+                                    title={isDocked ? (t('voip.undock') || "Undock") : (t('voip.dock') || "Dock to bottom")}
                                 >
                                     {isDocked ? (
                                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7m0 0l7 7m-7-7v18" />
                                         </svg>
                                     ) : (
                                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13l-7 7m0 0l-7-7m7 7V3" />
                                         </svg>
                                     )}
                                 </button>
