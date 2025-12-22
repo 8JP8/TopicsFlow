@@ -6,7 +6,11 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import InvitationsPopup from './InvitationsPopup';
 import InvitationsModal from './InvitationsModal';
 
-const InvitationsButton: React.FC = () => {
+interface InvitationsButtonProps {
+  onClickOverride?: () => void;
+}
+
+const InvitationsButton: React.FC<InvitationsButtonProps> = ({ onClickOverride }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { socket, connected } = useSocket();
@@ -17,11 +21,15 @@ const InvitationsButton: React.FC = () => {
   // Listen for tour event to open invitations
   useEffect(() => {
     const handleOpenInvitations = () => {
-      setShowModal(true);
+      if (onClickOverride) {
+        onClickOverride();
+      } else {
+        setShowModal(true);
+      }
     };
     window.addEventListener('tour:open-invitations', handleOpenInvitations);
     return () => window.removeEventListener('tour:open-invitations', handleOpenInvitations);
-  }, []);
+  }, [onClickOverride]);
 
   // Fetch pending invitations count (chat + topics)
   const fetchInvitationCount = async () => {
@@ -96,7 +104,13 @@ const InvitationsButton: React.FC = () => {
   return (
     <div className="relative">
       <button
-        onClick={() => setShowModal(!showModal)}
+        onClick={() => {
+          if (onClickOverride) {
+            onClickOverride();
+          } else {
+            setShowModal(!showModal);
+          }
+        }}
         id="invitations-btn"
         className="relative p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
         aria-label={t('invitations.title') || 'Chat Invitations'}
@@ -113,7 +127,10 @@ const InvitationsButton: React.FC = () => {
         )}
       </button>
 
-      {showModal && (
+      {/* Only render internal modals if NO override is provided. 
+          If override is provided, the parent handles the modal. 
+          Actually, let's keep it simple: if override is not used, show modals. */}
+      {!onClickOverride && showModal && (
         <InvitationsPopup
           isOpen={showModal}
           onClose={handleModalClose}
@@ -125,7 +142,7 @@ const InvitationsButton: React.FC = () => {
         />
       )}
 
-      {showFullModal && (
+      {!onClickOverride && showFullModal && (
         <InvitationsModal
           isOpen={showFullModal}
           onClose={() => setShowFullModal(false)}

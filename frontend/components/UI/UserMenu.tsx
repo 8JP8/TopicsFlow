@@ -6,7 +6,11 @@ import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import Avatar from '@/components/UI/Avatar';
 
-const UserMenu: React.FC = () => {
+interface UserMenuProps {
+  placement?: 'bottom' | 'top' | 'mobile-bottom';
+}
+
+const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -70,11 +74,6 @@ const UserMenu: React.FC = () => {
         const path = router.pathname;
         if (path === '/') {
           // Restart dashboard tour
-          // We need a way to trigger the tour again. Best way is to dispatch an event or use a global context/hook.
-          // Since existing tour uses `driver.js` initialized in `index.tsx` or `Layout.tsx` which often runs on mount or via a prop,
-          // we might need to expose a trigger.
-          // Assuming `driver.drive()` can be called if we can access the driver instance, or we can reload with a query param, or dispatch an event.
-          // Let's try dispatching a custom event that Layout or Index listens to.
           window.dispatchEvent(new CustomEvent('tour:start', { detail: 'dashboard' }));
         } else if (path === '/settings') {
           window.dispatchEvent(new CustomEvent('tour:start', { detail: 'settings' }));
@@ -146,30 +145,55 @@ const UserMenu: React.FC = () => {
         <button
           onClick={() => setIsOpen(!isOpen)}
           id="user-menu-btn"
-          className="flex items-center space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors"
+          className={`flex items-center ${placement === 'mobile-bottom' ? 'justify-center relative p-0 bg-transparent hover:bg-transparent' : 'space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors'}`}
           aria-label="User menu"
         >
-          <Avatar
-            userId={user.id}
-            username={user.username}
-            profilePicture={displayProfilePicture}
-            size="md"
-          />
-          <span className="text-sm font-medium theme-text-primary hidden sm:block">
-            {displayName}
-          </span>
-          <svg
-            className={`w-4 h-4 theme-text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="relative">
+            <Avatar
+              userId={user.id}
+              username={user.username}
+              profilePicture={displayProfilePicture}
+              size={placement === 'mobile-bottom' ? 'sm' : 'md'}
+            />
+            {placement === 'mobile-bottom' && isOpen && (
+              <div className="absolute -top-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 border theme-border transition-transform rotate-0">
+                <svg
+                  className="w-3 h-3 theme-text-primary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {placement !== 'mobile-bottom' && (
+            <>
+              <span className="text-sm font-medium theme-text-primary hidden sm:block">
+                {displayName}
+              </span>
+              <svg
+                className={`w-4 h-4 theme-text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </>
+          )}
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 top-full mt-2 w-56 theme-bg-secondary border theme-border rounded-lg shadow-lg z-20">
+          <div className={`
+            ${placement === 'mobile-bottom'
+              ? 'fixed bottom-[5rem] right-2 w-[50vw] min-w-[280px] max-w-sm h-auto max-h-[60vh] overflow-y-auto shadow-2xl border theme-border rounded-xl z-50 animate-in slide-in-from-bottom-2 duration-200'
+              : `absolute right-0 ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} w-80 shadow-lg z-20 rounded-lg border theme-border`
+            } 
+            theme-bg-secondary
+          `}>
             {/* User Info */}
             <div className="px-4 py-3 border-b theme-border">
               <p className="text-sm font-medium theme-text-primary">{displayName}</p>

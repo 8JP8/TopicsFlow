@@ -56,6 +56,7 @@ def create_app(config_name=None):
         "http://127.0.0.1:3000",
         "http://localhost:5000",
         "http://127.0.0.1:5000",
+        "http://192.168.1.252:3000",
     ]
     
     if frontend_url:

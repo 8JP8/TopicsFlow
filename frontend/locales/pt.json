@@ -63,7 +63,11 @@
     "welcomeBack": "Bem-vindo de Volta",
     "dashboard": "Dashboard",
     "closeModal": "Fechar Modal",
-    "learnMore": "Saber mais"
+    "learnMore": "Saber mais",
+    "notifications": "Notificações",
+    "invitations": "Convites",
+    "menu": "Menu",
+    "content": "Conteúdo"
   },
   "chats": {
     "title": "Conversações",
@@ -266,7 +270,7 @@
   },
   "home": {
     "title": "Bem-vindo ao TopicsFlow",
-    "subtitle": "Selecione um tópico na barra lateral para começar a conversar ou crie um novo tópico para iniciar uma conversa.",
+    "description": "Comece por selecionar um tópico ou junte-se à conversa nas salas de chat.",
     "browseTopics": "Navegar Tópicos",
     "topics": "Tópicos",
     "message": "Mensagem",
@@ -378,7 +382,7 @@
     "realName": "Nome Real",
     "send": "Enviar",
     "gif": "GIF",
-    "messages": "mensagens",
+    "messages": "Mensagens",
     "noMessages": "Ainda não há mensagens. Seja o primeiro a enviar!",
     "noMessagesStart": "Ainda não há mensagens. Inicie a conversa!",
     "loadingMessages": "Carregando mensagens...",
@@ -468,7 +472,8 @@
     "deleteChatroomWarning": "A eliminação desta sala de chat é permanente e não pode ser desfeita.",
     "leaveChatroom": "Sair da Sala de Chat",
     "confirmLeave": "Tem a certeza que deseja sair de \"{name}\"?",
-    "leftChatroom": "Saiu da sala de chat"
+    "leftChatroom": "Saiu da sala de chat",
+    "backToChat": "Voltar para o Chat"
   },
   "gifPicker": {
     "searchPlaceholder": "Pesquisar GIFs...",
@@ -878,6 +883,7 @@
   "userMenu": {
     "startTour": "Guia de Ajuda",
     "profile": "Perfil",
+    "userMenu": "Menu de Utilizador",
     "theme": "Tema",
     "language": "Idioma",
     "openTicket": "Abrir Ticket de Suporte",
@@ -1117,7 +1123,7 @@
     "content": "Conteúdo",
     "attachments": "Anexos",
     "dashboard": "Painel de Administração",
-    "controls": "Controlos de Administração",
+    "controls": "Administração",
     "manageReports": "Gerir Denúncias",
     "manageTickets": "Gerir Tickets",
     "bannedUsers": "Utilizadores Banidos",
@@ -1832,5 +1838,8 @@
     "messageInputDesc": "Escreva, envie GIFs ou anexe ficheiros aqui.",
     "settingsCompleteTitle": "Guia Concluído",
     "settingsCompleteDesc": "Você representa o coração da nossa comunidade. Divirta-se no TopicsFlow!"
+  },
+  "support": {
+    "title": "Suporte"
   }
 }

@@ -141,7 +141,7 @@ export default function About() {
                         {/* Stacked Mockup Cards - Pointer events none on container, auto on cards */}
                         <div className="relative h-[420px] mt-12 flex items-center justify-center pointer-events-none">
                             {/* Chat Layout Card (Back) */}
-                            <div className="absolute w-full max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-4 shadow-2xl transform -rotate-6 translate-x-16 translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-10 pointer-events-auto">
+                            <div className="absolute w-[90%] max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-4 shadow-2xl transform md:-rotate-6 md:translate-x-16 translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-10 pointer-events-auto">
                                 <div className="flex items-center gap-2 mb-3 border-b border-slate-700/50 pb-2">
                                     <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
                                     <span className="text-slate-400 text-xs font-medium">General Chat</span>
@@ -174,7 +174,7 @@ export default function About() {
                             </div>
 
                             {/* Reddit Post Card (Front) */}
-                            <div className="absolute w-full max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-5 shadow-2xl transform rotate-3 -translate-x-16 -translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-20 pointer-events-auto">
+                            <div className="absolute w-[90%] max-w-sm bg-slate-900/90 border border-slate-700/50 rounded-2xl p-5 shadow-2xl transform md:rotate-3 md:-translate-x-16 -translate-y-4 backdrop-blur-sm hover:rotate-0 hover:translate-x-0 transition-all duration-500 z-20 pointer-events-auto">
                                 <div className="flex gap-3">
                                     {/* Vote buttons */}
                                     <div className="flex flex-col items-center gap-1">

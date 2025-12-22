@@ -249,9 +249,10 @@ class FileStorageService:
     def _store_azure_file(self, file_id: str, file_data: bytes, filename: str,
                          mime_type: str, metadata: Dict) -> str:
         """Store file in Azure Blob Storage."""
-        file_type_dir = self._get_file_type_dir(mime_type)
+        # Flatten structure: blob name is just file_id + ext
+        # This simplifies retrieval later as we don't need to guess folders
         file_ext = Path(filename).suffix
-        blob_name = f"{file_type_dir}/{file_id}{file_ext}"
+        blob_name = f"{file_id}{file_ext}"
         
         blob_client = self.blob_service_client.get_blob_client(
             container=self.container_name,
@@ -269,12 +270,12 @@ class FileStorageService:
         
         blob_client.upload_blob(
             file_data,
-            overwrite=False,
+            overwrite=True, # Allow overwrite if hash matches (idempotent)
             metadata=blob_metadata,
             content_settings={'content_type': mime_type}
         )
         
-        # Return just the file_id - the blob_name is stored in Azure metadata
+        # Return just the file_id
         return file_id
     
     def get_file_url(self, file_id: str, encryption_key: str = None) -> str:
@@ -322,11 +323,11 @@ class FileStorageService:
         """Delete file from storage."""
         try:
             if self.use_azure:
-                blob_client = self.blob_service_client.get_blob_client(
-                    container=self.container_name,
-                    blob=file_id
-                )
-                blob_client.delete_blob()
+                container_client = self.blob_service_client.get_container_client(self.container_name)
+                # Find blob by file_id prefix (since we don't know the extension)
+                blobs = list(container_client.list_blobs(name_starts_with=file_id))
+                for blob in blobs:
+                    container_client.delete_blob(blob.name)
             else:
                 if file_id in self.file_index:
                     file_path = self.get_file_path(file_id)

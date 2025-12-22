@@ -14,6 +14,8 @@ import InvitationsButton from '@/components/UI/InvitationsButton';
 import AdminDashboardButton from '@/components/Admin/AdminDashboardButton';
 import { useState, useEffect, useRef } from 'react';
 import SupportWidget from '@/components/Support/SupportWidget';
+import MyTicketsModal from '@/components/Tickets/MyTicketsModal'; // Import MyTicketsModal
+import { Menu, X, LifeBuoy, Settings } from 'lucide-react'; // Import LifeBuoy and Settings icons
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,7 +30,28 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
   const { t } = useLanguage();
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showSupportWidget, setShowSupportWidget] = useState(true);
+  const [showMyTickets, setShowMyTickets] = useState(false); // State for MyTicketsModal
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const driverRef = useRef<any>(null);
+  const menuRef = useRef<HTMLDivElement>(null); // Ref for mobile menu
+
+  // Click outside listener for mobile menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        mobileMenuOpen &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        // Also ignore clicks on the toggle button itself (if possible, by class or id, but simpler is just outside menu)
+        !(event.target as Element).closest('button[aria-label="Toggle menu"]') // Assuming we add aria-label to toggle
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   // Preference listener for support widget
   useEffect(() => {
@@ -118,9 +141,9 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
   return (
     <div className={`min-h-screen theme-bg-primary ${theme}`} data-theme={theme} suppressHydrationWarning>
       {/* Header */}
-      <header className={`h-16 flex items-center justify-between px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
-        {/* ... header content ... */}
-        <div className="flex items-center space-x-3">
+      <header className={`h-16 flex items-center justify-between px-3 md:px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
+        {/* Logo Section */}
+        <div className="flex items-center space-x-3 z-50">
           <Link
             href="/"
             onClick={(e) => {
@@ -131,26 +154,109 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
                 router.push('/');
               }
             }}
-            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline"
+            className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity cursor-pointer no-underline text-decoration-none hover:no-underline"
           >
             <img
               src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"
               className="h-8 w-8"
             />
-            <h1 className={`text-xl font-bold ${router.pathname === '/about' ? 'text-white' : 'theme-text-primary'}`}>TopicsFlow</h1>
+            <h1 className={`text-xl font-bold truncate hidden min-[370px]:block ${router.pathname === '/about' ? 'text-white' : 'theme-text-primary'}`}>TopicsFlow</h1>
           </Link>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <AdminDashboardButton />
+        {/* Right Actions Section */}
+        <div className="flex items-center space-x-1 md:space-x-4">
+
+          {/* Always Visible Actions (Admin, Invitations, Notifications) */}
+          {user?.is_admin && <AdminDashboardButton />}
           <InvitationsButton />
           <NotificationCenter onOpenNotificationsModal={() => setShowNotificationsModal(true)} />
-          {showSupportWidget && <SupportWidget />}
-          <LanguageToggle />
-          <ThemeToggle />
-          <UserMenu />
+
+          {/* Desktop Only Actions */}
+          <div className="hidden md:flex items-center space-x-4">
+            {showSupportWidget && <SupportWidget />}
+            <LanguageToggle />
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+
+          {/* Mobile Hamburger */}
+          <div className="md:hidden flex items-center z-50 ml-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Stop propagation to prevent immediate close
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
+              aria-label="Toggle menu"
+              className="p-2 theme-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu Dropdown (Floating Popup) */}
+        {mobileMenuOpen && (
+          <div ref={menuRef} className="absolute top-16 right-2 w-64 theme-bg-secondary border theme-border rounded-xl shadow-2xl z-50 animate-in slide-in-from-top-2 duration-200 overflow-y-auto">
+            <div className="p-2 space-y-0.5 flex flex-col">
+
+              {/* Settings */}
+              <button
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  router.push('/settings');
+                }}
+              >
+                <span className="text-sm font-medium theme-text-primary">{t('userMenu.settings') || 'Settings'}</span>
+                <div className="p-2 rounded-full theme-bg-secondary">
+                  <Settings size={18} className="theme-text-primary" />
+                </div>
+              </button>
+
+              {/* Theme */}
+              <button
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+                onClick={() => document.getElementById('theme-toggle-btn')?.click()}
+              >
+                <span className="text-sm font-medium theme-text-primary">{t('settings.appearance') || 'Theme'}</span>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <ThemeToggle />
+                </div>
+              </button>
+
+              {/* Language */}
+              <button
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+                onClick={() => document.getElementById('language-toggle-btn')?.click()}
+              >
+                <span className="text-sm font-medium theme-text-primary">{t('settings.language') || 'Language'}</span>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <LanguageToggle />
+                </div>
+              </button>
+
+              <div className="h-px theme-border my-1 mx-2" />
+
+              {/* Support - Opens MyTicketsModal */}
+              {showSupportWidget && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowMyTickets(true);
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors text-left"
+                >
+                  <span className="text-sm font-medium theme-text-primary">{t('supportWidget.title') || 'Support'}</span>
+                  <div className="p-2 rounded-full theme-bg-secondary">
+                    <LifeBuoy size={18} className="theme-text-primary" />
+                  </div>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -158,13 +264,16 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
         {children}
       </main>
 
-
-
       {/* Notifications Modal */}
       <NotificationsModal
         isOpen={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
       />
+
+      {/* My Tickets Modal (for Mobile usage mostly) */}
+      {showMyTickets && (
+        <MyTicketsModal onClose={() => setShowMyTickets(false)} />
+      )}
     </div>
   );
 };

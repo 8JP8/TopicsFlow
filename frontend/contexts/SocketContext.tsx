@@ -60,7 +60,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   // Only depend on user.id to prevent reconnection when user preferences change
   useEffect(() => {
     if (user?.id) {
-      const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
+      let socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+      // Dynamic backend URL for local network testing (matching api.ts logic)
+      if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
+        const hostname = window.location.hostname;
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.includes('topicsflow.me')) {
+          socketUrl = `http://${hostname}:5000`;
+        }
+      }
+
+      console.log('[SocketContext] Connecting to:', socketUrl);
+
+      const newSocket = io(socketUrl, {
         transports: ['polling', 'websocket'],
         autoConnect: true,
         withCredentials: true, // CRITICAL: Send session cookies with WebSocket connection

@@ -156,7 +156,7 @@ If you prefer to set up manually:
 `;
 
     return (
-        <div className="max-w-6xl mx-auto mb-20 p-8 bg-slate-800/30 rounded-[3rem] border border-slate-700/50 backdrop-blur-sm relative overflow-hidden">
+        <div className="max-w-6xl mx-auto mb-20 p-4 md:p-8 bg-slate-800/30 rounded-[3rem] border border-slate-700/50 backdrop-blur-sm relative overflow-hidden">
             {/* Subtle gradient background */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-cyan-500/5 pointer-events-none"></div>
 

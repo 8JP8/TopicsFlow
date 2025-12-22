@@ -7,9 +7,17 @@ import VoipParticipant from './VoipParticipant';
 
 interface VoipControlBarProps {
     variant?: 'embedded' | 'floating';
+    showLabels?: boolean;
+    onDock?: () => void;
+    isDocked?: boolean;
 }
 
-const VoipControlBar: React.FC<VoipControlBarProps> = ({ variant = 'embedded' }) => {
+const VoipControlBar: React.FC<VoipControlBarProps> = ({
+    variant = 'embedded',
+    showLabels = false,
+    onDock,
+    isDocked = false
+}) => {
     const {
         activeCall,
         participants,
@@ -93,7 +101,7 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({ variant = 'embedded' })
     };
 
     const containerClasses = variant === 'floating'
-        ? 'w-[320px] bg-white dark:bg-neutral-800 border theme-border rounded-xl shadow-2xl overflow-hidden'
+        ? 'w-full max-w-[320px] bg-white dark:bg-neutral-800 border theme-border rounded-xl shadow-2xl overflow-hidden'
         : 'theme-bg-secondary border-t theme-border';
 
     return (
@@ -107,22 +115,44 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({ variant = 'embedded' })
                     </span>
                 </div>
 
-                {variant === 'floating' ? (
-                    <button
-                        onClick={handleBackToChat}
-                        className="text-xs theme-text-primary font-medium hover:underline truncate max-w-[150px] flex items-center gap-1"
-                        title={t('chat.backToChat') || 'Back to Chat'}
-                    >
-                        <span className="truncate">{activeCall.room_name || 'Voice Call'}</span>
-                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                    </button>
-                ) : (
-                    <span className="text-xs theme-text-muted truncate max-w-[150px]" title={activeCall.room_name}>
-                        {activeCall.room_name || 'Voice Call'}
-                    </span>
-                )}
+                <div className="flex items-center gap-2">
+                    {variant === 'floating' ? (
+                        <>
+                            <button
+                                onClick={handleBackToChat}
+                                className="text-xs theme-text-primary font-medium hover:underline truncate max-w-[100px] flex items-center gap-1"
+                                title={t('chat.backToChat') || 'Back to Chat'}
+                            >
+                                <span className="truncate">{activeCall.room_name || 'Voice Call'}</span>
+                            </button>
+                            {onDock && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation(); // Prevent drag start if needed
+                                        onDock();
+                                    }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                                    title={isDocked ? "Undock" : "Dock to bottom"}
+                                >
+                                    {isDocked ? (
+                                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                    )}
+                                </button>
+                            )}
+                        </>
+                    ) : (
+                        <span className="text-xs theme-text-muted truncate max-w-[150px]" title={activeCall.room_name}>
+                            {activeCall.room_name || 'Voice Call'}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Participants */}
@@ -167,7 +197,7 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({ variant = 'embedded' })
                                 <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                             </svg>
                         )}
-                        <span className={`text-sm font-medium ${variant === 'floating' ? 'hidden' : 'hidden sm:inline'}`}>
+                        <span className={`text-sm font-medium ${variant === 'floating' && !showLabels ? 'hidden' : showLabels ? 'inline' : 'hidden sm:inline'}`}>
                             {isMuted ? t('voip.unmute') || 'Unmute' : t('voip.mute') || 'Mute'}
                         </span>
                     </button>
@@ -222,7 +252,7 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({ variant = 'embedded' })
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 01-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 00-2.67-1.85.996.996 0 01-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" />
                     </svg>
-                    <span className={`text-sm font-medium ${variant === 'floating' ? 'hidden' : 'hidden sm:inline'}`}>
+                    <span className={`text-sm font-medium ${variant === 'floating' && !showLabels ? 'hidden' : showLabels ? 'inline' : 'hidden sm:inline'}`}>
                         {t('voip.endCall') || 'End Call'}
                     </span>
                 </button>

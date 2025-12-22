@@ -10,6 +10,7 @@ import {
   getTicketPriorityConfig,
   formatTicketDate,
 } from '@/utils/ticketUtils';
+import CreateTicketModal from './CreateTicketModal';
 import TicketDetailsModal from './TicketDetailsModal';
 
 interface MyTicketsModalProps {
@@ -24,6 +25,7 @@ const MyTicketsModal: React.FC<MyTicketsModalProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -77,11 +79,22 @@ const MyTicketsModal: React.FC<MyTicketsModalProps> = ({ onClose }) => {
             <h2 className="text-2xl font-semibold theme-text-primary">
               {t('tickets.myTickets') || 'My Support Tickets'}
             </h2>
-            <button onClick={onClose} className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors">
-              <svg className="w-6 h-6 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCreateTicket(true)}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t('supportWidget.createTicket') || 'Create Ticket'}
+              </button>
+              <button onClick={onClose} className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors">
+                <svg className="w-6 h-6 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -174,6 +187,15 @@ const MyTicketsModal: React.FC<MyTicketsModalProps> = ({ onClose }) => {
           ticketId={selectedTicket.id}
           onClose={() => {
             setShowDetails(false);
+            fetchMyTickets();
+          }}
+        />
+      )}
+
+      {showCreateTicket && (
+        <CreateTicketModal
+          onClose={() => {
+            setShowCreateTicket(false);
             fetchMyTickets();
           }}
         />

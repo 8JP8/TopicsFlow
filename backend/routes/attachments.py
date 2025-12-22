@@ -76,11 +76,10 @@ def get_attachment(file_id):
                 
                 # Search for blob with matching file_id in name or metadata
                 blob_name = None
-                for blob in container_client.list_blobs():
-                    # Check if file_id matches (blob name format: type_dir/file_id.ext)
-                    if file_id in blob.name:
-                        blob_name = blob.name
-                        break
+                # Search for blob with matching file_id prefix
+                # Efficiently find blob starting with file_id
+                blobs = container_client.list_blobs(name_starts_with=file_id)
+                blob_name = next((b.name for b in blobs), None)
                 
                 if not blob_name:
                     abort(404, description="File not found")
@@ -162,10 +161,9 @@ def get_attachment_info(file_id):
                 container_client = blob_service_client.get_container_client(container_name)
                 
                 blob_name = None
-                for blob in container_client.list_blobs():
-                    if file_id in blob.name:
-                        blob_name = blob.name
-                        break
+                # Search for blob with matching file_id prefix
+                blobs = container_client.list_blobs(name_starts_with=file_id)
+                blob_name = next((b.name for b in blobs), None)
                 
                 if not blob_name:
                     return jsonify({'success': False, 'errors': ['File not found']}), 404
