@@ -260,8 +260,8 @@ const LoginPage: React.FC = () => {
                   {useAuth().user?.username}
                 </p>
                 <div className="space-y-4">
-                  <Link href="/" className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors no-underline">
-                    {t('common.dashboard') || 'Go to Dashboard'}
+                  <Link href="/" className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors no-underline hover:no-underline">
+                    {t('common.backToDashboard') || 'Return to Dashboard'}
                   </Link>
                   <button
                     onClick={useAuth().logout}

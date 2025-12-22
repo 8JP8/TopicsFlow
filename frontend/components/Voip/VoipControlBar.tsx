@@ -173,7 +173,7 @@ const VoipControlBar: React.FC<VoipControlBarProps> = ({
             </div>
 
             {/* Controls */}
-            <div className={`px-3 py-2 flex items-center gap-2 border-t theme-border ${variant === 'floating' ? 'justify-between' : ''}`}>
+            <div className={`px-3 py-2 flex items-center gap-2 border-t theme-border ${variant === 'floating' ? 'justify-between' : 'justify-center'}`}>
                 {/* Mute Button */}
                 <div className="relative">
                     <button

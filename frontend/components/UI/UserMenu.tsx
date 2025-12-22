@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import CreateTicketModal from '@/components/Tickets/CreateTicketModal';
 import MyTicketsModal from '@/components/Tickets/MyTicketsModal';
 import Avatar from '@/components/UI/Avatar';
+import CountryFlag from '@/components/UI/CountryFlag';
 
 interface UserMenuProps {
   placement?: 'bottom' | 'top' | 'mobile-bottom';
@@ -31,6 +33,12 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleOpenMenu = () => setIsOpen(true);
+    window.addEventListener('tour:open-user-menu', handleOpenMenu);
+    return () => window.removeEventListener('tour:open-user-menu', handleOpenMenu);
+  }, []);
+
   const handleLogout = async () => {
     setIsOpen(false);
     await logout();
@@ -50,17 +58,22 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
       },
     },
     {
-      label: t('userMenu.settings') || 'Settings',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+      // This item is now a direct Link component
+      type: 'link',
+      component: (
+        <Link
+          href="/settings"
+          id="user-menu-item-settings"
+          className="w-full flex items-center space-x-3 px-4 py-2 text-sm theme-text-primary hover:theme-bg-tertiary transition-colors"
+          onClick={() => setIsOpen(false)}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>{t('userMenu.settings') || 'Settings'}</span>
+        </Link>
       ),
-      onClick: () => {
-        setIsOpen(false);
-        router.push('/settings');
-      },
     },
     {
       label: t('userMenu.startTour') || 'Start Tour',
@@ -141,11 +154,11 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
 
   return (
     <>
-      <div className="relative" ref={menuRef}>
+      <div className={`relative ${placement === 'mobile-bottom' ? 'w-full h-full' : ''}`} ref={menuRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           id="user-menu-btn"
-          className={`flex items-center ${placement === 'mobile-bottom' ? 'justify-center relative p-0 bg-transparent hover:bg-transparent' : 'space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors'}`}
+          className={`flex ${placement === 'mobile-bottom' ? 'flex-col items-center justify-center w-full h-full space-y-1' : 'items-center space-x-3 p-2 rounded-lg theme-bg-secondary hover:theme-bg-tertiary transition-colors'}`}
           aria-label="User menu"
         >
           <div className="relative">
@@ -156,7 +169,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
               size={placement === 'mobile-bottom' ? 'sm' : 'md'}
             />
             {placement === 'mobile-bottom' && isOpen && (
-              <div className="absolute -top-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 border theme-border transition-transform rotate-0">
+              <div className="absolute -top-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-[1px] shadow-sm">
                 <svg
                   className="w-3 h-3 theme-text-primary"
                   fill="none"
@@ -169,20 +182,24 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
             )}
           </div>
 
-          {placement !== 'mobile-bottom' && (
-            <>
-              <span className="text-sm font-medium theme-text-primary hidden sm:block">
+          {placement === 'mobile-bottom' ? (
+            <span className="text-[10px] font-medium theme-text-primary">
+              {t('userMenu.profile') || 'Profile'}
+            </span>
+          ) : (
+            <div className="flex items-center">
+              <span className="text-sm font-medium theme-text-primary truncate hidden sm:block">
                 {displayName}
               </span>
               <svg
-                className={`w-4 h-4 theme-text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 theme-text-primary transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-            </>
+            </div>
           )}
         </button>
 
@@ -198,26 +215,37 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
             <div className="px-4 py-3 border-b theme-border">
               <p className="text-sm font-medium theme-text-primary">{displayName}</p>
               <p className="text-xs theme-text-secondary">{user.email}</p>
-              <div className="flex items-center space-x-2 mt-1">
-                {user.totp_enabled && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    {t('userMenu.twoFactorEnabled') || '2FA Enabled'}
-                  </span>
+              <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center space-x-2">
+                  {user.totp_enabled && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      {t('userMenu.twoFactorEnabled') || '2FA Enabled'}
+                    </span>
+                  )}
+                </div>
+                {(user as any).country_code && (
+                  <CountryFlag countryCode={(user as any).country_code} size="sm" showName={true} />
                 )}
               </div>
             </div>
 
             {/* Menu Items */}
             <div className="py-1">
-              {menuItems.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={item.onClick}
-                  className="w-full flex items-center space-x-3 px-4 py-2 text-sm theme-text-primary hover:theme-bg-tertiary transition-colors"
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </button>
+              {menuItems.map((item: any, index) => (
+                item.component ? (
+                  <React.Fragment key={index}>
+                    {item.component}
+                  </React.Fragment>
+                ) : (
+                  <button
+                    key={index}
+                    onClick={item.onClick}
+                    className="w-full flex items-center space-x-3 px-4 py-2 text-sm theme-text-primary hover:theme-bg-tertiary transition-colors"
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                )
               ))}
             </div>
 

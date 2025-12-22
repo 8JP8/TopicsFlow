@@ -109,12 +109,22 @@ const SupportWidget: React.FC = () => {
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-80 theme-bg-secondary border theme-border rounded-lg shadow-xl overflow-hidden z-50 animate-fade-in origin-top-right">
                     <div className="p-3 border-b theme-border flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                        <h3 className="font-semibold text-sm theme-text-primary">{t('supportWidget.title') || 'Suporte'}</h3>
-                        {onlineAdminCount > 0 && (
-                            <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded-full">
-                                {onlineAdminCount} {onlineAdminCount === 1 ? t('supportWidget.adminOnline') : t('supportWidget.adminsOnline')}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-sm theme-text-primary">{t('supportWidget.title') || 'Suporte'}</h3>
+                            {onlineAdminCount > 0 && (
+                                <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded-full">
+                                    {onlineAdminCount} {onlineAdminCount === 1 ? t('supportWidget.adminOnline') : t('supportWidget.adminsOnline')}
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
 
                     <div className="max-h-[300px] overflow-y-auto">

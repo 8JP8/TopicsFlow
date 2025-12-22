@@ -63,6 +63,10 @@ export const getTourSteps = (
                     description: t('tour.sidebarDesc') || 'Access different topics, your themes, and filter discussions by tags here.',
                     side: 'right',
                     align: 'start',
+                    onHighlightStarted: () => {
+                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
+                        window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'topics' }));
+                    }
                 },
             },
             {
@@ -139,6 +143,7 @@ export const getTourSteps = (
                     align: 'center',
                 },
                 onHighlightStarted: () => {
+                    window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
                     window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'messages' }));
                 },
             } as any,
@@ -149,6 +154,10 @@ export const getTourSteps = (
                     description: t('tour.messagesListDesc') || 'Select a conversation to start chatting.',
                     side: 'right',
                     align: 'start',
+                    onHighlightStarted: () => {
+                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
+                        window.dispatchEvent(new CustomEvent('tour:switch-tab', { detail: 'messages' }));
+                    }
                 },
             },
             {
@@ -158,50 +167,58 @@ export const getTourSteps = (
                     description: t('tour.messageInputDesc') || 'Type your message, send GIFs, or attach files here.',
                     side: 'top',
                     align: 'center',
+                    onHighlightStarted: () => {
+                        window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'content' }));
+                    }
                 },
             },
             {
                 element: '#user-menu-btn',
                 popover: {
-                    title: t('tour.continueToSettings') || 'Continue to Settings',
-                    description: t('tour.continueToSettingsDesc') || 'The tour will now take you to the Settings page. Click Continue to proceed.',
+                    title: t('tour.userMenuTitle') || 'User Menu',
+                    description: t('tour.userMenuDesc') || 'Access your settings, profile, and more.',
                     side: 'bottom',
                     align: 'end',
+                },
+                onHighlightStarted: () => {
+                    window.dispatchEvent(new CustomEvent('tour:switch-mobile-view', { detail: 'sidebar' }));
+                },
+                onNextClick: () => {
+                    window.dispatchEvent(new CustomEvent('tour:open-user-menu'));
+                }
+            },
+            {
+                element: '#user-menu-item-settings',
+                popover: {
+                    title: t('tour.continueToSettings') || 'Continue to Settings',
+                    description: t('tour.continueToSettingsDesc') || 'The tour will now take you to the Settings page. Click Continue to proceed.',
+                    side: 'left',
+                    align: 'center',
                     nextBtnText: t('tour.continueButton') || 'Continue to Settings',
                     prevBtnText: t('common.previous') || 'Previous',
-                    onHighlightStarted: (element: Element, step: DriveStep, options: { config: any, state: any }) => {
-                        // Inject "Close" button into the footer for 3-button layout
-                        setTimeout(() => {
-                            const footer = document.querySelector('.driver-popover-footer');
-                            if (footer && !footer.querySelector('.tour-close-custom-btn')) {
-                                const closeBtn = document.createElement('button');
-                                closeBtn.innerText = t('common.close') || 'Close';
-                                closeBtn.className = 'tour-close-custom-btn driver-popover-close-btn'; // Use driver class if available or custom
-                                // Add basic styling to match consistency if standard classes aren't enough
-                                closeBtn.style.cssText = 'display: inline-block; box-sizing: border-box; padding: 3px 10px; border: 1px solid transparent; border-radius: 3px; text-decoration: none; text-shadow: none; font: 11px / normal sans-serif; cursor: pointer; color: rgb(45, 45, 45); background-color: rgb(241, 241, 241); margin-left: 5px; margin-right: 5px;';
-
-                                // Insert between buttons or at end
-                                const nextBtn = footer.querySelector('.driver-popover-next-btn');
-                                if (nextBtn) {
-                                    footer.insertBefore(closeBtn, nextBtn);
-                                } else {
-                                    footer.appendChild(closeBtn);
-                                }
-
-                                closeBtn.addEventListener('click', () => {
-                                    window.dispatchEvent(new CustomEvent('tour:end'));
-                                });
-                            }
-                        }, 100);
-                    },
-                    onNextClick: () => {
-                        if (navigate) {
-                            // Mark that we are transitioning tour
-                            localStorage.setItem('continue_tour_settings', 'true');
-                            navigate('/settings');
+                },
+                onHighlightStarted: () => {
+                    // Inject "Close" button logic if needed, or rely on Driver default
+                    setTimeout(() => {
+                        const footer = document.querySelector('.driver-popover-footer');
+                        if (footer && !footer.querySelector('.tour-close-custom-btn')) {
+                            const closeBtn = document.createElement('button');
+                            closeBtn.innerText = t('common.close') || 'Close';
+                            closeBtn.className = 'tour-close-custom-btn driver-popover-close-btn';
+                            closeBtn.style.cssText = 'display: inline-block; box-sizing: border-box; padding: 3px 10px; border: 1px solid transparent; border-radius: 3px; text-decoration: none; text-shadow: none; font: 11px / normal sans-serif; cursor: pointer; color: rgb(45, 45, 45); background-color: rgb(241, 241, 241); margin-left: 5px; margin-right: 5px;';
+                            const nextBtn = footer.querySelector('.driver-popover-next-btn');
+                            if (nextBtn) footer.insertBefore(closeBtn, nextBtn);
+                            else footer.appendChild(closeBtn);
+                            closeBtn.addEventListener('click', () => window.dispatchEvent(new CustomEvent('tour:end')));
                         }
+                    }, 100);
+                },
+                onNextClick: () => {
+                    if (navigate) {
+                        localStorage.setItem('continue_tour_settings', 'true');
+                        navigate('/settings');
                     }
-                } as any,
+                }
             }
         );
 

@@ -40,7 +40,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
   // Listen for real-time warning events via WebSocket
   useEffect(() => {
     if (!socket) {
-      console.log('[AppContent] Socket not available');
+      // console.log('[AppContent] Socket not available');
       return;
     }
 

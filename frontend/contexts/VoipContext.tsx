@@ -355,11 +355,22 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
                 room_type: roomType,
                 room_name: roomName
             });
+
+            // Set timeout to prevent infinite loading
+            setTimeout(() => {
+                if (connectionStatus === 'connecting' && !activeCallRef.current) {
+                    console.warn('[VOIP] Call creation timed out');
+                    setConnectionStatus('disconnected');
+                    cleanup();
+                    toast.error(t('voip.connectionTimedOut') || 'Connection timed out');
+                }
+            }, 15000);
+
         } catch (error) {
             setConnectionStatus('disconnected');
             cleanup();
         }
-    }, [socket, connected, t, getUserMedia, selectedDeviceId, startVoiceActivityDetection, cleanup]);
+    }, [socket, connected, t, getUserMedia, selectedDeviceId, startVoiceActivityDetection, cleanup, connectionStatus]);
 
     // Join call
     const joinCall = useCallback(async (callId: string) => {
@@ -379,11 +390,21 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
 
             // Join call via socket
             socket.emit('voip_join_call', { call_id: callId });
+
+            // Set timeout to prevent infinite loading
+            setTimeout(() => {
+                if (connectionStatus === 'connecting' && !activeCallRef.current) {
+                    console.warn('[VOIP] Join call timed out');
+                    setConnectionStatus('disconnected');
+                    cleanup();
+                    toast.error(t('voip.connectionTimedOut') || 'Connection timed out');
+                }
+            }, 15000);
         } catch (error) {
             setConnectionStatus('disconnected');
             cleanup();
         }
-    }, [socket, connected, t, getUserMedia, selectedDeviceId, startVoiceActivityDetection, cleanup]);
+    }, [socket, connected, t, getUserMedia, selectedDeviceId, startVoiceActivityDetection, cleanup, connectionStatus]);
 
     // Leave call
     const leaveCall = useCallback(() => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import RegistrationWizard from '@/components/Auth/Registration/RegistrationWizard';
 import LanguageToggle from '@/components/UI/LanguageToggle';
 import ThemeToggle from '@/components/UI/ThemeToggle';
@@ -19,7 +20,7 @@ const RegisterPage: React.FC = () => {
       {/* Fixed Header with Controls */}
       <div className="fixed top-0 left-0 right-0 z-50 p-4">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-3">
+          <Link href="/about" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
             <img
               src="https://i.postimg.cc/FY5shL9w/chat.png"
               alt="TopicsFlow Logo"
@@ -28,7 +29,7 @@ const RegisterPage: React.FC = () => {
             <span className="text-xl font-bold theme-text-primary">
               {t('common.appName')}
             </span>
-          </div>
+          </Link>
           <div className="flex items-center space-x-3">
             <LanguageToggle />
             <ThemeToggle />

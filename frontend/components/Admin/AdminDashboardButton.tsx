@@ -149,7 +149,7 @@ const AdminDashboardButton: React.FC = () => {
         </button>
 
         {showDropdown && (
-          <div className="absolute right-0 top-full mt-2 w-80 theme-bg-secondary border theme-border rounded-lg shadow-xl z-50">
+          <div className="fixed top-16 right-0 w-full sm:w-80 md:absolute md:top-full md:right-0 md:mt-2 theme-bg-secondary border theme-border rounded-lg shadow-xl z-50">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold theme-text-primary">
