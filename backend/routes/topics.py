@@ -61,12 +61,8 @@ def get_topics():
         # Add user_permission_level for each topic if user is authenticated
         if user_id:
             for topic in topics:
-                topic_id = topic.get('id') or topic.get('_id')
-                if topic_id:
-                    permission_level = topic_model.get_user_permission_level(topic_id, user_id)
-                    topic['user_permission_level'] = permission_level
-                else:
-                    topic['user_permission_level'] = 0
+                permission_level = topic_model.calculate_permission_level(topic, user_id)
+                topic['user_permission_level'] = permission_level
         else:
             # Set permission level to 0 for unauthenticated users
             for topic in topics:
