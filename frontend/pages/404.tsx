@@ -39,13 +39,31 @@ export default function Custom404() {
 
                     {/* Central Question Mark */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <h1 className="text-9xl font-black text-slate-800 select-none opacity-40">?</h1>
+                        <h1 className="text-9xl font-black text-slate-200 select-none opacity-40">?</h1>
                     </div>
+                </div>
+
+                <div className="mb-4 text-center">
+                    <h1 className="text-2xl font-bold text-slate-300">TopicsFlow</h1>
                 </div>
 
                 <h2 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 mb-6 drop-shadow-sm">
                     {t('errors.pageNotFound')}
                 </h2>
+
+                {/* Route Finder Suggestion */}
+                <div className="mb-8 p-4 bg-slate-800/50 rounded-lg inline-block text-left max-w-md mx-auto border border-slate-700">
+                    <p className="text-slate-400 text-sm mb-2">Did you mean?</p>
+                    <ul className="space-y-2 font-mono text-sm text-blue-400">
+                        <li>
+                            <Link href="/" className="hover:underline">topicsflow.me/dashboard</Link>
+                        </li>
+                        <li>
+                            <Link href="/about" className="hover:underline">topicsflow.me/about</Link>
+                        </li>
+                    </ul>
+                </div>
+
                 <p className="text-xl text-slate-300 mb-10 max-w-lg mx-auto leading-relaxed">
                     {t('errors.pageNotFoundDesc')}
                 </p>

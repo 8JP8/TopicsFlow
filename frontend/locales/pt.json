@@ -61,7 +61,8 @@
     "user": "Utilizador",
     "goBackHome": "Voltar para Início",
     "welcomeBack": "Bem-vindo de Volta",
-    "dashboard": "Dashboard",
+    "dashboard": "Painel",
+    "backToDashboard": "Voltar ao Painel",
     "closeModal": "Fechar Modal",
     "learnMore": "Saber mais",
     "notifications": "Notificações",
@@ -473,7 +474,14 @@
     "leaveChatroom": "Sair da Sala de Chat",
     "confirmLeave": "Tem a certeza que deseja sair de \"{name}\"?",
     "leftChatroom": "Saiu da sala de chat",
-    "backToChat": "Voltar para o Chat"
+    "backToChat": "Voltar para o Chat",
+    "enableCalls": "Ativar chamadas",
+    "disableCalls": "Desativar chamadas",
+    "enableCallsHint": "Ativar chamadas para esta sala de chat",
+    "disableCallsHint": "Desativar chamadas para esta sala de chat",
+    "settings": "Configurações",
+    "voipEnabled": "Chamadas ativadas",
+    "voipDisabled": "Chamadas desativadas"
   },
   "gifPicker": {
     "searchPlaceholder": "Pesquisar GIFs...",

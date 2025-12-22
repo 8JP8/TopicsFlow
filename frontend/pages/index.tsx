@@ -119,10 +119,18 @@ export default function Home() {
       }
     };
 
+    const handleSwitchMobileView = (e: CustomEvent) => {
+      if (e.detail === 'sidebar' || e.detail === 'content') {
+        setMobileView(e.detail);
+      }
+    };
+
     window.addEventListener('tour:switch-tab', handleSwitchTab as EventListener);
+    window.addEventListener('tour:switch-mobile-view', handleSwitchMobileView as EventListener);
 
     return () => {
       window.removeEventListener('tour:switch-tab', handleSwitchTab as EventListener);
+      window.removeEventListener('tour:switch-mobile-view', handleSwitchMobileView as EventListener);
     };
   }, []);
 
@@ -894,10 +902,7 @@ export default function Home() {
                       {t('home.title')}
                     </h2>
                     <p className="theme-text-secondary mb-6 max-w-md">
-                      {t('home.subtitle')}
-                    </p>
-                    <p className="theme-text-muted text-sm">
-                      {t('topics.selectTopic') || 'Selecione um tópico da lista para começar'}
+                      {t('home.description')}
                     </p>
                   </div>
                 </div>
@@ -928,11 +933,8 @@ export default function Home() {
             <span className="text-[10px] font-medium">{t('common.content') || 'View'}</span>
           </button>
 
-          <div className="flex-1 flex flex-col items-center justify-center h-full">
-            <div className="origin-bottom">
-              <UserMenu placement="mobile-bottom" />
-            </div>
-            <span className="text-[10px] theme-text-secondary font-medium mt-1">{t('userMenu.userMenu') || 'User Menu'}</span>
+          <div className="flex-1 h-full">
+            <UserMenu placement="mobile-bottom" />
           </div>
         </div>
       </Layout >

@@ -1487,7 +1487,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                           </div>
                         ) : null}
                         {message.attachments && message.attachments.length > 0 ? (
-                          <div className="space-y-2 mb-2">
+                          <div className="flex flex-col space-y-2 mb-2 items-center">
                             {message.attachments.map((attachment, idx) => {
                               const attachmentKey = attachment.url || attachment.filename || `attachment-${idx}`;
                               if (attachment.type === 'image') {

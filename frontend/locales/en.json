@@ -62,6 +62,7 @@
     "goBackHome": "Go Back Home",
     "welcomeBack": "Welcome Back",
     "dashboard": "Dashboard",
+    "backToDashboard": "Dashboard",
     "closeModal": "Close Modal",
     "learnMore": "Learn More",
     "notifications": "Notifications",
@@ -473,7 +474,14 @@
     "leaveChatroom": "Leave Chatroom",
     "confirmLeave": "Are you sure you want to leave \"{name}\"?",
     "leftChatroom": "Left chatroom",
-    "backToChat": "Back to Chat"
+    "backToChat": "Back to Chat",
+    "enableCalls": "Enable calls",
+    "disableCalls": "Disable calls",
+    "enableCallsHint": "Enable calls for this chatroom",
+    "disableCallsHint": "Disable calls for this chatroom",
+    "settings": "Settings",
+    "voipEnabled": "Calls enabled",
+    "voipDisabled": "Calls disabled"
   },
   "gifPicker": {
     "searchPlaceholder": "Search GIFs...",
@@ -733,6 +741,7 @@
     "invitedBy": "Invited by",
     "groupInvites": "Group Invites",
     "pending": "Pending",
+    "pendingPlural": "Pending",
     "noInvitations": "No invitations",
     "noInvitationsDesc": "You don't have any pending invitations.",
     "noChatInvitations": "No pending chat invitations",

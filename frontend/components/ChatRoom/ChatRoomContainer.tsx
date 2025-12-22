@@ -712,7 +712,8 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                       roomId={room.id}
                       roomType="group"
                       roomName={room.name}
-                      disabled={!room.voip_enabled}
+                      // Allow clicking to attempt enabling/starting
+                      disabled={false}
                       className="w-full sm:w-auto justify-center"
                     />
                   </div>
@@ -1397,7 +1398,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             isPublic={room.is_public}
             mode={membersModalMode}
             onMemberUpdate={() => {
-              // Reload room data if needed
+              loadRoomData();
             }}
           />
         )

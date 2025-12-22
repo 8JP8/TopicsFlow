@@ -16,6 +16,7 @@ const BackupCodesModal = dynamic(() => import('@/components/Settings/BackupCodes
 const DeleteAccountModal = dynamic(() => import('@/components/Settings/DeleteAccountModal'));
 const NotificationPermissionDialog = dynamic(() => import('@/components/UI/NotificationPermissionDialog'));
 const VoipAudioSettings = dynamic(() => import('@/components/Settings/VoipAudioSettings'));
+const PasskeySettings = dynamic(() => import('@/components/Settings/PasskeySettings'));
 
 interface UserPreferences {
   theme: 'light' | 'dark';
@@ -769,6 +770,11 @@ const Settings: React.FC = () => {
                     <p className="text-sm theme-text-secondary">
                       {t('settings.dataPrivacyDesc')}
                     </p>
+                  </div>
+
+                  {/* Passkeys Section */}
+                  <div className="p-4 theme-bg-tertiary rounded-lg">
+                    <PasskeySettings />
                   </div>
 
                 </div>

@@ -77,11 +77,13 @@ export default function About() {
                     {/* Hero Section */}
                     <div className="text-center max-w-5xl mx-auto mb-24 mt-24 pointer-events-auto">
                         <div className="relative inline-block">
-                            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black mb-6 text-white tracking-tight">
-                                <span className="bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent drop-shadow-2xl">
-                                    {t('common.appName')}
-                                </span>
-                            </h1>
+                            <Link href="/about" className="block hover:opacity-90 transition-opacity cursor-pointer">
+                                <h1 className="text-5xl sm:text-6xl md:text-8xl font-black mb-6 text-white tracking-tight">
+                                    <span className="bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent drop-shadow-2xl">
+                                        {t('common.appName')}
+                                    </span>
+                                </h1>
+                            </Link>
                             {/* Glow effect */}
                             <div className="absolute -inset-4 bg-blue-500/20 blur-3xl rounded-full -z-10"></div>
                         </div>
@@ -95,14 +97,14 @@ export default function About() {
                                 <>
                                     <Link
                                         href="/"
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center group no-underline hover:no-underline"
                                     >
                                         <span className="mr-2">{t('about.goToDashboard') || 'Go to Dashboard'}</span>
                                         <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                                     </Link>
                                     <Link
                                         href="/?startTour=true"
-                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl"
+                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl no-underline hover:no-underline hover:scale-105"
                                     >
                                         {t('about.takeATour') || 'Take the Tour'}
                                     </Link>
@@ -111,13 +113,13 @@ export default function About() {
                                 <>
                                     <Link
                                         href="/login"
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 no-underline hover:no-underline"
                                     >
                                         {t('auth.login')} / {t('auth.register')}
                                     </Link>
                                     <Link
                                         href="/?startTour=true"
-                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl"
+                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl no-underline hover:no-underline hover:scale-105"
                                     >
                                         {t('about.takeATour') || 'Take the Tour'}
                                     </Link>

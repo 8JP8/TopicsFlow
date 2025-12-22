@@ -216,26 +216,28 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
               </button>
 
               {/* Theme */}
-              <button
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+              <div
+                role="button"
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors cursor-pointer"
                 onClick={() => document.getElementById('theme-toggle-btn')?.click()}
               >
                 <span className="text-sm font-medium theme-text-primary">{t('settings.appearance') || 'Theme'}</span>
                 <div onClick={(e) => e.stopPropagation()}>
                   <ThemeToggle />
                 </div>
-              </button>
+              </div>
 
               {/* Language */}
-              <button
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+              <div
+                role="button"
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors cursor-pointer"
                 onClick={() => document.getElementById('language-toggle-btn')?.click()}
               >
                 <span className="text-sm font-medium theme-text-primary">{t('settings.language') || 'Language'}</span>
                 <div onClick={(e) => e.stopPropagation()}>
                   <LanguageToggle />
                 </div>
-              </button>
+              </div>
 
               <div className="h-px theme-border my-1 mx-2" />
 

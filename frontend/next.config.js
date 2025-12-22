@@ -18,14 +18,15 @@ const nextConfig = {
   compress: process.env.NODE_ENV === 'production',
 
   // Allow cross-origin requests from local network
-  experimental: {
-    allowedDevOrigins: [
-      'localhost:3000',
-      '127.0.0.1:3000',
-      '192.168.1.252:3000', // User's specific mobile IP
-      '192.168.1.252',
-    ],
-  },
+  // Allow cross-origin requests from local network
+  // experimental: {
+  //   allowedDevOrigins: [
+  //     'localhost:3000',
+  //     '127.0.0.1:3000',
+  //     '192.168.1.252:3000', // User's specific mobile IP
+  //     '192.168.1.252',
+  //   ],
+  // },
 
   // Security headers
   async headers() {
