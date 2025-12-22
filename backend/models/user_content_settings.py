@@ -740,3 +740,19 @@ class UserContentSettings:
             logger.error(f"Error getting silenced items: {str(e)}")
             return {'topics': [], 'posts': [], 'chats': []}
 
+    def get_hidden_chat_ids(self, user_id: str, topic_id: Optional[str]) -> List[str]:
+        """Get IDs of hidden chats for a specific topic (or None for group chats)."""
+        try:
+            query = {
+                'user_id': ObjectId(user_id),
+                'topic_id': ObjectId(topic_id) if topic_id else None
+            }
+
+            settings = self.collection.find_one(query, {'hidden_chats': 1})
+
+            if settings and 'hidden_chats' in settings:
+                return [str(chat_id) for chat_id in settings['hidden_chats']]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting hidden chat IDs: {str(e)}")
+            return []

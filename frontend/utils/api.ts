@@ -268,6 +268,8 @@ export const API_ENDPOINTS = {
   CONTENT_SETTINGS: {
     HIDDEN_ITEMS: '/api/content-settings/hidden-items',
     SILENCED_ITEMS: '/api/content-settings/silenced-items',
+    HIDE_CHAT: (id: string) => `/api/content-settings/chats/${id}/hide`,
+    UNHIDE_CHAT: (id: string) => `/api/content-settings/chats/${id}/unhide`,
   },
 
   // Comments (new)
