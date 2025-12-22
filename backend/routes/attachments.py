@@ -1,7 +1,7 @@
 """
 Attachments route for serving files with encryption key protection.
 """
-from flask import Blueprint, request, send_file, jsonify, current_app, abort
+from flask import Blueprint, request, send_file, jsonify, current_app, abort, after_this_request
 from services.auth_service import AuthService
 from services.file_storage import FileStorageService
 from utils.decorators import log_requests
@@ -9,6 +9,7 @@ import os
 import logging
 from pathlib import Path
 import hashlib
+import hmac
 
 logger = logging.getLogger(__name__)
 attachments_bp = Blueprint('attachments', __name__)
@@ -26,7 +27,8 @@ def _validate_encryption_key(file_id: str, provided_key: str, expected_key: str)
     key_data = f"{file_id}:{expected_key}".encode('utf-8')
     expected_hash = hashlib.sha256(key_data).hexdigest()[:16]  # First 16 chars
     
-    return provided_key == expected_hash
+    # Use hmac.compare_digest for constant time comparison to prevent timing attacks
+    return hmac.compare_digest(provided_key, expected_hash)
 
 
 def _generate_encryption_key(file_id: str, secret_key: str) -> str:
@@ -88,21 +90,40 @@ def get_attachment(file_id):
                 
                 # Download blob to temporary file
                 import tempfile
-                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                # Create a temporary file that will be deleted after the request is processed
+                tmp_file = tempfile.NamedTemporaryFile(delete=False)
+                try:
                     blob_data = blob_client.download_blob()
                     tmp_file.write(blob_data.readall())
+                    tmp_file.close()
                     tmp_path = tmp_file.name
-                
-                # Get content type from blob properties
-                blob_props = blob_client.get_blob_properties()
-                content_type = blob_props.content_settings.content_type
-                
-                return send_file(
-                    tmp_path,
-                    mimetype=content_type,
-                    as_attachment=False,
-                    download_name=blob_props.metadata.get('filename', file_id)
-                )
+
+                    # Schedule deletion after request
+                    @after_this_request
+                    def remove_temp_file(response):
+                        try:
+                            if os.path.exists(tmp_path):
+                                os.remove(tmp_path)
+                        except Exception as e:
+                            logger.error(f"Error removing temp file {tmp_path}: {e}")
+                        return response
+
+                    # Get content type from blob properties
+                    blob_props = blob_client.get_blob_properties()
+                    content_type = blob_props.content_settings.content_type
+
+                    return send_file(
+                        tmp_path,
+                        mimetype=content_type,
+                        as_attachment=False,
+                        download_name=blob_props.metadata.get('filename', file_id)
+                    )
+                except Exception as e:
+                    # Clean up if something goes wrong before response
+                    if os.path.exists(tmp_file.name):
+                        os.remove(tmp_file.name)
+                    raise e
+
             except Exception as e:
                 logger.error(f"Failed to serve Azure blob: {e}")
                 abort(404, description="File not found")
@@ -207,4 +228,3 @@ def get_attachment_info(file_id):
     except Exception as e:
         logger.error(f"Error getting attachment info: {e}")
         return jsonify({'success': False, 'errors': ['Failed to get file info']}), 500
-

@@ -22,10 +22,10 @@ def register():
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
 
         data = request.get_json()
-        username = data.get('username', '').strip()
-        email = data.get('email', '').strip()
-        password = data.get('password', '')
-        phone = data.get('phone', '').strip()
+        username = str(data.get('username', '')).strip()
+        email = str(data.get('email', '')).strip()
+        password = str(data.get('password', ''))
+        phone = str(data.get('phone', '')).strip()
         security_questions = data.get('security_questions', [])
 
         # Validate input
@@ -134,9 +134,9 @@ def login():
     """Login user with username, password, and TOTP."""
     try:
         data = request.get_json()
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        totp_code = data.get('totp_code', '')
+        username = str(data.get('username', '')).strip()
+        password = str(data.get('password', ''))
+        totp_code = str(data.get('totp_code', ''))
 
         if not username or not password or not validate_totp_code(totp_code):
             return jsonify({'success': False, 'errors': ['Username, password, and TOTP code are required']}), 400
@@ -166,9 +166,9 @@ def login_backup():
     """Login using backup code."""
     try:
         data = request.get_json()
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        backup_code = data.get('backup_code', '')
+        username = str(data.get('username', '')).strip()
+        password = str(data.get('password', ''))
+        backup_code = str(data.get('backup_code', ''))
 
         if not username or not password or not validate_backup_code(backup_code):
             return jsonify({'success': False, 'errors': ['Username, password, and backup code are required']}), 400
