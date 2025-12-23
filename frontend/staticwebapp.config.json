@@ -1,7 +1,15 @@
 {
     "navigationFallback": {
         "rewrite": "/index.html",
-        "exclude": ["/api/*", "/socket.io/*", "/_next/*", "/404", "/404.html", "/health"]
+        "exclude": [
+            "/api/*",
+            "/socket.io/*",
+            "/_next/*",
+            "/404",
+            "/404.html",
+            "/health",
+            "/*.{js,css,png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot,json,map}"
+        ]
     },
     "responseOverrides": {
         "404": {

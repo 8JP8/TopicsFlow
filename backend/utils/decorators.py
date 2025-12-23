@@ -57,13 +57,69 @@ def rate_limit(limit: str):
                 is_azure = bool(current_app.config.get('IS_AZURE'))
                 redis_url = current_app.config.get('REDIS_URL')
                 if is_azure and redis_url:
-                    # Try to get redis client from app config/extensions if initialized
-                    if hasattr(current_app, 'extensions') and 'redis' in current_app.extensions:
-                        redis_client = current_app.extensions['redis']
+                    # Try to get redis client from app config if already initialized
+                    if current_app.config.get('REDIS_CLIENT'):
+                        redis_client = current_app.config.get('REDIS_CLIENT')
                     else:
                         # Lazy import to avoid circular dependencies
                         import redis
-                        redis_client = redis.from_url(redis_url)
+                        
+                        # Parse Azure Redis connection string format (same logic as app.py)
+                        def _parse_azure_redis_connection(value: str) -> dict:
+                            """Parse Azure Redis connection string format: host:port,password=...,ssl=True"""
+                            if not value:
+                                return None
+                            if '://' in value:
+                                # Already a URL format, return None to use from_url
+                                return None
+                            
+                            # Parse StackExchange format
+                            parts = [p.strip() for p in value.split(',') if p.strip()]
+                            host_port = parts[0]
+                            password = None
+                            username = None
+                            ssl = True
+                            
+                            for p in parts[1:]:
+                                if p.lower().startswith('password='):
+                                    password = p.split('=', 1)[1]
+                                elif p.lower().startswith('username='):
+                                    username = p.split('=', 1)[1]
+                                elif p.lower().startswith('ssl='):
+                                    ssl_val = p.split('=', 1)[1].strip().lower()
+                                    ssl = ssl_val in ('true', '1', 'yes')
+                            
+                            # Parse host:port
+                            if ':' in host_port:
+                                host, port = host_port.rsplit(':', 1)
+                                port = int(port)
+                            else:
+                                host = host_port
+                                port = 6380 if ssl else 6379
+                            
+                            return {
+                                'host': host,
+                                'port': port,
+                                'password': password,
+                                'ssl': ssl,
+                                'username': username
+                            }
+                        
+                        # Parse Azure format or use URL format
+                        redis_params = _parse_azure_redis_connection(redis_url)
+                        if redis_params:
+                            redis_client = redis.Redis(
+                                host=redis_params['host'],
+                                port=redis_params['port'],
+                                password=redis_params['password'],
+                                ssl=redis_params['ssl'],
+                                username=redis_params.get('username'),
+                                socket_connect_timeout=2,
+                                socket_timeout=2,
+                                decode_responses=False
+                            )
+                        else:
+                            redis_client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
             except Exception as e:
                 logger.warning(f"Redis not available for rate limiting: {e}")
                 redis_client = None
