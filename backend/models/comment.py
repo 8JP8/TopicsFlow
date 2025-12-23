@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
+from flask import current_app
+from utils.cache_decorator import cache_result
 import re
 from pymongo.errors import OperationFailure
 
@@ -83,9 +85,19 @@ class Comment:
                 {'_id': ObjectId(parent_comment_id)},
                 {'$inc': {'reply_count': 1}}
             )
+        
+        # Invalidate cache
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_entity('comment', comment_id, post_id=post_id)
+                cache_invalidator.invalidate_pattern('comment:list:*')
+        except Exception:
+            pass  # Cache invalidation is optional
 
         return comment_id
 
+    @cache_result(ttl=300, key_prefix='comment')
     def get_comment_by_id(self, comment_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific comment by ID."""
         comment = self.collection.find_one({'_id': ObjectId(comment_id)})
@@ -180,6 +192,7 @@ class Comment:
 
         return comment
 
+    @cache_result(ttl=300, key_prefix='comment')
     def get_comments_by_post(self, post_id: str, sort_by: str = 'top',
                             limit: int = 100, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all comments for a post, organized as a tree structure."""
@@ -485,6 +498,16 @@ class Comment:
             )
 
         if result.deleted_count > 0 or result.modified_count > 0:
+            # Invalidate cache
+            try:
+                cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                if cache_invalidator:
+                    post_id = comment.get('post_id')
+                    cache_invalidator.invalidate_entity('comment', comment_id, post_id=post_id)
+                    cache_invalidator.invalidate_pattern('comment:list:*')
+            except Exception:
+                pass  # Cache invalidation is optional
+            
             # Decrement post comment count
             post_model.decrement_comment_count(comment['post_id'])
 

@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import List, Dict, Optional, Any, Union
 from bson import ObjectId
+from flask import current_app
+from utils.cache_decorator import cache_result
 
 
 class ChatRoom:
@@ -42,9 +44,18 @@ class ChatRoom:
             from .topic import Topic
             topic_model = Topic(self.db)
             topic_model.increment_conversation_count(topic_id)
+        
+        # Invalidate cache
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_pattern('chat_room:list:*')
+        except Exception:
+            pass  # Cache invalidation is optional
 
         return conversation_id
 
+    @cache_result(ttl=300, key_prefix='chat_room')
     def get_chat_room_by_id(self, room_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific chat room by ID."""
         room = self.collection.find_one({'_id': ObjectId(room_id)})

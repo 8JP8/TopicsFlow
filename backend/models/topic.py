@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
+from flask import current_app
+from utils.cache_decorator import cache_result
 
 
 class Topic:
@@ -45,8 +47,19 @@ class Topic:
         }
 
         result = self.collection.insert_one(topic_data)
-        return str(result.inserted_id)
+        topic_id = str(result.inserted_id)
+        
+        # Invalidate cache
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_pattern('topic:list:*')
+        except Exception:
+            pass  # Cache invalidation is optional
+        
+        return topic_id
 
+    @cache_result(ttl=300, key_prefix='topic')
     def get_topic_by_id(self, topic_id: str) -> Optional[Dict[str, Any]]:
         """Get topic by ID with owner and moderator details."""
         topic = self.collection.find_one({'_id': ObjectId(topic_id)})
@@ -171,6 +184,16 @@ class Topic:
                 {'_id': ObjectId(topic_id)},
                 {'$set': update_data}
             )
+            
+            # Invalidate cache
+            if result.modified_count > 0:
+                try:
+                    cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                    if cache_invalidator:
+                        cache_invalidator.invalidate_entity('topic', topic_id, topic_id=topic_id)
+                except Exception:
+                    pass  # Cache invalidation is optional
+            
             return result.modified_count > 0
 
         return False
@@ -569,6 +592,7 @@ class Topic:
             {'$set': {'last_activity': datetime.utcnow()}}
         )
 
+    @cache_result(ttl=300, key_prefix='topic')
     def get_user_topics(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all topics where user is a member."""
         topics = list(self.collection.find({'members': ObjectId(user_id)})

@@ -7,6 +7,8 @@ import bcrypt
 from cryptography.fernet import Fernet
 import os
 import base64
+from flask import current_app
+from utils.cache_decorator import cache_result
 
 
 class User:
@@ -123,7 +125,17 @@ class User:
         }
 
         result = self.collection.insert_one(user_data)
-        return str(result.inserted_id)
+        user_id = str(result.inserted_id)
+        
+        # Invalidate cache
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_pattern('user:list:*')
+        except Exception:
+            pass  # Cache invalidation is optional
+        
+        return user_id
 
     def verify_credentials(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """Verify user credentials for login."""
@@ -300,6 +312,7 @@ class User:
 
         return new_secret
 
+    @cache_result(ttl=3600, key_prefix='user')
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
@@ -322,6 +335,7 @@ class User:
             user['id'] = user['_id']
         return user
 
+    @cache_result(ttl=3600, key_prefix='user')
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username."""
         user = self.collection.find_one({'username': username})
@@ -354,9 +368,38 @@ class User:
                     user[key] = convert_objectids(value)
         return user
 
+    @cache_result(ttl=3600, key_prefix='user')
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get user by email."""
-        return self.collection.find_one({'email': email})
+        user = self.collection.find_one({'email': email})
+        if user:
+            # Convert ObjectId to string
+            user['_id'] = str(user['_id'])
+            user['id'] = str(user['_id'])
+            
+            # Convert any other ObjectId fields recursively
+            def convert_objectids(obj):
+                if isinstance(obj, ObjectId):
+                    return str(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_objectids(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_objectids(item) for item in obj]
+                elif isinstance(obj, datetime):
+                    return obj.isoformat()
+                return obj
+            
+            # Convert all ObjectIds and datetimes in the user dict
+            for key, value in list(user.items()):
+                if isinstance(value, ObjectId):
+                    user[key] = str(value)
+                elif isinstance(value, datetime):
+                    user[key] = value.isoformat()
+                elif isinstance(value, dict):
+                    user[key] = convert_objectids(value)
+                elif isinstance(value, list):
+                    user[key] = convert_objectids(value)
+        return user
 
     def update_user_preferences(self, user_id: str, preferences: Dict[str, Any]) -> bool:
         """Update user preferences."""
@@ -378,6 +421,16 @@ class User:
             {'_id': ObjectId(user_id)},
             {'$set': update_data}
         )
+        
+        # Invalidate cache
+        if result.modified_count > 0:
+            try:
+                cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                if cache_invalidator:
+                    cache_invalidator.invalidate_entity('user', user_id)
+            except Exception:
+                pass  # Cache invalidation is optional
+        
         return result.modified_count > 0
 
     def add_ip_address(self, user_id: str, ip_address: str) -> None:
@@ -854,6 +907,16 @@ class User:
         # (e.g. deleting messages, files, etc. depending on cascading rules)
         
         result = self.collection.delete_one({'_id': ObjectId(user_id)})
+        
+        # Invalidate cache
+        if result.deleted_count > 0:
+            try:
+                cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                if cache_invalidator:
+                    cache_invalidator.invalidate_related('user', user_id)
+            except Exception:
+                pass  # Cache invalidation is optional
+        
         return result.deleted_count > 0
 
     def set_user_recovery_code(self, user_id: str, recovery_code: str) -> bool:

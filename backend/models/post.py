@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
 import re
+from flask import current_app
+from utils.cache_decorator import cache_result
 
 
 class Post:
@@ -67,9 +69,19 @@ class Post:
         from .topic import Topic
         topic_model = Topic(self.db)
         topic_model.increment_post_count(topic_id)
+        
+        # Invalidate cache
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_entity('post', post_id, topic_id=topic_id)
+                cache_invalidator.invalidate_pattern('post:list:*')
+        except Exception:
+            pass  # Cache invalidation is optional
 
         return post_id
 
+    @cache_result(ttl=300, key_prefix='post')
     def get_post_by_id(self, post_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific post by ID."""
         post = self.collection.find_one({'_id': ObjectId(post_id)})
@@ -151,6 +163,7 @@ class Post:
 
         return post
 
+    @cache_result(ttl=300, key_prefix='post')
     def get_posts_by_topic(self, topic_id: str, sort_by: str = 'new',
                           limit: int = 50, offset: int = 0,
                           user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -396,6 +409,13 @@ class Post:
                     '$set': {'updated_at': datetime.utcnow()}
                 }
             )
+            if result.modified_count > 0:
+                try:
+                    cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                    if cache_invalidator:
+                        cache_invalidator.invalidate_entity('post', post_id)
+                except Exception:
+                    pass
             return result.modified_count > 0
         else:
             # Remove from downvotes if present, then add upvote
@@ -436,6 +456,13 @@ class Post:
                     '$set': {'updated_at': datetime.utcnow()}
                 }
             )
+            if result.modified_count > 0:
+                try:
+                    cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                    if cache_invalidator:
+                        cache_invalidator.invalidate_entity('post', post_id)
+                except Exception:
+                    pass
             return result.modified_count > 0
         else:
             # Remove from upvotes if present, then add downvote
@@ -501,9 +528,19 @@ class Post:
                 }
             )
 
-        if (result.deleted_count > 0 or result.modified_count > 0) and topic_id:
-            # Decrement topic post count
-            topic_model.decrement_post_count(topic_id)
+        if (result.deleted_count > 0 or result.modified_count > 0):
+            # Invalidate cache
+            try:
+                cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+                if cache_invalidator:
+                    cache_invalidator.invalidate_entity('post', post_id, topic_id=topic_id)
+                    cache_invalidator.invalidate_pattern('post:list:*')
+            except Exception:
+                pass  # Cache invalidation is optional
+            
+            if topic_id:
+                # Decrement topic post count
+                topic_model.decrement_post_count(topic_id)
 
         return (result.deleted_count > 0 if mode == 'hard' else result.modified_count > 0)
     

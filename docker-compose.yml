@@ -19,16 +19,25 @@ services:
       - topicsflow-network
 
   # Redis (for session storage and caching)
+  # Configured to match Azure Redis Cache approach with password authentication
   redis:
     image: redis:7.2-alpine
     container_name: topicsflow-redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password_change_in_production}
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password_change_in_production}
     networks:
       - topicsflow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_password_change_in_production}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   # Backend API
   backend:
@@ -44,7 +53,14 @@ services:
       DB_NAME: TopicsFlow
       FRONTEND_URL: http://localhost:3000
       TOTP_ISSUER: TopicsFlow
-      REDIS_URL: redis://redis:6379/0
+      # Redis configuration - matches Azure Redis Cache approach
+      # Format: redis://password@host:port/0 (Docker) or host:port,password=...,ssl=True (Azure)
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_password_change_in_production}@redis:6379/0
+      SESSION_TYPE: redis
+      # Enable Redis caching in Docker (same as Azure)
+      # Note: Local development (without Docker) uses filesystem sessions and direct DB queries
+      # Docker environment - enable Redis caching
+      ENVIRONMENT: production
       # External API keys (add your own)
       SMS_SERVICE_API_KEY: ${SMS_SERVICE_API_KEY:-}
       EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY:-}

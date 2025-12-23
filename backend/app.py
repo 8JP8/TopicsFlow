@@ -77,31 +77,52 @@ def create_app(config_name=None):
 
     # Configure Flask-Session backend
     # Azure App Service must use Redis to avoid passkey challenge/session loss across instances.
+    # Local development: Never use Redis (use filesystem sessions and direct DB queries)
     try:
+        is_azure = app.config.get('IS_AZURE', False)
         session_type = (app.config.get('SESSION_TYPE') or 'filesystem').lower()
-        if session_type == 'redis':
+        
+        # Only attempt Redis if:
+        # 1. We're in Azure, OR
+        # 2. SESSION_TYPE is explicitly set to 'redis' AND we have REDIS_URL AND we're not forcing local mode
+        # Never use Redis in local development (non-Docker, non-Azure)
+        # Even if REDIS_URL is set in .env, ignore it in local development
+        should_use_redis = (
+            is_azure or 
+            (session_type == 'redis' and app.config.get('REDIS_URL') and not os.getenv('FORCE_LOCAL_MODE') and is_azure)
+        )
+        
+        # Force filesystem sessions in local development, even if REDIS_URL is set
+        if not is_azure and not os.getenv('FORCE_AZURE_MODE'):
+            should_use_redis = False
+            if session_type == 'redis':
+                logger.info("Local development detected: Ignoring REDIS_URL and SESSION_TYPE=redis. Using filesystem sessions.")
+                session_type = 'filesystem'
+                app.config['SESSION_TYPE'] = 'filesystem'
+        
+        if should_use_redis and session_type == 'redis':
             import redis  # backend/requirements.txt includes redis
             redis_url = app.config.get('REDIS_URL')
 
-            def _normalize_azure_redis_to_url(value: str) -> str:
+            def _parse_azure_redis_connection(value: str) -> dict:
                 """
-                Azure Portal often provides Redis in StackExchange format:
-                  host:6380,password=...,ssl=True,abortConnect=False
-                Or with username:
-                  host:6380,username=...,password=...,ssl=True
-                redis-py expects a URL:
-                  rediss://username:password@host:6380/0
+                Parse Azure Redis connection string format:
+                  host:port,password=...,ssl=True,abortConnect=False
+                Returns dict with host, port, password, ssl for direct Redis() constructor.
                 """
                 if not value:
-                    return value
+                    return None
                 if '://' in value:
-                    return value
-                # Split by comma; first part is host:port
+                    # Already a URL format, return None to use from_url
+                    return None
+                
+                # Parse StackExchange format
                 parts = [p.strip() for p in value.split(',') if p.strip()]
                 host_port = parts[0]
                 password = None
                 username = None
                 ssl = True
+                
                 for p in parts[1:]:
                     if p.lower().startswith('password='):
                         password = p.split('=', 1)[1]
@@ -110,39 +131,80 @@ def create_app(config_name=None):
                     elif p.lower().startswith('ssl='):
                         ssl_val = p.split('=', 1)[1].strip().lower()
                         ssl = ssl_val in ('true', '1', 'yes')
-                scheme = 'rediss' if ssl else 'redis'
-                if password:
-                    if username:
-                        return f"{scheme}://{username}:{password}@{host_port}/0"
-                    return f"{scheme}://:{password}@{host_port}/0"
-                return f"{scheme}://{host_port}/0"
+                
+                # Parse host:port
+                if ':' in host_port:
+                    host, port = host_port.rsplit(':', 1)
+                    port = int(port)
+                else:
+                    host = host_port
+                    port = 6380 if ssl else 6379
+                
+                return {
+                    'host': host,
+                    'port': port,
+                    'password': password,
+                    'ssl': ssl,
+                    'username': username
+                }
 
-            redis_url = _normalize_azure_redis_to_url(redis_url) if redis_url else redis_url
+            # Try to parse as Azure format first, then fallback to URL
+            redis_params = _parse_azure_redis_connection(redis_url) if redis_url else None
+            
             if redis_url:
                 # Test Redis connection before using it
                 try:
-                    redis_client = redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
+                    if redis_params:
+                        # Use direct Redis() constructor (preferred for Azure)
+                        redis_client = redis.Redis(
+                            host=redis_params['host'],
+                            port=redis_params['port'],
+                            password=redis_params['password'],
+                            ssl=redis_params['ssl'],
+                            username=redis_params.get('username'),
+                            socket_connect_timeout=5,
+                            socket_timeout=5,
+                            decode_responses=False  # Keep bytes for session storage
+                        )
+                    else:
+                        # Use URL format (for standard Redis URLs)
+                        redis_client = redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
+                    
                     # Test connection with ping
                     redis_client.ping()
-                    # Store Redis client for later use
+                    
+                    # Store Redis client for later use (for both sessions and cache)
+                    app.config['REDIS_CLIENT'] = redis_client
                     app.config['SESSION_REDIS'] = redis_client
                     app.config['_USE_REDIS_FALLBACK'] = True  # Flag to use fallback interface
-                    logger.info("Session backend: Redis with filesystem fallback (connection verified)")
+                    app.config['REDIS_AVAILABLE'] = True
+                    logger.info("Redis connection successful. Session backend: Redis with filesystem fallback (connection verified)")
                 except (redis.exceptions.ConnectionError, redis.exceptions.AuthenticationError, redis.exceptions.TimeoutError) as redis_err:
-                    logger.error(f"Redis connection failed: {redis_err}. Falling back to filesystem sessions.")
-                    logger.error(f"Redis URL (masked): {redis_url.split('@')[-1] if '@' in redis_url else 'N/A'}")
+                    logger.error("Redis connection failed. Falling back to filesystem sessions and direct database queries.")
+                    logger.error(f"Redis error: {redis_err}")
                     app.config['SESSION_TYPE'] = 'filesystem'
+                    app.config['REDIS_AVAILABLE'] = False
                 except Exception as redis_err:
-                    logger.error(f"Unexpected Redis error: {redis_err}. Falling back to filesystem sessions.")
+                    logger.error("Redis connection failed. Falling back to filesystem sessions and direct database queries.")
+                    logger.error(f"Unexpected Redis error: {redis_err}")
                     app.config['SESSION_TYPE'] = 'filesystem'
+                    app.config['REDIS_AVAILABLE'] = False
             else:
                 logger.warning("SESSION_TYPE=redis but REDIS_URL is missing; falling back to filesystem sessions")
                 app.config['SESSION_TYPE'] = 'filesystem'
+                app.config['REDIS_AVAILABLE'] = False
         else:
-            logger.info(f"Session backend: {session_type}")
+            # Local development: filesystem sessions, no Redis
+            if not is_azure:
+                logger.info(f"Session backend: {session_type} (local development - Redis disabled)")
+            else:
+                logger.info(f"Session backend: {session_type}")
+            # If not using Redis, mark as unavailable
+            app.config['REDIS_AVAILABLE'] = False
     except Exception as e:
         logger.warning(f"Failed to configure session backend; falling back to filesystem: {e}")
         app.config['SESSION_TYPE'] = 'filesystem'
+        app.config['REDIS_AVAILABLE'] = False
 
     # Initialize Flask-Session
     session.init_app(app)
@@ -163,6 +225,46 @@ def create_app(config_name=None):
             logger.info("Configured Redis session with filesystem fallback")
         except Exception as e:
             logger.warning(f"Failed to configure fallback session interface: {e}. Using default.")
+
+    # Initialize Redis Cache and Cache Invalidator
+    try:
+        from utils.redis_cache import RedisCache
+        from utils.cache_invalidator import CacheInvalidator
+        
+        redis_available = app.config.get('REDIS_AVAILABLE', False)
+        redis_client = app.config.get('REDIS_CLIENT')
+        is_azure = app.config.get('IS_AZURE', False)
+        
+        if redis_available and redis_client:
+            cache = RedisCache(redis_client=redis_client, available=True)
+            cache_invalidator = CacheInvalidator(cache=cache)
+            app.config['CACHE'] = cache
+            app.config['CACHE_INVALIDATOR'] = cache_invalidator
+            logger.info("Redis cache enabled. TTL: users/topics=1h, dynamic=5m")
+        else:
+            # Redis unavailable, create cache instance that always returns None
+            cache = RedisCache(redis_client=None, available=False)
+            cache_invalidator = CacheInvalidator(cache=None)
+            app.config['CACHE'] = cache
+            app.config['CACHE_INVALIDATOR'] = cache_invalidator
+            # Only log as error if we were supposed to use Redis (Azure/Docker)
+            # In local development, this is expected behavior - don't log as error
+            is_azure_check = app.config.get('IS_AZURE', False)
+            if is_azure_check or (app.config.get('SESSION_TYPE') == 'redis' and app.config.get('REDIS_URL') and not os.getenv('FORCE_LOCAL_MODE')):
+                logger.error("Redis connection failed. Falling back to filesystem sessions and direct database queries. Application will continue without caching.")
+            else:
+                # Local development - Redis disabled by design, not an error
+                # Don't log anything - this is expected behavior
+                pass
+    except Exception as e:
+        logger.error(f"Failed to initialize cache system: {e}. Application will continue without caching.")
+        # Create dummy cache that always fails gracefully
+        from utils.redis_cache import RedisCache
+        from utils.cache_invalidator import CacheInvalidator
+        cache = RedisCache(redis_client=None, available=False)
+        cache_invalidator = CacheInvalidator(cache=None)
+        app.config['CACHE'] = cache
+        app.config['CACHE_INVALIDATOR'] = cache_invalidator
 
     # Initialize SocketIO with session support
     # Use threading mode on Windows (eventlet not reliable on Windows)
