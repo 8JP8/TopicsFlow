@@ -87,8 +87,10 @@ def create_app(config_name=None):
                 """
                 Azure Portal often provides Redis in StackExchange format:
                   host:6380,password=...,ssl=True,abortConnect=False
+                Or with username:
+                  host:6380,username=...,password=...,ssl=True
                 redis-py expects a URL:
-                  rediss://:password@host:6380/0
+                  rediss://username:password@host:6380/0
                 """
                 if not value:
                     return value
@@ -98,22 +100,41 @@ def create_app(config_name=None):
                 parts = [p.strip() for p in value.split(',') if p.strip()]
                 host_port = parts[0]
                 password = None
+                username = None
                 ssl = True
                 for p in parts[1:]:
                     if p.lower().startswith('password='):
                         password = p.split('=', 1)[1]
+                    elif p.lower().startswith('username='):
+                        username = p.split('=', 1)[1]
                     elif p.lower().startswith('ssl='):
                         ssl_val = p.split('=', 1)[1].strip().lower()
                         ssl = ssl_val in ('true', '1', 'yes')
                 scheme = 'rediss' if ssl else 'redis'
                 if password:
+                    if username:
+                        return f"{scheme}://{username}:{password}@{host_port}/0"
                     return f"{scheme}://:{password}@{host_port}/0"
                 return f"{scheme}://{host_port}/0"
 
             redis_url = _normalize_azure_redis_to_url(redis_url) if redis_url else redis_url
             if redis_url:
-                app.config['SESSION_REDIS'] = redis.from_url(redis_url)
-                logger.info("Session backend: Redis")
+                # Test Redis connection before using it
+                try:
+                    redis_client = redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
+                    # Test connection with ping
+                    redis_client.ping()
+                    # Store Redis client for later use
+                    app.config['SESSION_REDIS'] = redis_client
+                    app.config['_USE_REDIS_FALLBACK'] = True  # Flag to use fallback interface
+                    logger.info("Session backend: Redis with filesystem fallback (connection verified)")
+                except (redis.exceptions.ConnectionError, redis.exceptions.AuthenticationError, redis.exceptions.TimeoutError) as redis_err:
+                    logger.error(f"Redis connection failed: {redis_err}. Falling back to filesystem sessions.")
+                    logger.error(f"Redis URL (masked): {redis_url.split('@')[-1] if '@' in redis_url else 'N/A'}")
+                    app.config['SESSION_TYPE'] = 'filesystem'
+                except Exception as redis_err:
+                    logger.error(f"Unexpected Redis error: {redis_err}. Falling back to filesystem sessions.")
+                    app.config['SESSION_TYPE'] = 'filesystem'
             else:
                 logger.warning("SESSION_TYPE=redis but REDIS_URL is missing; falling back to filesystem sessions")
                 app.config['SESSION_TYPE'] = 'filesystem'
@@ -123,7 +144,25 @@ def create_app(config_name=None):
         logger.warning(f"Failed to configure session backend; falling back to filesystem: {e}")
         app.config['SESSION_TYPE'] = 'filesystem'
 
+    # Initialize Flask-Session
     session.init_app(app)
+    
+    # If Redis is configured and working, replace with fallback interface
+    if app.config.get('_USE_REDIS_FALLBACK') and app.config.get('SESSION_REDIS'):
+        try:
+            from utils.session_fallback import FallbackSessionInterface
+            redis_client = app.config['SESSION_REDIS']
+            session_interface = FallbackSessionInterface(
+                redis_client=redis_client,
+                key_prefix=app.config.get('SESSION_KEY_PREFIX', 'session:'),
+                use_signer=app.config.get('SESSION_USE_SIGNER', False),
+                permanent=app.config.get('SESSION_PERMANENT', False),
+                session_file_dir=app.config.get('SESSION_FILE_DIR')
+            )
+            app.session_interface = session_interface
+            logger.info("Configured Redis session with filesystem fallback")
+        except Exception as e:
+            logger.warning(f"Failed to configure fallback session interface: {e}. Using default.")
 
     # Initialize SocketIO with session support
     # Use threading mode on Windows (eventlet not reliable on Windows)
