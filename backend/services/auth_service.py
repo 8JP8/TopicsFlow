@@ -17,6 +17,7 @@ from services.passkey_service import PasskeyService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
 from utils.i18n import DEFAULT_LANGUAGE, normalize_language, normalize_language_optional
+from utils.session_backup import save_session_backup, load_session_backup, delete_session_backup
 
 logger = logging.getLogger(__name__)
 
@@ -951,6 +952,13 @@ class AuthService:
             if result.get('success'):
                 # Store challenge in session for verification
                 session['passkey_challenge'] = result['challenge']
+                # Optional: best-effort local file backup (single-instance only)
+                try:
+                    sid = getattr(session, "sid", None)
+                    if sid:
+                        save_session_backup(str(sid), {"passkey_challenge": result["challenge"]})
+                except Exception:
+                    pass
 
             return result
 
@@ -962,6 +970,15 @@ class AuthService:
         try:
             # Get challenge from session
             expected_challenge = session.get('passkey_challenge')
+            if not expected_challenge:
+                # Fallback: local file backup (single-instance only)
+                try:
+                    sid = getattr(session, "sid", None)
+                    if sid:
+                        backup = load_session_backup(str(sid)) or {}
+                        expected_challenge = backup.get("passkey_challenge")
+                except Exception:
+                    pass
             if not expected_challenge:
                 return {'success': False, 'errors': ['No challenge found. Please try again.']}
 
@@ -993,6 +1010,12 @@ class AuthService:
             if self.user_model.add_passkey_credential(user_id, credential_data):
                 # Clear challenge from session
                 session.pop('passkey_challenge', None)
+                try:
+                    sid = getattr(session, "sid", None)
+                    if sid:
+                        delete_session_backup(str(sid))
+                except Exception:
+                    pass
 
                 return {
                     'success': True,
@@ -1025,6 +1048,12 @@ class AuthService:
             if result.get('success'):
                 # Store challenge in session for verification
                 session['passkey_auth_challenge'] = result['challenge']
+                try:
+                    sid = getattr(session, "sid", None)
+                    if sid:
+                        save_session_backup(str(sid), {"passkey_auth_challenge": result["challenge"]})
+                except Exception:
+                    pass
 
             return result
 
@@ -1036,6 +1065,14 @@ class AuthService:
         try:
             # Get challenge from session
             expected_challenge = session.get('passkey_auth_challenge')
+            if not expected_challenge:
+                try:
+                    sid = getattr(session, "sid", None)
+                    if sid:
+                        backup = load_session_backup(str(sid)) or {}
+                        expected_challenge = backup.get("passkey_auth_challenge")
+                except Exception:
+                    pass
             if not expected_challenge:
                 return {'success': False, 'errors': ['No challenge found. Please try again.']}
 
@@ -1103,6 +1140,12 @@ class AuthService:
 
             # Clear challenge from session
             session.pop('passkey_auth_challenge', None)
+            try:
+                sid = getattr(session, "sid", None)
+                if sid:
+                    delete_session_backup(str(sid))
+            except Exception:
+                pass
 
             return {
                 'success': True,
