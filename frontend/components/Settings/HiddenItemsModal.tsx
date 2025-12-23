@@ -188,7 +188,30 @@ const HiddenItemsModal: React.FC<HiddenItemsModalProps> = ({ isOpen, onClose }) 
 
         {/* Categories Tabs */}
         <div className="px-4 sm:px-6 pt-2 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex relative w-full overflow-x-auto no-scrollbar">
+          {/* Mobile: 2-row grid tabs (prevents underline overlap on narrow screens) */}
+          <div className="sm:hidden pb-3">
+            <div className="grid grid-cols-3 gap-2">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'theme-bg-tertiary theme-text-secondary hover:theme-bg-hover'
+                      }`}
+                  >
+                    {tab.icon}
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop: single-row tabs with indicator */}
+          <div className="hidden sm:flex relative w-full overflow-x-auto no-scrollbar">
             <div
               className="absolute bottom-0 h-0.5 bg-blue-500 transition-all duration-300 ease-out z-10"
               style={{

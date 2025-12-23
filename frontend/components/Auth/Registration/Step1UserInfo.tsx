@@ -10,7 +10,7 @@ interface Step1Props {
 }
 
 const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: data.username || '',
@@ -53,7 +53,7 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
         body: JSON.stringify({
           username: formData.username,
           email: formData.email,
-          language: t('common.languageCode') || 'en',
+          language,
         }),
       });
 

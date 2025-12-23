@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
 import re
+from pymongo.errors import OperationFailure
 
 
 class Comment:
@@ -195,9 +196,56 @@ class Comment:
         else:  # default: 'top' (by upvotes)
             sort_key = [('upvote_count', -1), ('created_at', -1)]
 
-        comments = list(self.collection.find(query)
-                       .sort(sort_key)
-                       .limit(limit))
+        def _is_cosmos_index_sort_error(err: Exception) -> bool:
+            msg = str(err).lower()
+            return (
+                'composite index' in msg
+                or 'order by query' in msg
+                or 'index path' in msg
+                or 'excluded' in msg
+            )
+
+        try:
+            comments = list(
+                self.collection.find(query)
+                .sort(sort_key)
+                .limit(limit)
+            )
+        except OperationFailure as e:
+            # CosmosDB (Mongo API) may reject some ORDER BY operations unless specific
+            # composite indexes / included paths exist. We fallback in code (plan: code-only).
+            if not _is_cosmos_index_sort_error(e):
+                raise
+
+            if sort_by == 'new':
+                # _id is roughly creation time for ObjectId
+                comments = list(
+                    self.collection.find(query)
+                    .sort([('_id', -1)])
+                    .limit(limit)
+                )
+            elif sort_by == 'old':
+                comments = list(
+                    self.collection.find(query)
+                    .sort([('_id', 1)])
+                    .limit(limit)
+                )
+            else:
+                # 'top': avoid composite sort in DB. Fetch a bounded set and sort in Python.
+                fetch_limit = min(max(limit * 5, limit), 2000)
+                raw = list(self.collection.find(query).limit(fetch_limit))
+
+                def _created_sort_key(doc: Dict[str, Any]):
+                    created = doc.get('created_at')
+                    if isinstance(created, datetime):
+                        created_val = created
+                    else:
+                        created_val = datetime.min
+                    oid = doc.get('_id')
+                    return (doc.get('upvote_count', 0), created_val, oid)
+
+                raw.sort(key=_created_sort_key, reverse=True)
+                comments = raw[:limit]
 
         # Process comments and build tree structure
         comments_dict = {}

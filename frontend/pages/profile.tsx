@@ -235,7 +235,7 @@ const Profile: React.FC = () => {
                 />
                 <button
                   onClick={() => avatarInputRef.current?.click()}
-                  className="px-4 py-2 theme-bg-secondary theme-text-primary rounded-lg hover:theme-bg-tertiary transition-colors"
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
                   {t('profile.uploadPhoto') || 'Upload Photo'}
                 </button>
@@ -281,7 +281,7 @@ const Profile: React.FC = () => {
               />
               <button
                 onClick={() => bannerInputRef.current?.click()}
-                className="px-4 py-2 theme-bg-secondary theme-text-primary rounded-lg hover:theme-bg-tertiary transition-colors"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 {t('profile.uploadBanner') || 'Upload Banner'}
               </button>

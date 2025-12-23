@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
+from pymongo.errors import OperationFailure
 
 
 class Friend:
@@ -214,17 +215,39 @@ class Friend:
 
     def get_pending_requests(self, user_id: str) -> Dict[str, List[Dict[str, Any]]]:
         """Get pending friend requests (sent and received)."""
+        def _is_cosmos_index_sort_error(err: Exception) -> bool:
+            msg = str(err).lower()
+            return (
+                'composite index' in msg
+                or 'order by query' in msg
+                or 'index path' in msg
+                or 'excluded' in msg
+            )
+
         # Received requests (others want to be friends with me)
-        received = list(self.collection.find({
+        received_query = {
             'to_user_id': ObjectId(user_id),
             'status': 'pending'
-        }).sort([('created_at', -1)]))
+        }
+        try:
+            received = list(self.collection.find(received_query).sort([('created_at', -1)]))
+        except OperationFailure as e:
+            if not _is_cosmos_index_sort_error(e):
+                raise
+            # Cosmos may exclude created_at from indexing; fall back to _id time order
+            received = list(self.collection.find(received_query).sort([('_id', -1)]))
 
         # Sent requests (I want to be friends with others)
-        sent = list(self.collection.find({
+        sent_query = {
             'from_user_id': ObjectId(user_id),
             'status': 'pending'
-        }).sort([('created_at', -1)]))
+        }
+        try:
+            sent = list(self.collection.find(sent_query).sort([('created_at', -1)]))
+        except OperationFailure as e:
+            if not _is_cosmos_index_sort_error(e):
+                raise
+            sent = list(self.collection.find(sent_query).sort([('_id', -1)]))
 
         from .user import User
         user_model = User(self.db)

@@ -16,6 +16,7 @@ from services.email_service import EmailService
 from services.passkey_service import PasskeyService
 from utils.validators import validate_username, validate_email
 from utils.content_filter import contains_profanity
+from utils.i18n import DEFAULT_LANGUAGE, normalize_language, normalize_language_optional
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class AuthService:
     def register_user(self, username: str, email: str, password: str,
                      phone: str = None, security_questions: list = None, lang: str = 'en') -> dict:
         """Register a new user with TOTP setup."""
+        lang = normalize_language(lang)
         # Validate inputs
         validation_errors = []
 
@@ -462,6 +464,7 @@ class AuthService:
     # Passwordless Authentication Methods
     def register_user_passwordless(self, username: str, email: str, lang: str = 'en') -> dict:
         """Register a new user without password (passwordless auth)."""
+        lang = normalize_language(lang)
         validation_errors = []
 
         if not username or len(username.strip()) < 3:
@@ -558,6 +561,7 @@ class AuthService:
     def resend_verification_code(self, user_id: str, lang: str = 'en') -> dict:
         """Resend email verification code."""
         try:
+            requested_lang = normalize_language_optional(lang)
             user = self.user_model.get_user_by_id(user_id)
             if not user:
                 return {'success': False, 'errors': ['User not found']}
@@ -569,9 +573,9 @@ class AuthService:
             verification_code = ''.join(random.choices(string.digits, k=6))
             self.user_model.set_email_verification_code(user_id, verification_code)
 
-            # Use user's preferred language if set, otherwise use requested language
-            user_lang = user.get('preferences', {}).get('language')
-            effective_lang = user_lang if user_lang else lang
+            # Prefer requested language (current frontend selection), fallback to user preference.
+            user_lang = normalize_language_optional(user.get('preferences', {}).get('language')) or DEFAULT_LANGUAGE
+            effective_lang = requested_lang or user_lang
 
             # Send verification email
             email_result = self.email_service.send_verification_email(
@@ -751,6 +755,7 @@ class AuthService:
     # Account Recovery Methods
     def initiate_recovery_passwordless(self, email: str, lang: str = 'en') -> dict:
         """Initiate account recovery by sending recovery code to email."""
+        requested_lang = normalize_language_optional(lang)
         if not email or not validate_email(email):
             return {'success': False, 'errors': ['Valid email is required']}
 
@@ -764,9 +769,9 @@ class AuthService:
             recovery_code = ''.join(random.choices(string.digits, k=6))
             self.user_model.set_recovery_code(email.lower().strip(), recovery_code)
 
-            # Use user's preferred language if set, otherwise use requested language
-            user_lang = user.get('preferences', {}).get('language')
-            effective_lang = user_lang if user_lang else lang
+            # Prefer requested language (current frontend selection), fallback to user preference.
+            user_lang = normalize_language_optional(user.get('preferences', {}).get('language')) or DEFAULT_LANGUAGE
+            effective_lang = requested_lang or user_lang
 
             # Send recovery email
             email_result = self.email_service.send_recovery_email(
@@ -799,8 +804,9 @@ class AuthService:
             'user_id': user_id
         }
 
-    def reset_totp_with_original_secret(self, user_id: str, original_secret: str) -> dict:
+    def reset_totp_with_original_secret(self, user_id: str, original_secret: str, lang: str = 'en') -> dict:
         """Reset TOTP using original secret from initial setup."""
+        requested_lang = normalize_language_optional(lang)
         if not original_secret:
             return {'success': False, 'errors': ['Original secret is required']}
 
@@ -817,14 +823,15 @@ class AuthService:
             if not user:
                 return {'success': False, 'errors': ['User not found']}
 
-            # Get user's preferred language
-            user_lang = user.get('preferences', {}).get('language', 'en')
+            # Prefer requested language (current frontend selection), fallback to user preference.
+            user_lang = normalize_language_optional(user.get('preferences', {}).get('language')) or DEFAULT_LANGUAGE
+            effective_lang = requested_lang or user_lang
 
             # Get QR code data
             qr_data = self.user_model.get_totp_qr_data(user_id)
 
             # Send notification email
-            self.email_service.send_2fa_reset_notification(user['email'], user['username'], user_lang)
+            self.email_service.send_2fa_reset_notification(user['email'], user['username'], effective_lang)
 
             return {
                 'success': True,
@@ -891,6 +898,7 @@ class AuthService:
     def verify_user_recovery_code_for_reset(self, email: str, recovery_code: str, lang: str = 'en') -> dict:
         """Verify user recovery code for account recovery (email already verified)."""
         try:
+            requested_lang = normalize_language_optional(lang)
             user = self.user_model.get_user_by_email(email.lower().strip())
             if not user:
                 return {'success': False, 'errors': ['Invalid recovery credentials']}
@@ -904,9 +912,9 @@ class AuthService:
             new_secret = self.user_model.reset_totp_with_new_secret(user_id)
             qr_data = self.user_model.get_totp_qr_data(user_id)
 
-            # Use user's preferred language if set, otherwise use requested language
-            user_lang = user.get('preferences', {}).get('language')
-            effective_lang = user_lang if user_lang else lang
+            # Prefer requested language (current frontend selection), fallback to user preference.
+            user_lang = normalize_language_optional(user.get('preferences', {}).get('language')) or DEFAULT_LANGUAGE
+            effective_lang = requested_lang or user_lang
 
             # Send notification email
             self.email_service.send_2fa_reset_notification(user['email'], user['username'], effective_lang)

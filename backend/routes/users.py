@@ -11,6 +11,7 @@ from models.friend import Friend
 from utils.decorators import require_auth, require_json, log_requests
 from utils.image_compression import compress_image_base64
 import logging
+from utils.i18n import normalize_language
 
 logger = logging.getLogger(__name__)
 users_bp = Blueprint('users', __name__)
@@ -173,7 +174,7 @@ def request_deletion_code():
                 # Use current app config if needed, or environment variables are loaded
                 # The send_account_deletion_email method signature: (to_email, username, verification_code, lang='en')
                 # We can get language from user preferences
-                lang = user.get('preferences', {}).get('language', 'en')
+                lang = normalize_language(user.get('preferences', {}).get('language'))
                 
                 email_service.send_account_deletion_email(email, username, code, lang)
                 

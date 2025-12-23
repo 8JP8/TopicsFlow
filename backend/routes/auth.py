@@ -74,6 +74,7 @@ def register():
             password=password,
             phone=phone if phone else None,
             security_questions=security_questions,
+            # Registration should default to English if not provided
             lang=data.get('language', 'en')
         )
 
@@ -472,7 +473,8 @@ def register_passwordless():
         data = request.get_json()
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
-        language = data.get('language', 'en')
+        # Optional override; if absent backend will use stored user preference
+        language = data.get('language')
 
         if not username or not email:
             return jsonify({'success': False, 'errors': ['Username and email are required']}), 400
@@ -548,7 +550,8 @@ def resend_verification():
         data = request.get_json()
         user_id = data.get('user_id')
         email = data.get('email')
-        language = data.get('language', 'en')
+        # Optional override; if absent backend will use stored user preference
+        language = data.get('language')
 
         if not user_id and not email:
             return jsonify({'success': False, 'error': 'User ID or email is required'}), 400
@@ -689,7 +692,8 @@ def initiate_recovery_passwordless():
     try:
         data = request.get_json()
         email = data.get('email', '').strip()
-        language = data.get('language', 'en')
+        # Optional override; if absent backend will use stored user preference
+        language = data.get('language')
 
         if not email:
             return jsonify({'success': False, 'errors': ['Email is required']}), 400
@@ -742,6 +746,8 @@ def reset_totp_with_secret():
         data = request.get_json()
         user_id = data.get('user_id')
         original_secret = data.get('original_secret', '').strip()
+        # Optional override; if absent backend will use stored user preference
+        language = data.get('language')
 
         if not user_id or not original_secret:
             return jsonify({'success': False, 'errors': ['User ID and original secret are required']}), 400
@@ -749,7 +755,7 @@ def reset_totp_with_secret():
         from flask import current_app
         auth_service = AuthService(current_app.db)
 
-        result = auth_service.reset_totp_with_original_secret(user_id, original_secret)
+        result = auth_service.reset_totp_with_original_secret(user_id, original_secret, language)
 
         if result['success']:
             return jsonify(result), 200
@@ -856,7 +862,8 @@ def verify_user_recovery_code():
         data = request.get_json()
         email = data.get('email', '').strip()
         recovery_code = data.get('recovery_code', '')
-        language = data.get('language', 'en')
+        # Optional override; if absent backend will use stored user preference
+        language = data.get('language')
 
         if not email or not recovery_code:
             return jsonify({'success': False, 'errors': ['Email and recovery code are required']}), 400

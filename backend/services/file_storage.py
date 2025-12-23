@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    from azure.storage.blob import BlobServiceClient, BlobClient
+    from azure.storage.blob import BlobServiceClient, BlobClient, ContentSettings
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
@@ -279,7 +279,7 @@ class FileStorageService:
             file_data,
             overwrite=True, # Allow overwrite if hash matches (idempotent)
             metadata=blob_metadata,
-            content_settings={'content_type': mime_type}
+            content_settings=ContentSettings(content_type=mime_type or 'application/octet-stream')
         )
         
         # Return just the file_id

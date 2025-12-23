@@ -57,9 +57,9 @@ The setup scripts will:
 
 ### Resend Email Service
 
-- **API Key**: `re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da`
-- **Domain**: `topicsflow.me`
-- **Sender Email**: `noreply@topicsflow.me`
+- **API Key**: `your_resend_api_key`
+- **Domain**: your domain (must be verified in Resend)
+- **Sender Email**: `noreply@your-domain.com`
 
 ### Important: Domain Verification Required
 
@@ -130,8 +130,8 @@ cat backend/.env
 
 You should see all configuration values, including:
 ```
-RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=noreply@topicsflow.me
+RESEND_API_KEY=your_resend_api_key
+FROM_EMAIL=noreply@your-domain.com
 ```
 
 ### 3. Start the Backend
@@ -144,8 +144,8 @@ python app.py
 You should see:
 ```
  * Running on http://127.0.0.1:5000
- * Resend API key configured: ****...g7Da
- * Email sender: noreply@topicsflow.me
+ * Resend API key configured: (set)
+ * Email sender: noreply@your-domain.com
 ```
 
 ### 4. Test Email Sending
@@ -185,7 +185,7 @@ $env:RESEND_API_KEY
 echo $RESEND_API_KEY
 ```
 
-Should show: `re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da`
+Should show: your Resend API key value (do not share it)
 
 **Check 2: Domain Verified**
 
@@ -222,8 +222,8 @@ print(result)
 - Did you choose "Y" when asked to set permanently?
 - Run `setx` commands manually:
   ```cmd
-  setx RESEND_API_KEY "re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da"
-  setx FROM_EMAIL "noreply@topicsflow.me"
+  setx RESEND_API_KEY "your_resend_api_key"
+  setx FROM_EMAIL "noreply@your-domain.com"
   ```
 - Restart Command Prompt/PowerShell after setting
 
@@ -234,8 +234,8 @@ print(result)
   ```
 - If not found, add manually:
   ```bash
-  echo 'export RESEND_API_KEY="re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da"' >> ~/.bashrc
-  echo 'export FROM_EMAIL="noreply@topicsflow.me"' >> ~/.bashrc
+  echo 'export RESEND_API_KEY="your_resend_api_key"' >> ~/.bashrc
+  echo 'export FROM_EMAIL="noreply@your-domain.com"' >> ~/.bashrc
   source ~/.bashrc
   ```
 
@@ -268,13 +268,13 @@ If you prefer to set up manually:
 ```cmd
 cd backend
 (
-echo RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-echo FROM_EMAIL=noreply@topicsflow.me
+echo RESEND_API_KEY=your_resend_api_key
+echo FROM_EMAIL=noreply@your-domain.com
 echo APP_NAME=TopicsFlow
 echo FRONTEND_URL=http://localhost:3000
 echo DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 echo CORS_ALLOW_ALL=true
-echo TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
+echo TENOR_API_KEY=your_tenor_api_key
 ) > .env
 ```
 
@@ -283,13 +283,13 @@ echo TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 ```powershell
 cd backend
 @"
-RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=noreply@topicsflow.me
+RESEND_API_KEY=your_resend_api_key
+FROM_EMAIL=noreply@your-domain.com
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 CORS_ALLOW_ALL=true
-TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
+TENOR_API_KEY=your_tenor_api_key
 "@ | Out-File -FilePath .env -Encoding UTF8
 ```
 
@@ -298,13 +298,13 @@ TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
 ```bash
 cd backend
 cat > .env << 'EOF'
-RESEND_API_KEY=re_cW2EbAUf_KWz56Tr6eTuwN3PHBH29g7Da
-FROM_EMAIL=noreply@topicsflow.me
+RESEND_API_KEY=your_resend_api_key
+FROM_EMAIL=noreply@your-domain.com
 APP_NAME=TopicsFlow
 FRONTEND_URL=http://localhost:3000
 DATABASE_URL=mongodb://localhost:27017/TopicsFlow
 CORS_ALLOW_ALL=true
-TENOR_API_KEY=AIzaSyCiAjRAFCxxSqkRIgzhZSSaDWktv84ZxW4
+TENOR_API_KEY=your_tenor_api_key
 EOF
 ```
 

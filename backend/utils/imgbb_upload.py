@@ -2,12 +2,12 @@
 import requests
 import logging
 import base64
+import os
 
 logger = logging.getLogger(__name__)
 
-IMGBB_API_KEY = os.getenv('IMGBB_API_KEY')
 IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload'
-MAX_BASE64_SIZE = 2 * 1024 * 1024  # 2MB threshold for using imgbb
+DEFAULT_MAX_BASE64_SIZE = 2 * 1024 * 1024  # 2MB threshold for using imgbb
 
 
 def upload_to_imgbb(base64_image: str) -> dict:
@@ -21,18 +21,30 @@ def upload_to_imgbb(base64_image: str) -> dict:
         dict with 'success' (bool) and either 'url' (str) or 'error' (str)
     """
     try:
+        api_key = os.getenv('IMGBB_API_KEY')
+        if not api_key:
+            return {'success': False, 'error': 'IMGBB_API_KEY not configured'}
+
+        expiration = os.getenv('IMGBB_EXPIRATION_SECONDS')
+        params = {'key': api_key}
+        if expiration:
+            try:
+                params['expiration'] = int(expiration)
+            except ValueError:
+                logger.warning("Invalid IMGBB_EXPIRATION_SECONDS; ignoring")
+
         # Remove data URL prefix if present (e.g., "data:image/png;base64,")
         if ',' in base64_image:
             base64_image = base64_image.split(',', 1)[1]
         
-        # Prepare the request
-        payload = {
-            'key': IMGBB_API_KEY,
-            'image': base64_image
-        }
-        
         # Upload to imgbb
-        response = requests.post(IMGBB_UPLOAD_URL, data=payload, timeout=30)
+        # imgbb expects multipart form data: --form "image=..."
+        response = requests.post(
+            IMGBB_UPLOAD_URL,
+            params=params,
+            files={'image': base64_image},
+            timeout=30
+        )
         response.raise_for_status()
         
         result = response.json()
@@ -84,6 +96,18 @@ def should_use_imgbb(base64_image: str) -> bool:
         bool: True if image should use imgbb, False otherwise
     """
     try:
+        use_imgbb = os.getenv('USE_IMGBB', 'false').lower() in ('true', '1', 'yes')
+        if not use_imgbb:
+            return False
+
+        max_size = DEFAULT_MAX_BASE64_SIZE
+        env_max = os.getenv('IMGBB_MAX_BASE64_SIZE_BYTES')
+        if env_max:
+            try:
+                max_size = int(env_max)
+            except ValueError:
+                logger.warning("Invalid IMGBB_MAX_BASE64_SIZE_BYTES; using default")
+
         # Remove data URL prefix if present
         if ',' in base64_image:
             base64_image = base64_image.split(',', 1)[1]
@@ -92,11 +116,11 @@ def should_use_imgbb(base64_image: str) -> bool:
         # We'll use the base64 string length as a proxy
         size_bytes = len(base64_image) * 3 // 4  # Approximate binary size
         
-        return size_bytes > MAX_BASE64_SIZE
+        return size_bytes > max_size
     except Exception as e:
         logger.error(f"Error checking image size: {str(e)}")
         # If we can't determine size, err on the side of using imgbb for safety
-        return True
+        return os.getenv('USE_IMGBB', 'false').lower() in ('true', '1', 'yes')
 
 
 def process_image_for_storage(base64_image: str) -> dict:
@@ -127,7 +151,7 @@ def process_image_for_storage(base64_image: str) -> dict:
                 'source': 'imgbb'
             }
         else:
-            # If imgbb fails, fall back to base64 (might fail in MongoDB but better than nothing)
+            # If imgbb fails, fall back to base64
             logger.warning(f"imgbb upload failed, falling back to base64: {imgbb_result.get('error')}")
             return {
                 'success': True,
@@ -141,4 +165,3 @@ def process_image_for_storage(base64_image: str) -> dict:
             'data': base64_image,
             'source': 'base64'
         }
-

@@ -637,28 +637,6 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* Background Container - Contained within chat room */}
-      {roomData?.background_picture && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `url(${roomData.background_picture.startsWith('data:') ? roomData.background_picture : `data:image/jpeg;base64,${roomData.background_picture}`})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center center',
-            backgroundRepeat: 'no-repeat',
-            zIndex: 0,
-          }}
-        />
-      )}
-      {roomData?.background_picture && (
-        <div
-          className="absolute inset-0 pointer-events-none bg-black bg-opacity-40 dark:bg-opacity-50"
-          style={{
-            zIndex: 1,
-          }}
-        />
-      )}
-
       {/* Chat Content Wrapper */}
       <div className="h-full flex relative" style={{ zIndex: 10, backgroundColor: 'transparent' }}>
 
@@ -803,7 +781,27 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto relative" style={{ backgroundColor: 'transparent' }}>
-            <div className="p-4 space-y-4">
+            {/* Background scoped to messages area only */}
+            {roomData?.background_picture && (
+              <>
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: `url(${roomData.background_picture.startsWith('data:') ? roomData.background_picture : `data:image/jpeg;base64,${roomData.background_picture}`})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center center',
+                    backgroundRepeat: 'no-repeat',
+                    zIndex: 0,
+                  }}
+                />
+                <div
+                  className="absolute inset-0 pointer-events-none bg-black bg-opacity-40 dark:bg-opacity-50"
+                  style={{ zIndex: 1 }}
+                />
+              </>
+            )}
+
+            <div className="p-4 space-y-4 relative" style={{ zIndex: 10 }}>
               {messages.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   <p>{t('chat.noMessages')}</p>

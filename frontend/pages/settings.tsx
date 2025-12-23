@@ -7,6 +7,7 @@ import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import LanguageSelect from '@/components/UI/LanguageSelect';
 
 const BlockedUsersModal = dynamic(() => import('@/components/Settings/BlockedUsersModal'));
 const HiddenItemsModal = dynamic(() => import('@/components/Settings/HiddenItemsModal'));
@@ -213,6 +214,32 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast.error(t('settings.settingsSaveFailed'));
     }
+  };
+
+  const handleBrowserNotificationsToggle = async () => {
+    const currentlyEnabled = !!preferences.browser_notifications_enabled;
+    if (currentlyEnabled) {
+      handlePreferenceChange('browser_notifications_enabled', false);
+      return;
+    }
+
+    // Enabling
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
+      return;
+    }
+
+    const permission = Notification.permission;
+    if (permission === 'default') {
+      setShowNotificationDialog(true);
+      return;
+    }
+    if (permission === 'granted') {
+      handlePreferenceChange('browser_notifications_enabled', true);
+      return;
+    }
+
+    toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
   };
 
   const handleLogout = async () => {
@@ -632,14 +659,10 @@ const Settings: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium theme-text-primary mb-2">{t('settings.language')}</label>
-                    <select
+                    <LanguageSelect
                       value={preferences.language}
-                      onChange={(e) => handlePreferenceChange('language', e.target.value)}
-                      className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary"
-                    >
-                      <option value="en">English</option>
-                      <option value="pt">Português</option>
-                    </select>
+                      onChange={(lang) => handlePreferenceChange('language', lang)}
+                    />
                   </div>
                 </div>
               </div>
@@ -650,14 +673,14 @@ const Settings: React.FC = () => {
                   {t('settings.notifications')}
                 </h2>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
                       <h4 className="font-medium theme-text-primary">{t('settings.enableNotifications')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.enableNotificationsDesc')}</p>
                     </div>
                     <button
                       onClick={() => handlePreferenceChange('notifications_enabled', !preferences.notifications_enabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                     >
                       <span
@@ -667,62 +690,33 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
                       <h4 className="font-medium theme-text-primary">{t('settings.enableBrowserNotifications')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.enableBrowserNotificationsDesc')}</p>
                     </div>
-                    <div className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2">
-                      <input
-                        type="checkbox"
-                        checked={preferences.browser_notifications_enabled || false}
-                        onChange={async () => {
-                          if (!preferences.browser_notifications_enabled) {
-                            // Check if browser supports notifications
-                            if (typeof window !== 'undefined' && 'Notification' in window) {
-                              const permission = Notification.permission;
-                              if (permission === 'default') {
-                                // Show permission dialog
-                                setShowNotificationDialog(true);
-                                return;
-                              } else if (permission === 'granted') {
-                                // Already granted, just enable
-                                handlePreferenceChange('browser_notifications_enabled', true);
-                              } else {
-                                // Permission denied, inform user
-                                toast.error(t('notifications.permissionDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
-                              }
-                            } else {
-                              toast.error(t('notifications.notSupported') || 'Browser notifications are not supported in your browser.');
-                            }
-                          } else {
-                            // Disable browser notifications
-                            handlePreferenceChange('browser_notifications_enabled', false);
-                          }
-                        }}
-                        className="sr-only"
-                        role="switch"
-                        aria-checked={preferences.browser_notifications_enabled || false}
-                      />
+                    <button
+                      type="button"
+                      onClick={handleBrowserNotificationsToggle}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      aria-pressed={!!preferences.browser_notifications_enabled}
+                    >
                       <span
-                        className={`absolute inset-0 rounded-full transition-colors duration-200 ease-in-out ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.browser_notifications_enabled ? 'translate-x-6' : 'translate-x-1'
                           }`}
                       />
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out z-10 ${preferences.browser_notifications_enabled ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                      />
-                    </div>
+                    </button>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
                       <h4 className="font-medium theme-text-primary">{t('settings.soundEffects')}</h4>
                       <p className="text-sm theme-text-secondary">{t('settings.soundEffectsDesc')}</p>
                     </div>
                     <button
                       onClick={() => handlePreferenceChange('sound_enabled', !preferences.sound_enabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.sound_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.sound_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                     >
                       <span
@@ -732,14 +726,14 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
                       <h4 className="font-medium theme-text-primary">{t('supportWidget.toggleLabel') || 'Support Button'}</h4>
                       <p className="text-sm theme-text-secondary">{t('supportWidget.toggleDescription') || 'Show the support button in the header toolbar'}</p>
                     </div>
                     <button
                       onClick={() => handlePreferenceChange('show_support_widget', !preferences.show_support_widget)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.show_support_widget ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.show_support_widget ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                     >
                       <span

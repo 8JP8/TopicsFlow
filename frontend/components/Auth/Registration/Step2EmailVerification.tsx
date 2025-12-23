@@ -12,7 +12,7 @@ interface Step2Props {
 }
 
 const Step2EmailVerification: React.FC<Step2Props> = ({ data, updateData, onNext, onBack }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [code, setCode] = useState('');
@@ -58,7 +58,7 @@ const Step2EmailVerification: React.FC<Step2Props> = ({ data, updateData, onNext
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: data.email,
-          language: t('common.languageCode') || 'en',
+          language,
         }),
       });
 

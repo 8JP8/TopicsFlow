@@ -110,8 +110,11 @@ If you prefer to set up manually:
 
 1. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   # Backend
+   cp backend/env.example backend/.env
+   # Frontend
+   cp frontend/env.local.example frontend/.env.local
+   # Edit the copied files with your configuration
    ```
 
 2. **Start services with Docker Compose**
@@ -186,22 +189,80 @@ TENOR_API_KEY=your_tenor_api_key
 # File Storage (Optional - for Azure deployments)
 USE_AZURE_STORAGE=false
 AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
-AZURE_STORAGE_CONTAINER=attachments
+AZURE_STORAGE_CONTAINER=uploads
 FILE_ENCRYPTION_KEY=your_file_encryption_key  # Optional, defaults to SECRET_KEY
+
+# ImgBB (Optional - for large chatroom images)
+USE_IMGBB=false
+IMGBB_API_KEY=your_imgbb_api_key
+IMGBB_EXPIRATION_SECONDS=600
+IMGBB_MAX_BASE64_SIZE_BYTES=2097152
 
 # CORS (Development)
 CORS_ALLOW_ALL=true
 ```
 
-#### Required Environment Variables
+#### Environment variables reference (Local + Azure)
+
+You can use these example templates:
+- `backend/env.example` → copy to `backend/.env`
+- `frontend/env.local.example` → copy to `frontend/.env.local`
+
+**Backend (local development)**
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `RESEND_API_KEY` | Resend email API key for passwordless auth | ✅ Yes |
-| `FROM_EMAIL` | Verified sender email address | ✅ Yes |
-| `TENOR_API_KEY` | Tenor API key for GIF search | Optional |
 | `SECRET_KEY` | Flask secret key | ✅ Yes |
+| `ENVIRONMENT` | `development`/`production` (affects cookie security) | Recommended |
 | `DATABASE_URL` | MongoDB connection string | ✅ Yes |
+| `DB_NAME` | MongoDB database name | Recommended |
+| `REDIS_URL` | Redis connection string (sessions/rate limit) | Recommended |
+| `FRONTEND_URL` | Frontend origin (CORS + passkeys) | ✅ Yes |
+| `CORS_ALLOW_ALL` | Allow all origins in dev | Optional |
+| `RESEND_API_KEY` | Resend email API key | ✅ Yes |
+| `FROM_EMAIL` | Verified sender email | ✅ Yes |
+| `APP_NAME` | App name used in emails | Recommended |
+| `TENOR_API_KEY` | Tenor API key for GIF search | Optional |
+| `TENOR_CLIENT_KEY` | Tenor client key (defaults to `topicsflow_app`) | Optional |
+| `PASSKEY_RP_ID` | WebAuthn RP ID (defaults to `localhost`) | Optional |
+| `LOG_LEVEL` | Logging level | Optional |
+
+**Backend storage (attachments)**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `USE_AZURE_STORAGE` | Use Azure Blob Storage for attachments | Optional |
+| `AZURE_STORAGE_CONNECTION_STRING` | Azure Storage connection string | Required if `USE_AZURE_STORAGE=true` |
+| `AZURE_STORAGE_CONTAINER` | Blob container name (use `uploads`) | Required if `USE_AZURE_STORAGE=true` |
+| `API_BASE_URL` | Used to build attachment URLs | Recommended |
+| `FILE_ENCRYPTION_KEY` | Optional encryption key for attachment URLs (defaults to `SECRET_KEY`) | Optional |
+
+**Backend ImgBB (optional for large chatroom images)**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `USE_IMGBB` | Enable ImgBB uploads for large images | Optional |
+| `IMGBB_API_KEY` | ImgBB API key | Required if `USE_IMGBB=true` |
+| `IMGBB_EXPIRATION_SECONDS` | Optional ImgBB expiration | Optional |
+| `IMGBB_MAX_BASE64_SIZE_BYTES` | Threshold to upload to ImgBB | Optional |
+
+**Backend (Azure/CosmosDB Mongo API)**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `AZURE_COSMOS_CONNECTIONSTRING` | CosmosDB (Mongo API) connection string | ✅ Yes (Azure) |
+| `AZURE_COSMOS_DATABASE` | Cosmos database name | ✅ Yes (Azure) |
+| `COSMOS_DB_URI` / `COSMOS_DB_NAME` | Alternative Cosmos env names supported by config | Optional |
+| `AZURE_DEPLOYMENT` | Set to `true` to force Azure mode | Optional |
+| `FORCE_AZURE_MODE` / `FORCE_LOCAL_MODE` | Force environment detection | Optional |
+
+**Frontend**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_API_URL` | Backend base URL | ✅ Yes |
+| `NEXT_PUBLIC_APP_NAME` | App name | Optional |
+| `NEXT_PUBLIC_TENOR_API_KEY` | Tenor API key (only if frontend uses it directly) | Optional |
 
 ### Email Service Setup (Resend)
 
