@@ -6,16 +6,15 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
-    let baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    // Dynamic backend URL for local network testing
-    if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
-      const hostname = window.location.hostname;
-      // If using local network IP (not localhost and not production), point to backend on same IP:5000
-      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.includes('topicsflow.me')) {
-        baseURL = `http://${hostname}:5000`;
-      }
-    }
+    // IMPORTANT:
+    // Use same-origin `/api/...` in the browser so cookies are first-party. This is critical for
+    // session-based flows (passkeys/WebAuthn challenges, etc.). In dev, Next rewrites proxy to the backend.
+    // In Azure Static Web Apps, `/api` is proxied by the platform.
+    //
+    // On the server (SSR/scripts), fall back to NEXT_PUBLIC_API_URL for absolute calls if needed.
+    const baseURL = typeof window !== 'undefined'
+      ? ''
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
 
     this.client = axios.create({
       baseURL,
@@ -142,6 +141,7 @@ export const API_ENDPOINTS = {
       AUTH_VERIFY: '/api/auth/passkey/auth-verify',
       LIST: '/api/auth/passkey/list',
       DELETE: (id: string) => `/api/auth/passkey/${id}`,
+      UPDATE: (id: string) => `/api/auth/passkey/${id}`,
     },
   },
 

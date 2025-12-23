@@ -699,7 +699,7 @@ const Settings: React.FC = () => {
                       type="button"
                       onClick={handleBrowserNotificationsToggle}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
+                          }`}
                       aria-pressed={!!preferences.browser_notifications_enabled}
                     >
                       <span

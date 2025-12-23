@@ -69,7 +69,8 @@
     "notifications": "Notifications",
     "invitations": "Invitations",
     "menu": "Menu",
-    "content": "Content"
+    "content": "Content",
+    "added": "Added"
   },
   "chats": {
     "title": "Chats",
@@ -537,6 +538,16 @@
     "enterTotpForPasskey": "Enter the 6-digit code from your authenticator app to add a passkey",
     "passkeyAdded": "Passkey added successfully",
     "passkeyDeleted": "Passkey removed successfully",
+    "passkeyNamePrompt": "Name this passkey (shown in your settings):",
+    "passkeyRenamePrompt": "Rename this passkey:",
+    "passkeyRenamed": "Passkey renamed",
+    "passkeyRenameFailed": "Failed to rename passkey",
+    "namePasskeyTitle": "Name your passkey",
+    "renamePasskeyTitle": "Rename passkey",
+    "passkeyNameHelp": "Give this passkey a name so you can recognize it later.",
+    "passkeyNamePlaceholder": "e.g., Windows PC",
+    "passkeyNameRequired": "Name is required",
+    "passkeyNameDuplicate": "You already have a passkey with this name",
     "confirmDeletePasskey": "Are you sure you want to remove this passkey?",
     "deleteFailed": "Failed to delete passkey",
     "anonymousPosting": "Anonymous Posting",

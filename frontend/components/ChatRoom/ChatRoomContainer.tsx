@@ -334,7 +334,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
           if (prev.some(m => m.id === message.id)) return prev;
           return [...prev, message];
         });
-        scrollToBottom();
+          scrollToBottom();
       });
 
       return () => {

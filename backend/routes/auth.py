@@ -947,6 +947,7 @@ def passkey_register_verify():
 
         data = request.get_json()
         credential = data.get('credential')
+        device_name = data.get('device_name')
         user_id = data.get('user_id')
         email = data.get('email')
 
@@ -970,7 +971,7 @@ def passkey_register_verify():
                     return jsonify({'success': False, 'errors': ['User not found']}), 404
                 user_id = str(user['_id'])
 
-        result = auth_service.verify_passkey_registration(user_id, credential)
+        result = auth_service.verify_passkey_registration(user_id, credential, device_name=device_name)
 
         if result['success']:
             return jsonify(result), 200
@@ -980,6 +981,35 @@ def passkey_register_verify():
     except Exception as e:
         logger.error(f"Passkey registration verification error: {str(e)}")
         return jsonify({'success': False, 'errors': ['Registration verification failed']}), 500
+
+
+@auth_bp.route('/passkey/<credential_id>', methods=['PATCH'])
+@require_json
+def passkey_update(credential_id):
+    """Update passkey metadata (currently: device_name)."""
+    try:
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        current_user_result = auth_service.get_current_user()
+        if not current_user_result.get('success'):
+            return jsonify({'success': False, 'errors': ['Authentication required']}), 401
+
+        user_id = current_user_result['user']['id']
+        data = request.get_json() or {}
+        device_name = data.get('device_name')
+        if not device_name:
+            return jsonify({'success': False, 'errors': ['device_name is required']}), 400
+
+        from models.user import User
+        user_model = User(current_app.db)
+        ok = user_model.update_passkey_credential_device_name(user_id, credential_id, device_name)
+        if ok:
+            return jsonify({'success': True, 'message': 'Passkey updated'}), 200
+        return jsonify({'success': False, 'errors': ['Failed to update passkey']}), 400
+    except Exception as e:
+        logger.error(f"Passkey update error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'errors': ['Failed to update passkey']}), 500
 
 
 @auth_bp.route('/passkey/auth-options', methods=['POST'])
@@ -1014,10 +1044,10 @@ def passkey_auth_verify():
     try:
         data = request.get_json()
         credential = data.get('credential')
-        identifier = data.get('identifier', '').strip()  # Username/email
+        identifier = (data.get('identifier') or '').strip()  # Username/email (optional)
 
-        if not credential or not identifier:
-            return jsonify({'success': False, 'errors': ['Credential and identifier are required']}), 400
+        if not credential:
+            return jsonify({'success': False, 'errors': ['Credential is required']}), 400
 
         from flask import current_app
         auth_service = AuthService(current_app.db)
@@ -1025,7 +1055,7 @@ def passkey_auth_verify():
         # Get client IP for security
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
 
-        result = auth_service.verify_passkey_authentication(credential, identifier)
+        result = auth_service.verify_passkey_authentication(credential, identifier if identifier else None)
 
         if result['success']:
             # Log IP address

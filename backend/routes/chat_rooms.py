@@ -1448,34 +1448,34 @@ def update_chat_picture(room_id):
             if isinstance(picture, str) and (picture.startswith('http://') or picture.startswith('https://')):
                 processed_picture = picture
             else:
-            from utils.imgbb_upload import process_image_for_storage
-            image_result = process_image_for_storage(picture)
-            if image_result['success']:
-                if image_result['source'] == 'imgbb':
-                    processed_picture = image_result['url']
-                    logger.info(f"Using imgbb URL for large image: {processed_picture[:50]}...")
+                from utils.imgbb_upload import process_image_for_storage
+                image_result = process_image_for_storage(picture)
+                if image_result['success']:
+                    if image_result['source'] == 'imgbb':
+                        processed_picture = image_result['url']
+                        logger.info(f"Using imgbb URL for large image: {processed_picture[:50]}...")
+                    else:
+                        # Store in file storage and save URL (do not store base64 in DB)
+                        from services.file_storage import FileStorageService
+                        use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+                        file_storage = FileStorageService(
+                            uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                            use_azure=use_azure
+                        )
+                        file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
+                        file_id, _ = file_storage.store_file(
+                            file_data=file_bytes,
+                            filename=filename,
+                            mime_type=mime_type,
+                            user_id=user_id,
+                            file_id_prefix='chatpic_'
+                        )
+                        secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+                        encryption_key = _generate_encryption_key(file_id, secret_key)
+                        processed_picture = file_storage.get_file_url(file_id, encryption_key)
                 else:
-                    # Store in file storage and save URL (do not store base64 in DB)
-                    from services.file_storage import FileStorageService
-                    use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
-                    file_storage = FileStorageService(
-                        uploads_dir=current_app.config.get('UPLOADS_DIR'),
-                        use_azure=use_azure
-                    )
-                    file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
-                    file_id, _ = file_storage.store_file(
-                        file_data=file_bytes,
-                        filename=filename,
-                        mime_type=mime_type,
-                        user_id=user_id,
-                        file_id_prefix='chatpic_'
-                    )
-                    secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
-                    encryption_key = _generate_encryption_key(file_id, secret_key)
-                    processed_picture = file_storage.get_file_url(file_id, encryption_key)
-            else:
-                logger.error(f"Failed to process image: {image_result.get('error')}")
-                return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
+                    logger.error(f"Failed to process image: {image_result.get('error')}")
+                    return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
 
         # Update picture
         result = chat_room_model.collection.update_one(
@@ -1555,41 +1555,41 @@ def update_chat_background(room_id):
             if isinstance(background_picture, str) and (background_picture.startswith('http://') or background_picture.startswith('https://')):
                 processed_background = background_picture
             else:
-            # Darken the background image before processing
-            from utils.image_compression import darken_image_base64
-            darkened_image = darken_image_base64(background_picture, darkness_factor=0.6)
-            if darkened_image:
-                background_picture = darkened_image
-                logger.info("Background image darkened before storage")
-            
-            # Use imgbb for large images
-            from utils.imgbb_upload import process_image_for_storage
-            image_result = process_image_for_storage(background_picture)
-            if image_result['success']:
-                if image_result['source'] == 'imgbb':
-                    processed_background = image_result['url']
-                    logger.info(f"Using imgbb URL for large background image: {processed_background[:50]}...")
+                # Darken the background image before processing
+                from utils.image_compression import darken_image_base64
+                darkened_image = darken_image_base64(background_picture, darkness_factor=0.6)
+                if darkened_image:
+                    background_picture = darkened_image
+                    logger.info("Background image darkened before storage")
+                
+                # Use imgbb for large images
+                from utils.imgbb_upload import process_image_for_storage
+                image_result = process_image_for_storage(background_picture)
+                if image_result['success']:
+                    if image_result['source'] == 'imgbb':
+                        processed_background = image_result['url']
+                        logger.info(f"Using imgbb URL for large background image: {processed_background[:50]}...")
+                    else:
+                        from services.file_storage import FileStorageService
+                        use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+                        file_storage = FileStorageService(
+                            uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                            use_azure=use_azure
+                        )
+                        file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
+                        file_id, _ = file_storage.store_file(
+                            file_data=file_bytes,
+                            filename=filename,
+                            mime_type=mime_type,
+                            user_id=user_id,
+                            file_id_prefix='chatbg_'
+                        )
+                        secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+                        encryption_key = _generate_encryption_key(file_id, secret_key)
+                        processed_background = file_storage.get_file_url(file_id, encryption_key)
                 else:
-                    from services.file_storage import FileStorageService
-                    use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
-                    file_storage = FileStorageService(
-                        uploads_dir=current_app.config.get('UPLOADS_DIR'),
-                        use_azure=use_azure
-                    )
-                    file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
-                    file_id, _ = file_storage.store_file(
-                        file_data=file_bytes,
-                        filename=filename,
-                        mime_type=mime_type,
-                        user_id=user_id,
-                        file_id_prefix='chatbg_'
-                    )
-                    secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
-                    encryption_key = _generate_encryption_key(file_id, secret_key)
-                    processed_background = file_storage.get_file_url(file_id, encryption_key)
-            else:
-                logger.error(f"Failed to process background image: {image_result.get('error')}")
-                return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500
+                    logger.error(f"Failed to process background image: {image_result.get('error')}")
+                    return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500
 
         chat_room_model = ChatRoom(current_app.db)
         room = chat_room_model.get_chat_room_by_id(room_id)

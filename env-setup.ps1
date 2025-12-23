@@ -23,7 +23,7 @@ $TENOR_SEC = Read-Host "TENOR_API_KEY (optional)" -AsSecureString
 
 $USE_IMGBB = "false"
 $IMGBB_API_KEY = ""
-$IMGBB_EXPIRATION_SECONDS = "600"
+$IMGBB_EXPIRATION_SECONDS = ""
 $IMGBB_MAX_BASE64_SIZE_BYTES = "2097152"
 
 $enableImgBb = Read-Host "Enable ImgBB? (Y/N)"

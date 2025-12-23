@@ -901,10 +901,56 @@ class User:
         if not user:
             return None
 
-        for credential in user.get('passkey_credentials', []):
-            if credential.get('credential_id') == credential_id:
+        # Match base64url with/without padding
+        target = (credential_id or '').strip().rstrip('=')
+        updated = False
+        creds = user.get('passkey_credentials', []) or []
+        for credential in creds:
+            cid = (credential.get('credential_id') or '').strip()
+            if cid.rstrip('=') == target:
+                # Normalize stored ID (auto-migrate)
+                if cid.endswith('='):
+                    credential['credential_id'] = cid.rstrip('=')
+                    updated = True
+                if updated:
+                    try:
+                        self.collection.update_one(
+                            {'_id': ObjectId(user_id)},
+                            {'$set': {'passkey_credentials': creds}}
+                        )
+                    except Exception:
+                        pass
                 return credential
         return None
+
+    def get_user_by_passkey_credential_id(self, credential_id: str) -> Optional[Dict[str, Any]]:
+        """Find a user document by a passkey credential_id."""
+        if not credential_id:
+            return None
+        try:
+            raw = str(credential_id).strip()
+            base = raw.rstrip('=')
+            variants = list({base, base + '=', base + '=='})
+            user = self.collection.find_one({'passkey_credentials.credential_id': {'$in': variants}})
+            if not user:
+                return None
+            # Auto-migrate any stored padded credential_ids to unpadded base64url
+            creds = user.get('passkey_credentials', []) or []
+            changed = False
+            for c in creds:
+                cid = (c.get('credential_id') or '').strip()
+                if cid.endswith('='):
+                    c['credential_id'] = cid.rstrip('=')
+                    changed = True
+            if changed:
+                try:
+                    self.collection.update_one({'_id': user['_id']}, {'$set': {'passkey_credentials': creds}})
+                    user['passkey_credentials'] = creds
+                except Exception:
+                    pass
+            return user
+        except Exception:
+            return None
 
     def update_passkey_credential_counter(self, user_id: str, credential_id: str, new_counter: int) -> bool:
         """Update the sign count for a passkey credential (prevents replay attacks)."""
@@ -916,6 +962,48 @@ class User:
             {'$set': {'passkey_credentials.$.sign_count': new_counter}}
         )
         return result.modified_count > 0
+
+    def update_passkey_credential_device_name(self, user_id: str, credential_id: str, device_name: str) -> bool:
+        """Update the friendly device name for a passkey credential."""
+        if device_name is None:
+            return False
+        device_name = str(device_name).strip()
+        if not device_name:
+            return False
+        # Keep it sane
+        if len(device_name) > 64:
+            device_name = device_name[:64]
+        # Enforce unique per user (case-insensitive), excluding the current credential
+        try:
+            user = self.collection.find_one({'_id': ObjectId(user_id)})
+            existing = user.get('passkey_credentials', []) if user else []
+            for cred in existing:
+                if cred.get('credential_id') == credential_id:
+                    continue
+                if (cred.get('device_name') or '').strip().lower() == device_name.lower():
+                    return False
+        except Exception:
+            # If we can't validate, fail closed
+            return False
+        result = self.collection.update_one(
+            {
+                '_id': ObjectId(user_id),
+                'passkey_credentials.credential_id': credential_id
+            },
+            {'$set': {'passkey_credentials.$.device_name': device_name}}
+        )
+        return result.modified_count > 0 or result.matched_count > 0
+
+    def update_passkey_credential_last_used(self, user_id: str, credential_id: str) -> bool:
+        """Update last_used timestamp for a passkey credential."""
+        result = self.collection.update_one(
+            {
+                '_id': ObjectId(user_id),
+                'passkey_credentials.credential_id': credential_id
+            },
+            {'$set': {'passkey_credentials.$.last_used': datetime.utcnow().isoformat()}}
+        )
+        return result.modified_count > 0 or result.matched_count > 0
 
     def remove_passkey_credential(self, user_id: str, credential_id: str) -> bool:
         """Remove a passkey credential."""

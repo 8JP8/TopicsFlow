@@ -957,7 +957,7 @@ class AuthService:
         except Exception as e:
             return {'success': False, 'errors': ['Failed to generate passkey options']}
 
-    def verify_passkey_registration(self, user_id: str, credential: dict) -> dict:
+    def verify_passkey_registration(self, user_id: str, credential: dict, device_name: str = None) -> dict:
         """Verify and store passkey registration."""
         try:
             # Get challenge from session
@@ -974,6 +974,20 @@ class AuthService:
             if not credential_data:
                 logger.error(f"Passkey verification failed for user {user_id}: passkey_service.verify_registration returned None")
                 return {'success': False, 'errors': ['Passkey registration verification failed']}
+
+            # Store a friendly device name if provided
+            if device_name:
+                try:
+                    dn = str(device_name).strip()
+                    if dn:
+                        dn = dn[:64]
+                        # Enforce unique device_name per user (case-insensitive)
+                        existing = self.user_model.get_passkey_credentials(user_id)
+                        if any((c.get('device_name') or '').strip().lower() == dn.lower() for c in existing):
+                            return {'success': False, 'errors': ['A passkey with this name already exists']}
+                        credential_data['device_name'] = dn
+                except Exception:
+                    pass
 
             # Store credential
             if self.user_model.add_passkey_credential(user_id, credential_data):
@@ -1039,8 +1053,10 @@ class AuthService:
                 user = self.user_model.verify_user_by_username_or_email(identifier)
 
             if not user:
-                # Search all users for this credential (not ideal, but necessary for usernameless flow)
-                return {'success': False, 'errors': ['User not found. Please provide username/email.']}
+                # Usernameless flow: locate user by credential_id
+                user = self.user_model.get_user_by_passkey_credential_id(credential_id)
+                if not user:
+                    return {'success': False, 'errors': ['User not found']}
 
             user_id = str(user['_id'])
 
@@ -1048,6 +1064,9 @@ class AuthService:
             stored_credential = self.user_model.get_passkey_credential_by_id(user_id, credential_id)
             if not stored_credential:
                 return {'success': False, 'errors': ['Passkey not found']}
+
+            # Use canonical stored credential id (handles padded vs unpadded base64url)
+            canonical_credential_id = stored_credential.get('credential_id') or credential_id
 
             # Verify authentication
             new_sign_count = self.passkey_service.verify_authentication(
@@ -1060,7 +1079,12 @@ class AuthService:
                 return {'success': False, 'errors': ['Passkey verification failed']}
 
             # Update sign count
-            self.user_model.update_passkey_credential_counter(user_id, credential_id, new_sign_count)
+            self.user_model.update_passkey_credential_counter(user_id, canonical_credential_id, new_sign_count)
+            # Update last used timestamp
+            try:
+                self.user_model.update_passkey_credential_last_used(user_id, canonical_credential_id)
+            except Exception:
+                pass
 
             # Check if user is banned
             if self.user_model.is_user_banned(user_id):

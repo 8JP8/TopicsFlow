@@ -69,7 +69,8 @@
     "notifications": "Notificações",
     "invitations": "Convites",
     "menu": "Menu",
-    "content": "Conteúdo"
+    "content": "Conteúdo",
+    "added": "Adicionado"
   },
   "chats": {
     "title": "Conversações",
@@ -537,6 +538,16 @@
     "enterTotpForPasskey": "Introduza o código de 6 dígitos da sua aplicação autenticadora para adicionar uma passkey",
     "passkeyAdded": "Passkey adicionada com sucesso",
     "passkeyDeleted": "Passkey removida com sucesso",
+    "passkeyNamePrompt": "Nome para esta passkey (aparece nas definições):",
+    "passkeyRenamePrompt": "Renomear esta passkey:",
+    "passkeyRenamed": "Passkey renomeada",
+    "passkeyRenameFailed": "Falha ao renomear passkey",
+    "namePasskeyTitle": "Nome da passkey",
+    "renamePasskeyTitle": "Renomear passkey",
+    "passkeyNameHelp": "Dê um nome a esta passkey para a reconhecer mais tarde.",
+    "passkeyNamePlaceholder": "ex.: Windows PC",
+    "passkeyNameRequired": "O nome é obrigatório",
+    "passkeyNameDuplicate": "Já existe uma passkey com este nome",
     "confirmDeletePasskey": "Tem a certeza que deseja remover esta passkey?",
     "deleteFailed": "Falha ao eliminar passkey",
     "backupCodes": "Códigos de Backup",

@@ -30,7 +30,7 @@ echo ""
 read -p "Enable ImgBB? (y/N): " USE_IMGBB_INPUT || true
 USE_IMGBB="false"
 IMGBB_API_KEY=""
-IMGBB_EXPIRATION_SECONDS="600"
+IMGBB_EXPIRATION_SECONDS=""
 IMGBB_MAX_BASE64_SIZE_BYTES="2097152"
 if [[ "${USE_IMGBB_INPUT:-}" =~ ^[Yy]$ ]]; then
   USE_IMGBB="true"

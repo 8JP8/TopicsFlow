@@ -74,7 +74,55 @@ def create_app(config_name=None):
                  allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
                  methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
                  supports_credentials=True)  # Enable credentials for session cookies
-    
+
+    # Configure Flask-Session backend
+    # Azure App Service must use Redis to avoid passkey challenge/session loss across instances.
+    try:
+        session_type = (app.config.get('SESSION_TYPE') or 'filesystem').lower()
+        if session_type == 'redis':
+            import redis  # backend/requirements.txt includes redis
+            redis_url = app.config.get('REDIS_URL')
+
+            def _normalize_azure_redis_to_url(value: str) -> str:
+                """
+                Azure Portal often provides Redis in StackExchange format:
+                  host:6380,password=...,ssl=True,abortConnect=False
+                redis-py expects a URL:
+                  rediss://:password@host:6380/0
+                """
+                if not value:
+                    return value
+                if '://' in value:
+                    return value
+                # Split by comma; first part is host:port
+                parts = [p.strip() for p in value.split(',') if p.strip()]
+                host_port = parts[0]
+                password = None
+                ssl = True
+                for p in parts[1:]:
+                    if p.lower().startswith('password='):
+                        password = p.split('=', 1)[1]
+                    elif p.lower().startswith('ssl='):
+                        ssl_val = p.split('=', 1)[1].strip().lower()
+                        ssl = ssl_val in ('true', '1', 'yes')
+                scheme = 'rediss' if ssl else 'redis'
+                if password:
+                    return f"{scheme}://:{password}@{host_port}/0"
+                return f"{scheme}://{host_port}/0"
+
+            redis_url = _normalize_azure_redis_to_url(redis_url) if redis_url else redis_url
+            if redis_url:
+                app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+                logger.info("Session backend: Redis")
+            else:
+                logger.warning("SESSION_TYPE=redis but REDIS_URL is missing; falling back to filesystem sessions")
+                app.config['SESSION_TYPE'] = 'filesystem'
+        else:
+            logger.info(f"Session backend: {session_type}")
+    except Exception as e:
+        logger.warning(f"Failed to configure session backend; falling back to filesystem: {e}")
+        app.config['SESSION_TYPE'] = 'filesystem'
+
     session.init_app(app)
 
     # Initialize SocketIO with session support

@@ -208,7 +208,7 @@ class Comment:
         try:
             comments = list(
                 self.collection.find(query)
-                .sort(sort_key)
+                       .sort(sort_key)
                 .limit(limit)
             )
         except OperationFailure as e:

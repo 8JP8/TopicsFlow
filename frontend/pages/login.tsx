@@ -8,10 +8,11 @@ import toast from 'react-hot-toast';
 import TOTPInput from '@/components/Auth/TOTPInput';
 import LanguageToggle from '@/components/UI/LanguageToggle';
 import ThemeToggle from '@/components/UI/ThemeToggle';
+import { api, API_ENDPOINTS } from '@/utils/api';
 
 const LoginPage: React.FC = () => {
   const { t } = useLanguage();
-  const { login, loginWithBackupCode } = useAuth();
+  const { login, loginWithBackupCode, refreshUser } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
@@ -90,32 +91,27 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Step 1: Get authentication options from server
-      const optionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/passkey/auth-options`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: identifier || undefined,
-        }),
+      // Step 1: Get authentication options from server (axios client already uses withCredentials)
+      const optionsResponse = await api.post(API_ENDPOINTS.AUTH.PASSKEY.AUTH_OPTIONS, {
+        identifier: identifier || undefined,
       });
-
-      const optionsResult = await optionsResponse.json();
-
-      if (!optionsResponse.ok || !optionsResult.success) {
-        toast.error(optionsResult.error || t('errors.generic'));
+      const optionsResult: any = optionsResponse.data;
+      if (!optionsResult?.success) {
+        toast.error(optionsResult?.errors?.[0] || optionsResult?.error || t('errors.generic'));
         return;
       }
 
       const options = optionsResult.options;
 
       // Convert base64url strings to ArrayBuffers
-      const publicKeyOptions = {
+      const allowCredentials = options.allowCredentials?.map((cred: { id: string }) => ({
+        ...cred,
+        id: base64urlToArrayBuffer(cred.id),
+      }));
+      const publicKeyOptions: any = {
         ...options,
         challenge: base64urlToArrayBuffer(options.challenge),
-        allowCredentials: options.allowCredentials?.map((cred: { id: string }) => ({
-          ...cred,
-          id: base64urlToArrayBuffer(cred.id),
-        })) || [],
+        ...(allowCredentials && allowCredentials.length > 0 ? { allowCredentials } : {}),
       };
 
       // Step 2: Get credential using WebAuthn API
@@ -143,30 +139,31 @@ const LoginPage: React.FC = () => {
       };
 
       // Step 4: Send credential to server for verification
-      const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/passkey/auth-verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credential: credentialData,
-          identifier: identifier || undefined,
-        }),
-        credentials: 'include',
+      const verifyResponse = await api.post(API_ENDPOINTS.AUTH.PASSKEY.AUTH_VERIFY, {
+        credential: credentialData,
+        identifier: identifier || undefined,
       });
+      const verifyResult: any = verifyResponse.data;
 
-      const verifyResult = await verifyResponse.json();
-
-      if (verifyResponse.ok && verifyResult.success) {
+      if (verifyResult?.success) {
         // Fix: Passkey login already sets the cookie, just refresh the user state
         // The verify endpoint returns a token but for cookie-based auth we just need to refresh context
-        await useAuth().refreshUser();
+        await refreshUser();
         toast.success(t('success.loginSuccess'));
         router.push('/');
       } else {
-        toast.error(verifyResult.error || t('errors.passkeyFailed'));
+        toast.error(verifyResult?.errors?.[0] || verifyResult?.error || t('errors.passkeyFailed'));
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Passkey login error:', error);
-      if (error instanceof Error && error.name === 'NotAllowedError') {
+      // Axios errors: surface backend message if available
+      const backendMsg =
+        error?.response?.data?.errors?.[0] ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message;
+      if (backendMsg) {
+        toast.error(backendMsg);
+      } else if (error instanceof Error && error.name === 'NotAllowedError') {
         toast.error(t('errors.passkeyUserCancelled'));
       } else {
         toast.error(t('errors.passkeyFailed'));

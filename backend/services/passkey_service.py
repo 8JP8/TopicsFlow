@@ -1,6 +1,7 @@
 """Passkey/WebAuthn service for biometric and security key authentication."""
 import os
 import base64
+import json
 from typing import Dict, Any, Optional
 from webauthn import (
     generate_registration_options,
@@ -21,6 +22,16 @@ from webauthn.helpers.cose import COSEAlgorithmIdentifier
 import logging
 
 logger = logging.getLogger(__name__)
+
+def _b64url_encode(data: bytes) -> str:
+    """Base64url encode without padding (matches browser credential.id style)."""
+    return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
+
+def _b64url_decode(data: str) -> bytes:
+    """Base64url decode tolerant to missing padding."""
+    s = str(data)
+    s += '=' * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s)
 
 
 class PasskeyService:
@@ -56,21 +67,26 @@ class PasskeyService:
             Registration options to send to client
         """
         try:
-            # Convert user_id to bytes (required by WebAuthn)
-            user_id_bytes = user_id.encode('utf-8')
+            # python-webauthn expects user_id as a string (it encodes internally).
+            # Be tolerant: some call sites may provide bytes/ObjectId already.
+            if isinstance(user_id, (bytes, bytearray)):
+                user_id_str = bytes(user_id).decode('utf-8', errors='ignore')
+            else:
+                user_id_str = str(user_id)
 
             # Generate registration options
             options = generate_registration_options(
                 rp_id=self.rp_id,
                 rp_name=self.rp_name,
-                user_id=user_id_bytes,
+                user_id=user_id_str,
                 user_name=username,
                 user_display_name=display_name or username,
                 attestation=AttestationConveyancePreference.NONE,  # No attestation required
                 authenticator_selection=AuthenticatorSelectionCriteria(
                     authenticator_attachment=AuthenticatorAttachment.PLATFORM,  # Platform authenticator (e.g., Face ID, Windows Hello)
                     resident_key=ResidentKeyRequirement.PREFERRED,  # Store credentials on device
-                    user_verification=UserVerificationRequirement.PREFERRED  # Biometric/PIN verification
+                    # Keep this aligned with verify_authentication_response(require_user_verification=True)
+                    user_verification=UserVerificationRequirement.REQUIRED  # Biometric/PIN verification
                 ),
                 supported_pub_key_algs=[
                     COSEAlgorithmIdentifier.ECDSA_SHA_256,
@@ -81,6 +97,9 @@ class PasskeyService:
 
             # Convert to JSON-serializable format
             options_json = options_to_json(options)
+            # python-webauthn returns a JSON string; simplewebauthn expects an object.
+            if isinstance(options_json, str):
+                options_json = json.loads(options_json)
 
             # Store challenge in session or return it (client needs to send it back)
             return {
@@ -118,8 +137,9 @@ class PasskeyService:
 
             # Store credential data for future authentication
             credential_data = {
-                'credential_id': base64.urlsafe_b64encode(verification.credential_id).decode('utf-8'),
-                'public_key': base64.urlsafe_b64encode(verification.credential_public_key).decode('utf-8'),
+                # Store without padding so we can match browser `credential.id`
+                'credential_id': _b64url_encode(verification.credential_id),
+                'public_key': _b64url_encode(verification.credential_public_key),
                 'sign_count': verification.sign_count,
                 'aaguid': str(verification.aaguid) if verification.aaguid else None,
                 'created_at': datetime.utcnow().isoformat(),
@@ -150,7 +170,7 @@ class PasskeyService:
             if credentials:
                 for cred in credentials:
                     try:
-                        credential_id = base64.urlsafe_b64decode(cred['credential_id'])
+                        credential_id = _b64url_decode(cred['credential_id'])
                         allow_credentials.append(
                             PublicKeyCredentialDescriptor(id=credential_id)
                         )
@@ -162,12 +182,14 @@ class PasskeyService:
             options = generate_authentication_options(
                 rp_id=self.rp_id,
                 allow_credentials=allow_credentials if allow_credentials else None,
-                user_verification=UserVerificationRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
                 timeout=60000  # 60 seconds
             )
 
             # Convert to JSON-serializable format
             options_json = options_to_json(options)
+            if isinstance(options_json, str):
+                options_json = json.loads(options_json)
 
             return {
                 'success': True,
@@ -201,8 +223,8 @@ class PasskeyService:
         """
         try:
             # Decode stored public key and credential ID
-            credential_public_key = base64.urlsafe_b64decode(stored_credential['public_key'])
-            credential_id = base64.urlsafe_b64decode(stored_credential['credential_id'])
+            credential_public_key = _b64url_decode(stored_credential['public_key'])
+            credential_id = _b64url_decode(stored_credential['credential_id'])
             current_sign_count = stored_credential['sign_count']
 
             # Verify the authentication response

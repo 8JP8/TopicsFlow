@@ -1,9 +1,73 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function Custom404() {
     const { t } = useLanguage();
+    const [attemptedPath, setAttemptedPath] = useState<string>('');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setAttemptedPath(window.location.pathname || '');
+        }
+    }, []);
+
+    const suggestions = useMemo(() => {
+        type Candidate = { href: string; label: string };
+
+        const candidates: Candidate[] = [
+            { href: '/', label: '/dashboard' },
+            { href: '/login', label: '/login' },
+            { href: '/register', label: '/register' },
+            { href: '/about', label: '/about' },
+            { href: '/recovery', label: '/recovery' },
+            { href: '/settings', label: '/settings' },
+        ];
+
+        const norm = (s: string) => (s || '').toLowerCase().split('?')[0].split('#')[0].trim();
+
+        // Simple Levenshtein similarity score in [0..1]
+        const levenshtein = (a: string, b: string) => {
+            if (a === b) return 0;
+            if (!a) return b.length;
+            if (!b) return a.length;
+            const m = a.length;
+            const n = b.length;
+            const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+            for (let i = 0; i <= m; i++) dp[i][0] = i;
+            for (let j = 0; j <= n; j++) dp[0][j] = j;
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,      // deletion
+                        dp[i][j - 1] + 1,      // insertion
+                        dp[i - 1][j - 1] + cost // substitution
+                    );
+                }
+            }
+            return dp[m][n];
+        };
+
+        const similarity = (a: string, b: string) => {
+            const aa = norm(a);
+            const bb = norm(b);
+            const maxLen = Math.max(aa.length, bb.length, 1);
+            return 1 - (levenshtein(aa, bb) / maxLen);
+        };
+
+        const input = norm(attemptedPath);
+        if (!input) {
+            return candidates.slice(0, 2);
+        }
+
+        return candidates
+            .filter(c => norm(c.href) !== input)
+            .map(c => ({ ...c, score: similarity(input, c.label) }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 2);
+    }, [attemptedPath]);
 
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
@@ -66,18 +130,17 @@ export default function Custom404() {
                 <div className="mb-8 p-6 bg-slate-900/60 backdrop-blur-md rounded-2xl inline-block text-left max-w-sm mx-auto border border-slate-800 shadow-2xl transition-all hover:bg-slate-900/80">
                     <p className="text-slate-400 text-xs uppercase tracking-widest font-bold mb-3">{t('errors.didYouMean')}</p>
                     <ul className="space-y-3 font-medium text-sm">
-                        <li>
-                            <Link href="/" className="text-blue-400 hover:text-blue-300 transition-colors flex items-center group">
-                                <span className="mr-2 opacity-50 group-hover:opacity-100">#</span>
-                                <span className="group-hover:underline">topicsflow.me/dashboard</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link href="/about" className="text-cyan-400 hover:text-cyan-300 transition-colors flex items-center group">
-                                <span className="mr-2 opacity-50 group-hover:opacity-100">#</span>
-                                <span className="group-hover:underline">topicsflow.me/about</span>
-                            </Link>
-                        </li>
+                        {suggestions.map((s, idx) => (
+                            <li key={`${s.href}-${idx}`}>
+                                <Link
+                                    href={s.href}
+                                    className={`${idx === 0 ? 'text-blue-400 hover:text-blue-300' : 'text-cyan-400 hover:text-cyan-300'} transition-colors flex items-center group`}
+                                >
+                                    <span className="mr-2 opacity-50 group-hover:opacity-100">#</span>
+                                    <span className="group-hover:underline">{s.label}</span>
+                                </Link>
+                            </li>
+                        ))}
                     </ul>
                 </div>
 

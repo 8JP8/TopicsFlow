@@ -51,18 +51,19 @@ def rate_limit(limit: str):
             else:
                 window = 60
 
-            # Check if Redis is available
+            # Check if Redis is available (Azure only)
             redis_client = None
             try:
-                # Try to get redis client from app config/extensions if initialized
-                # This depends on how Redis is set up in extensions.py
-                # For now, we'll try to check if we can access it via current_app
-                if hasattr(current_app, 'extensions') and 'redis' in current_app.extensions:
-                    redis_client = current_app.extensions['redis']
-                elif os.getenv('REDIS_URL'):
-                    # Lazy import to avoid circular dependencies
-                    import redis
-                    redis_client = redis.from_url(os.getenv('REDIS_URL'))
+                is_azure = bool(current_app.config.get('IS_AZURE'))
+                redis_url = current_app.config.get('REDIS_URL')
+                if is_azure and redis_url:
+                    # Try to get redis client from app config/extensions if initialized
+                    if hasattr(current_app, 'extensions') and 'redis' in current_app.extensions:
+                        redis_client = current_app.extensions['redis']
+                    else:
+                        # Lazy import to avoid circular dependencies
+                        import redis
+                        redis_client = redis.from_url(redis_url)
             except Exception as e:
                 logger.warning(f"Redis not available for rate limiting: {e}")
                 redis_client = None

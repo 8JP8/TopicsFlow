@@ -38,11 +38,12 @@ def upload_to_imgbb(base64_image: str) -> dict:
             base64_image = base64_image.split(',', 1)[1]
         
         # Upload to imgbb
-        # imgbb expects multipart form data: --form "image=..."
+        # imgbb expects multipart/form-data with a form field named "image".
+        # With requests, using `data={'image': ...}` sends it as a normal form field (works for base64 strings).
         response = requests.post(
             IMGBB_UPLOAD_URL,
             params=params,
-            files={'image': base64_image},
+            data={'image': base64_image},
             timeout=30
         )
         response.raise_for_status()

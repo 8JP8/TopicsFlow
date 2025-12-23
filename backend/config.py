@@ -73,19 +73,33 @@ class Config:
     if IS_AZURE and os.getenv('AZURE_REDIS_CONNECTIONSTRING'):
         REDIS_URL = os.getenv('AZURE_REDIS_CONNECTIONSTRING')
     else:
-        REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        # Local/dev: do not assume Redis exists unless explicitly configured
+        REDIS_URL = os.getenv('REDIS_URL')
 
     # Session Config
-    SESSION_TYPE = os.getenv('SESSION_TYPE', 'filesystem')  # filesystem, redis, or null
+    # IMPORTANT: Passkeys/WebAuthn relies on the challenge stored in the server session.
+    # In Azure App Service (multi-instance), you must use a shared session backend (Redis)
+    # or challenge verification will randomly fail when requests hit different instances.
+    #
+    # Local/dev: never require Redis (filesystem sessions are fine and simpler).
+    if IS_AZURE and os.getenv('AZURE_REDIS_CONNECTIONSTRING'):
+        SESSION_TYPE = os.getenv('SESSION_TYPE', 'redis')
+    else:
+        # Force local to non-redis by default; ignore accidental SESSION_TYPE=redis locally
+        requested = os.getenv('SESSION_TYPE', 'filesystem').lower()
+        SESSION_TYPE = 'filesystem' if requested == 'redis' else requested  # filesystem, null
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = False  # Disabled to avoid bytes-to-string conversion issues with Werkzeug
     SESSION_FILE_DIR = os.path.join(os.path.dirname(__file__), 'flask_session')
     SESSION_COOKIE_NAME = 'session'
 
     # Security Config
-    SESSION_COOKIE_SECURE = os.getenv('ENVIRONMENT') == 'production'
+    # If cookies are used across different sites (e.g., frontend on topicsflow.me and backend on azurewebsites.net),
+    # browsers will not send the session cookie unless SameSite=None and Secure=true.
+    SESSION_COOKIE_SECURE = IS_AZURE or (os.getenv('ENVIRONMENT') == 'production')
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    # Only use SameSite=None when Secure cookies are enabled; otherwise browsers may reject the cookie.
+    SESSION_COOKIE_SAMESITE = 'None' if SESSION_COOKIE_SECURE else 'Lax'
 
     # Rate Limiting
     RATE_LIMIT_STORAGE_URL = REDIS_URL
@@ -138,6 +152,7 @@ class AzureConfig(ProductionConfig):
     TESTING = False
     # Force HTTPS cookies in Azure
     SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'None'
     # Use Azure-specific settings
     IS_AZURE = True
 
