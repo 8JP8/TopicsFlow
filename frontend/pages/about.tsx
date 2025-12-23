@@ -77,7 +77,7 @@ export default function About() {
                     {/* Hero Section */}
                     <div className="text-center max-w-5xl mx-auto mb-24 mt-24 pointer-events-auto">
                         <div className="relative inline-block">
-                            <Link href="/about" className="block hover:opacity-90 transition-opacity cursor-pointer">
+                            <Link href="/" className="block hover:opacity-90 transition-opacity cursor-pointer">
                                 <h1 className="text-5xl sm:text-6xl md:text-8xl font-black mb-6 text-white tracking-tight">
                                     <span className="bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent drop-shadow-2xl">
                                         {t('common.appName')}
