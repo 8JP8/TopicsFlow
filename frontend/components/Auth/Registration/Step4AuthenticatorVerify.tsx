@@ -19,7 +19,7 @@ const Step4AuthenticatorVerify: React.FC<Step4Props> = ({ data, updateData, onNe
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/complete-totp-setup`, {
+      const response = await fetch('/api/auth/complete-totp-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

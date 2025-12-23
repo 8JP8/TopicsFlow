@@ -1,7 +1,7 @@
 {
     "navigationFallback": {
         "rewrite": "/index.html",
-        "exclude": ["/api/*", "/socket.io/*", "/_next/*", "/404", "/404.html"]
+        "exclude": ["/api/*", "/socket.io/*", "/_next/*", "/404", "/404.html", "/health"]
     },
     "responseOverrides": {
         "404": {
@@ -25,6 +25,16 @@
                 "DELETE",
                 "OPTIONS",
                 "PATCH"
+            ],
+            "allowedRoles": [
+                "anonymous",
+                "authenticated"
+            ]
+        },
+        {
+            "route": "/health",
+            "methods": [
+                "GET"
             ],
             "allowedRoles": [
                 "anonymous",

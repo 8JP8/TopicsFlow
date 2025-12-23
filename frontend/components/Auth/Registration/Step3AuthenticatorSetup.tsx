@@ -27,7 +27,7 @@ const Step3AuthenticatorSetup: React.FC<Step3Props> = ({ data, updateData, onNex
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/totp/qrcode`, {
+      const response = await fetch('/api/auth/totp/qrcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

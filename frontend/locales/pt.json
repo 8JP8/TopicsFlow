@@ -905,7 +905,7 @@
   },
   "pwa": {
     "installTitle": "Instalar TopicsFlow",
-    "installDescription": "Instale o nosso aplicativo para uma melhor experiência com suporte offline e carregamento mais rápido.",
+    "installDescription": "Instale o aplicativo para uma melhor experiência com suporte offline e carregamento mais rápido.",
     "install": "Instalar",
     "installInstructions": "Para instalar: Clique no botão de instalação (⊕) na barra de endereços do seu navegador",
     "iosInstallInstructions": "Para instalar: Toque no botão de partilha (□↑) e selecione \"Adicionar ao Ecrã Inicial\"",

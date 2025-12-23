@@ -31,7 +31,7 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/backup-codes`, {
+      const response = await fetch('/api/auth/backup-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include session cookies

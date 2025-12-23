@@ -46,7 +46,7 @@ const Step5RecoveryCode: React.FC<Step5Props> = ({ data, onNext, onBack }) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery-code/set`, {
+      const response = await fetch('/api/auth/recovery-code/set', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

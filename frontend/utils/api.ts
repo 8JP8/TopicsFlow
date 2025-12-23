@@ -7,14 +7,34 @@ class ApiClient {
 
   constructor() {
     // IMPORTANT:
-    // Use same-origin `/api/...` in the browser so cookies are first-party. This is critical for
-    // session-based flows (passkeys/WebAuthn challenges, etc.). In dev, Next rewrites proxy to the backend.
-    // In Azure Static Web Apps, `/api` is proxied by the platform.
-    //
-    // On the server (SSR/scripts), fall back to NEXT_PUBLIC_API_URL for absolute calls if needed.
-    const baseURL = typeof window !== 'undefined'
-      ? ''
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
+    // In browser: 
+    // - Production (Azure): Use `api.taskflow.me` directly for CORS compatibility
+    // - Development: Use same-origin `/api/...` (Next.js rewrites proxy to backend)
+    // 
+    // On the server (SSR/scripts), use BACKEND_IP or NEXT_PUBLIC_API_URL for absolute calls.
+    const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
+    let baseURL: string;
+    
+    if (typeof window !== 'undefined') {
+      // Browser: Check if we're in production (Azure)
+      const isProduction = window.location.hostname === 'topicsflow.me' || 
+                           window.location.hostname === 'www.topicsflow.me' ||
+                           window.location.hostname.includes('azurestaticapps.net');
+      
+      if (isProduction && backendUrl) {
+        // Production: Use backend URL directly (api.taskflow.me)
+        baseURL = backendUrl;
+      } else if (isProduction) {
+        // Production but no backend URL set: use api.taskflow.me as default
+        baseURL = 'https://api.taskflow.me';
+      } else {
+        // Development: use relative paths, Next.js will proxy
+        baseURL = '';
+      }
+    } else {
+      // Server-side: use environment variable
+      baseURL = backendUrl || 'http://localhost:5000';
+    }
 
     this.client = axios.create({
       baseURL,

@@ -47,7 +47,8 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register-passwordless`, {
+      const { getApiUrl } = await import('../../utils/api');
+      const response = await fetch(`${getApiUrl()}/auth/register-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

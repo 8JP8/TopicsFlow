@@ -34,7 +34,7 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/initiate-passwordless`, {
+      const response = await fetch('/api/auth/recovery/initiate-passwordless', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, language }),
@@ -61,7 +61,7 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/verify-email-code`, {
+      const response = await fetch('/api/auth/recovery/verify-email-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -97,7 +97,7 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/verify-user-code`, {
+      const response = await fetch('/api/auth/recovery/verify-user-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, recovery_code: recoveryCode, language }),
@@ -131,7 +131,7 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/complete-totp-setup`, {
+      const response = await fetch('/api/auth/recovery/complete-totp-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, totp_code: code }),
@@ -159,7 +159,7 @@ const RecoveryPage: React.FC = () => {
     setResending(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/recovery/initiate-passwordless`, {
+      const response = await fetch('/api/auth/recovery/initiate-passwordless', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, language }),

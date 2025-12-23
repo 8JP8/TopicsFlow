@@ -60,14 +60,31 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   // Only depend on user.id to prevent reconnection when user preferences change
   useEffect(() => {
     if (user?.id) {
-      let socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-      // Dynamic backend URL for local network testing (matching api.ts logic)
-      if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
-        const hostname = window.location.hostname;
-        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.includes('topicsflow.me')) {
-          socketUrl = `http://${hostname}:5000`;
+      // In browser: 
+      // - Production (Azure): Use api.taskflow.me directly
+      // - Development: Use same origin
+      // On server: use BACKEND_IP or NEXT_PUBLIC_API_URL
+      let socketUrl: string;
+      if (typeof window !== 'undefined') {
+        const isProduction = window.location.hostname === 'topicsflow.me' || 
+                             window.location.hostname === 'www.topicsflow.me' ||
+                             window.location.hostname.includes('azurestaticapps.net');
+        const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
+        
+        if (isProduction && backendUrl) {
+          // Production: Use backend URL directly
+          socketUrl = backendUrl;
+        } else if (isProduction) {
+          // Production but no backend URL: use api.taskflow.me as default
+          socketUrl = 'https://api.taskflow.me';
+        } else {
+          // Development: use same origin
+          socketUrl = window.location.origin;
         }
+      } else {
+        // Server-side: use environment variable
+        const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        socketUrl = backendUrl;
       }
 
       console.log('[SocketContext] Connecting to:', socketUrl);
