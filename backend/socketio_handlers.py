@@ -177,21 +177,27 @@ def register_socketio_handlers(socketio):
                 # Remove from all topic rooms
                 if user_id in user_rooms:
                     try:
-                        for room_id in list(user_rooms[user_id]):
+                        for tracked_room in list(user_rooms[user_id]):
                             try:
-                                leave_room(f"topic_{room_id}")
-                                # Only emit if we have a valid socket context
-                                try:
-                                    emit('user_left_topic', {
-                                        'user_id': user_id,
-                                        'username': username,
-                                        'topic_id': room_id
-                                    }, room=f"topic_{room_id}", skip_sid=sid)
-                                except (RuntimeError, AttributeError):
-                                    # Server might be shutting down
-                                    logger.debug(f"Could not emit user_left_topic for room {room_id}")
+                                # Backward compatibility: some code stores raw topic_id instead of room name
+                                if isinstance(tracked_room, str) and not tracked_room.startswith(('topic_', 'chat_room_', 'post_', 'voip_', 'user_')):
+                                    tracked_room = f"topic_{tracked_room}"
+
+                                leave_room(tracked_room)
+
+                                # Only emit user_left_topic for topic rooms
+                                if isinstance(tracked_room, str) and tracked_room.startswith('topic_'):
+                                    topic_id = tracked_room.split('topic_', 1)[1]
+                                    try:
+                                        emit('user_left_topic', {
+                                            'user_id': user_id,
+                                            'username': username,
+                                            'topic_id': topic_id
+                                        }, room=tracked_room, skip_sid=sid)
+                                    except (RuntimeError, AttributeError):
+                                        logger.debug(f"Could not emit user_left_topic for room {tracked_room}")
                             except (RuntimeError, AttributeError) as room_error:
-                                logger.debug(f"Could not leave room {room_id}: {room_error}")
+                                logger.debug(f"Could not leave room {tracked_room}: {room_error}")
                         del user_rooms[user_id]
                     except (KeyError, RuntimeError):
                         pass  # Already removed or server shutting down
@@ -1131,7 +1137,7 @@ def register_socketio_handlers(socketio):
             # Track user's rooms
             if user_id not in user_rooms:
                 user_rooms[user_id] = set()
-            user_rooms[user_id].add(f"chat_room_{room_id}")
+            user_rooms[user_id].add(room_name)
             
             emit('chat_room_joined', {
                 'room_id': room_id,
@@ -1143,6 +1149,36 @@ def register_socketio_handlers(socketio):
         except Exception as e:
             logger.error(f"Join chat room error: {str(e)}", exc_info=True)
             emit('error', {'message': 'Failed to join chat room'})
+
+    @socketio.on('leave_chat_room')
+    def handle_leave_chat_room(data):
+        """Handle user leaving a chat room."""
+        try:
+            room_id = data.get('room_id')
+            if not room_id:
+                return
+            room_id = str(room_id)
+
+            auth_service = AuthService(current_app.db)
+            current_user_result = auth_service.get_current_user()
+            if not current_user_result.get('success'):
+                return
+            user = current_user_result['user']
+            user_id = user['id']
+
+            room_name = f"chat_room_{room_id}"
+            leave_room(room_name)
+
+            if user_id in user_rooms:
+                try:
+                    user_rooms[user_id].discard(room_name)
+                except Exception:
+                    pass
+
+            emit('chat_room_left', {'room_id': room_id})
+            logger.info(f"User {user.get('username', 'Unknown')} left chat room {room_id}")
+        except Exception as e:
+            logger.error(f"Leave chat room error: {str(e)}", exc_info=True)
     
     @socketio.on('join_post')
     def handle_join_post(data):

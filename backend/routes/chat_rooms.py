@@ -713,6 +713,11 @@ def create_chat_room_message(room_id):
                 room_name = f"chat_room_{room_id}"
                 socketio.emit('new_chat_room_message', new_message, room=room_name)
                 logger.info(f"Emitted new_chat_room_message event to room {room_name} for message {message_id}")
+                # Also emit to sender's personal room so the sender always sees the message (even if not joined)
+                try:
+                    socketio.emit('new_chat_room_message', new_message, room=f"user_{user_id}")
+                except Exception:
+                    pass
         except Exception as e:
             logger.warning(f"Failed to emit socket event for message {message_id}: {str(e)}")
 

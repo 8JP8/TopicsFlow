@@ -326,10 +326,15 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
       });
 
       socket.on('new_chat_room_message', (message: Message) => {
-        if (message.chat_room_id === room.id) {
-          setMessages(prev => [...prev, message]);
-          scrollToBottom();
-        }
+        // message.chat_room_id might be missing in some payloads; if it exists, enforce it matches current room
+        if (message.chat_room_id && String(message.chat_room_id) !== String(room.id)) return;
+
+        setMessages(prev => {
+          // Deduplicate in case we receive both room + personal-room emissions
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
       });
 
       return () => {
