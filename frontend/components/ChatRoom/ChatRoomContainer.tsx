@@ -787,7 +787,13 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
-                    backgroundImage: `url(${roomData.background_picture.startsWith('data:') ? roomData.background_picture : `data:image/jpeg;base64,${roomData.background_picture}`})`,
+                    backgroundImage: `url(${
+                      roomData.background_picture.startsWith('data:')
+                        ? roomData.background_picture
+                        : roomData.background_picture.startsWith('http://') || roomData.background_picture.startsWith('https://')
+                          ? roomData.background_picture
+                          : `data:image/jpeg;base64,${roomData.background_picture}`
+                    })`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center center',
                     backgroundRepeat: 'no-repeat',

@@ -1399,9 +1399,50 @@ def update_chat_picture(room_id):
         if permission_level < 2:  # Only owner (3) or moderator (2) can update
             return jsonify({'success': False, 'errors': ['Only the owner or moderator can update the picture']}), 403
 
-        # Process picture - use imgbb for large images
+        def _generate_encryption_key(file_id: str, secret_key: str) -> str:
+            import hashlib
+            key_data = f"{file_id}:{secret_key}".encode('utf-8')
+            return hashlib.sha256(key_data).hexdigest()[:16]
+
+        def _parse_base64_image(image_str: str):
+            """
+            Accepts either a data URL (data:image/png;base64,...) or a raw base64 string.
+            Returns: (bytes, mime_type, filename)
+            """
+            import base64
+            import re
+
+            mime_type = 'image/jpeg'
+            ext = '.jpg'
+            data_str = image_str
+
+            if image_str and image_str.startswith('data:'):
+                # data:image/png;base64,xxxx
+                match = re.match(r'^data:(?P<mime>[-\\w.]+/[-\\w.]+);base64,', image_str)
+                if match:
+                    mime_type = match.group('mime')
+                    if mime_type == 'image/png':
+                        ext = '.png'
+                    elif mime_type == 'image/webp':
+                        ext = '.webp'
+                    elif mime_type == 'image/gif':
+                        ext = '.gif'
+                    else:
+                        ext = '.jpg'
+                data_str = image_str.split(',', 1)[1]
+            elif image_str and ',' in image_str:
+                # Defensive: if it contains a comma but not starting with data:, treat as data URL-ish.
+                data_str = image_str.split(',', 1)[1]
+
+            return base64.b64decode(data_str), mime_type, f"chatroom_{room_id}_picture{ext}"
+
+        # Process picture - use imgbb for large images (otherwise store in uploads/Azure and reference by URL)
         processed_picture = picture
         if picture:
+            # If user sent a URL already, keep it as-is
+            if isinstance(picture, str) and (picture.startswith('http://') or picture.startswith('https://')):
+                processed_picture = picture
+            else:
             from utils.imgbb_upload import process_image_for_storage
             image_result = process_image_for_storage(picture)
             if image_result['success']:
@@ -1409,7 +1450,24 @@ def update_chat_picture(room_id):
                     processed_picture = image_result['url']
                     logger.info(f"Using imgbb URL for large image: {processed_picture[:50]}...")
                 else:
-                    processed_picture = image_result['data']
+                    # Store in file storage and save URL (do not store base64 in DB)
+                    from services.file_storage import FileStorageService
+                    use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+                    file_storage = FileStorageService(
+                        uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                        use_azure=use_azure
+                    )
+                    file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
+                    file_id, _ = file_storage.store_file(
+                        file_data=file_bytes,
+                        filename=filename,
+                        mime_type=mime_type,
+                        user_id=user_id,
+                        file_id_prefix='chatpic_'
+                    )
+                    secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+                    encryption_key = _generate_encryption_key(file_id, secret_key)
+                    processed_picture = file_storage.get_file_url(file_id, encryption_key)
             else:
                 logger.error(f"Failed to process image: {image_result.get('error')}")
                 return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
@@ -1451,9 +1509,47 @@ def update_chat_background(room_id):
         data = request.get_json()
         background_picture = data.get('background_picture')
         
-        # Process background picture - use imgbb for large images
+        def _generate_encryption_key(file_id: str, secret_key: str) -> str:
+            import hashlib
+            key_data = f"{file_id}:{secret_key}".encode('utf-8')
+            return hashlib.sha256(key_data).hexdigest()[:16]
+
+        def _parse_base64_image(image_str: str):
+            """
+            Accepts either a data URL (data:image/png;base64,...) or a raw base64 string.
+            Returns: (bytes, mime_type, filename)
+            """
+            import base64
+            import re
+
+            mime_type = 'image/jpeg'
+            ext = '.jpg'
+            data_str = image_str
+
+            if image_str and image_str.startswith('data:'):
+                match = re.match(r'^data:(?P<mime>[-\\w.]+/[-\\w.]+);base64,', image_str)
+                if match:
+                    mime_type = match.group('mime')
+                    if mime_type == 'image/png':
+                        ext = '.png'
+                    elif mime_type == 'image/webp':
+                        ext = '.webp'
+                    elif mime_type == 'image/gif':
+                        ext = '.gif'
+                    else:
+                        ext = '.jpg'
+                data_str = image_str.split(',', 1)[1]
+            elif image_str and ',' in image_str:
+                data_str = image_str.split(',', 1)[1]
+
+            return base64.b64decode(data_str), mime_type, f"chatroom_{room_id}_background{ext}"
+
+        # Process background picture - use imgbb for large images (otherwise store in uploads/Azure and reference by URL)
         processed_background = background_picture
         if background_picture:
+            if isinstance(background_picture, str) and (background_picture.startswith('http://') or background_picture.startswith('https://')):
+                processed_background = background_picture
+            else:
             # Darken the background image before processing
             from utils.image_compression import darken_image_base64
             darkened_image = darken_image_base64(background_picture, darkness_factor=0.6)
@@ -1469,7 +1565,23 @@ def update_chat_background(room_id):
                     processed_background = image_result['url']
                     logger.info(f"Using imgbb URL for large background image: {processed_background[:50]}...")
                 else:
-                    processed_background = image_result['data']
+                    from services.file_storage import FileStorageService
+                    use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
+                    file_storage = FileStorageService(
+                        uploads_dir=current_app.config.get('UPLOADS_DIR'),
+                        use_azure=use_azure
+                    )
+                    file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
+                    file_id, _ = file_storage.store_file(
+                        file_data=file_bytes,
+                        filename=filename,
+                        mime_type=mime_type,
+                        user_id=user_id,
+                        file_id_prefix='chatbg_'
+                    )
+                    secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
+                    encryption_key = _generate_encryption_key(file_id, secret_key)
+                    processed_background = file_storage.get_file_url(file_id, encryption_key)
             else:
                 logger.error(f"Failed to process background image: {image_result.get('error')}")
                 return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500
