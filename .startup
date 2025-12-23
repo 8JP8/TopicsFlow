@@ -1,0 +1,5 @@
+#!/bin/bash
+# Azure App Service startup command
+# This file tells Azure to use our custom startup script
+cd /home/site/wwwroot/backend && bash startup.sh
+

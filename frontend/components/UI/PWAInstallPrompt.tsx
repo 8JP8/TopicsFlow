@@ -49,6 +49,9 @@ const PWAInstallPrompt: React.FC = () => {
     // Listen for beforeinstallprompt event (browser-native install prompt)
     const handleBeforeInstallPrompt = (e: Event) => {
       console.log('beforeinstallprompt event fired - PWA is installable');
+      // Prevent the default browser install prompt - we'll show our custom one
+      // Note: Browser may show a warning that preventDefault() was called.
+      // This is expected - we'll call prompt() when user clicks our install button.
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);

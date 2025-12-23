@@ -1,0 +1,34 @@
+Azure App Service Startup Command
+==================================
+
+Copy and paste ONE of these commands into Azure Portal:
+Configuration → General settings → Startup Command
+
+Option 1: Using startup script (RECOMMENDED)
+---------------------------------------------
+cd /home/site/wwwroot/backend && bash startup.sh
+
+Option 2: Direct command with dependency installation
+------------------------------------------------------
+cd /home/site/wwwroot/backend && python3 -m pip install --no-cache-dir -r requirements.txt && python3 -m gunicorn --bind=0.0.0.0:8000 --worker-class eventlet --workers=1 --timeout=120 --access-logfile - --error-logfile - app:app
+
+Option 3: If requirements.txt is in root directory
+----------------------------------------------------
+cd /home/site/wwwroot && python3 -m pip install --no-cache-dir -r requirements.txt && cd backend && python3 -m gunicorn --bind=0.0.0.0:8000 --worker-class eventlet --workers=1 --timeout=120 --access-logfile - --error-logfile - app:app
+
+Option 4: One-liner (finds requirements.txt automatically)
+-----------------------------------------------------------
+cd /home/site/wwwroot && (python3 -m pip install --no-cache-dir -r requirements.txt 2>/dev/null || python3 -m pip install --no-cache-dir -r backend/requirements.txt) && cd backend && python3 -m gunicorn --bind=0.0.0.0:8000 --worker-class eventlet --workers=1 --timeout=120 --access-logfile - --error-logfile - app:app
+
+Option 5: Using sync worker (NO WebSocket support - only if eventlet fails)
+---------------------------------------------------------------------------
+cd /home/site/wwwroot/backend && python3 -m gunicorn --bind=0.0.0.0:8000 --worker-class sync --workers=4 --timeout=120 --access-logfile - --error-logfile - app:app
+
+IMPORTANT NOTES:
+- Option 1 is RECOMMENDED (uses startup.sh script)
+- Option 2 is simplest if backend/requirements.txt exists
+- Make sure requirements.txt contains: eventlet==0.36.1
+- The command installs dependencies every startup (adds ~30-60 seconds)
+- For production, ensure Azure builds and installs dependencies during deployment
+- After setting, click "Save" and restart the App Service
+
