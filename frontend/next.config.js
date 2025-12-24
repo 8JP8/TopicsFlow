@@ -79,17 +79,25 @@ if (!isExport) {
   };
 
   // Rewrites for API proxy (development only)
-  // Set DISABLE_API_PROXY=true to disable proxy (useful when backend is not running)
+  // Only enable proxy if NEXT_PUBLIC_API_URL is NOT set (fallback behavior)
+  // If NEXT_PUBLIC_API_URL is set, the frontend will connect directly to the backend
   nextConfig.rewrites = async () => {
-    // Check if proxy is disabled
+    // Check if proxy is explicitly disabled
     if (process.env.DISABLE_API_PROXY === 'true') {
       console.log('[Next.js] API proxy disabled (DISABLE_API_PROXY=true)');
       return [];
     }
     
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    // If NEXT_PUBLIC_API_URL is set, frontend will connect directly (no proxy needed)
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      console.log('[Next.js] API proxy disabled - using direct backend connection via NEXT_PUBLIC_API_URL');
+      return [];
+    }
+    
+    // Fallback: Enable proxy if NEXT_PUBLIC_API_URL is not set
+    const apiUrl = 'http://localhost:5000';
     console.log(`[Next.js] API proxy enabled: /api/* -> ${apiUrl}/api/*`);
-    console.log('[Next.js] Note: Make sure the backend is running on', apiUrl);
+    console.log('[Next.js] Note: Set NEXT_PUBLIC_API_URL to use direct backend connection');
     return [
       {
         source: '/api/:path*',

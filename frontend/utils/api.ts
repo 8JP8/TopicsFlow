@@ -27,8 +27,12 @@ class ApiClient {
       } else if (isProduction) {
         // Production but no backend URL set: use api.topicsflow.me as default
         baseURL = 'https://api.topicsflow.me';
+      } else if (backendUrl) {
+        // Development: If NEXT_PUBLIC_API_URL is set, use it directly (bypass Next.js proxy)
+        // This allows direct connection to backend without proxy
+        baseURL = backendUrl;
       } else {
-        // Development: use relative paths, Next.js will proxy
+        // Development: No backend URL set, use relative paths (Next.js will proxy)
         baseURL = '';
       }
     } else {
@@ -44,6 +48,11 @@ class ApiClient {
       },
       withCredentials: true, // Required for session cookies
     });
+    
+    // Debug: Log the baseURL in development
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      console.log('[ApiClient] Initialized with baseURL:', baseURL || '(empty - using relative paths, Next.js will proxy)');
+    }
 
     // Request interceptor
     this.client.interceptors.request.use(
@@ -531,8 +540,11 @@ export const getApiBaseUrl = (): string => {
   } else if (isProduction) {
     // Production but no backend URL set: use api.topicsflow.me as default
     return 'https://api.topicsflow.me';
+  } else if (backendUrl) {
+    // Development: If NEXT_PUBLIC_API_URL is set, use it directly (bypass Next.js proxy)
+    return backendUrl;
   } else {
-    // Development: use relative paths, Next.js will proxy
+    // Development: No backend URL set, use relative paths (Next.js will proxy)
     return '';
   }
 };
