@@ -3,6 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import QRCodeDisplay from '../QRCodeDisplay';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step3Props {
   data: RegistrationData;
@@ -27,9 +28,11 @@ const Step3AuthenticatorSetup: React.FC<Step3Props> = ({ data, updateData, onNex
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/totp/qrcode', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/totp/qrcode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           email: data.email,
           username: data.username,

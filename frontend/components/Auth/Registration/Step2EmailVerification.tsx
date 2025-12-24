@@ -3,6 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import TOTPInput from '../TOTPInput';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step2Props {
   data: RegistrationData;
@@ -21,9 +22,11 @@ const Step2EmailVerification: React.FC<Step2Props> = ({ data, updateData, onNext
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/verify-email', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           email: data.email,
           code: verificationCode,
@@ -53,9 +56,11 @@ const Step2EmailVerification: React.FC<Step2Props> = ({ data, updateData, onNext
     setResending(true);
 
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           email: data.email,
           language,

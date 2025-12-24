@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step5Props {
   data: RegistrationData;
@@ -46,9 +47,11 @@ const Step5RecoveryCode: React.FC<Step5Props> = ({ data, onNext, onBack }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/recovery-code/set', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery-code/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           email: data.email,
           user_id: data.userId,

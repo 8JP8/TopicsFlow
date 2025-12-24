@@ -61,7 +61,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user?.id) {
       // In browser: 
-      // - Production (Azure): Use api.taskflow.me directly
+      // - Production (Azure): Use api.topicsflow.me directly
       // - Development: Use same origin
       // On server: use BACKEND_IP or NEXT_PUBLIC_API_URL
       let socketUrl: string;
@@ -75,8 +75,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           // Production: Use backend URL directly
           socketUrl = backendUrl;
         } else if (isProduction) {
-          // Production but no backend URL: use api.taskflow.me as default
-          socketUrl = 'https://api.taskflow.me';
+          // Production but no backend URL: use api.topicsflow.me as default
+          socketUrl = 'https://api.topicsflow.me';
         } else {
           // Development: use same origin
           socketUrl = window.location.origin;

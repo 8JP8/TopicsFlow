@@ -8,7 +8,7 @@ class ApiClient {
   constructor() {
     // IMPORTANT:
     // In browser: 
-    // - Production (Azure): Use `api.taskflow.me` directly for CORS compatibility
+    // - Production (Azure): Use `api.topicsflow.me` directly for CORS compatibility
     // - Development: Use same-origin `/api/...` (Next.js rewrites proxy to backend)
     // 
     // On the server (SSR/scripts), use BACKEND_IP or NEXT_PUBLIC_API_URL for absolute calls.
@@ -22,11 +22,11 @@ class ApiClient {
                            window.location.hostname.includes('azurestaticapps.net');
       
       if (isProduction && backendUrl) {
-        // Production: Use backend URL directly (api.taskflow.me)
+        // Production: Use backend URL directly (api.topicsflow.me)
         baseURL = backendUrl;
       } else if (isProduction) {
-        // Production but no backend URL set: use api.taskflow.me as default
-        baseURL = 'https://api.taskflow.me';
+        // Production but no backend URL set: use api.topicsflow.me as default
+        baseURL = 'https://api.topicsflow.me';
       } else {
         // Development: use relative paths, Next.js will proxy
         baseURL = '';
@@ -499,5 +499,36 @@ export const clearCache = (pattern?: string) => {
     }
   } else {
     cache.clear();
+  }
+};
+
+/**
+ * Get the base API URL for direct fetch calls.
+ * This should be used when you need to use fetch() directly instead of the api client.
+ * 
+ * @returns The base URL for API calls (empty string for dev, full URL for production)
+ */
+export const getApiBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    // Server-side: use environment variable
+    return process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  }
+  
+  // Browser: Check if we're in production (Azure)
+  const isProduction = window.location.hostname === 'topicsflow.me' || 
+                       window.location.hostname === 'www.topicsflow.me' ||
+                       window.location.hostname.includes('azurestaticapps.net');
+  
+  const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
+  
+  if (isProduction && backendUrl) {
+    // Production: Use backend URL directly (api.topicsflow.me)
+    return backendUrl;
+  } else if (isProduction) {
+    // Production but no backend URL set: use api.topicsflow.me as default
+    return 'https://api.topicsflow.me';
+  } else {
+    // Development: use relative paths, Next.js will proxy
+    return '';
   }
 };

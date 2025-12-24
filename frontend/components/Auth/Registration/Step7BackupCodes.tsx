@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step7Props {
   data: RegistrationData;
@@ -31,7 +32,8 @@ const Step7BackupCodes: React.FC<Step7Props> = ({ data, onComplete }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/backup-codes', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/backup-codes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include session cookies

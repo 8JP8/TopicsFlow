@@ -8,6 +8,7 @@ import TOTPInput from '@/components/Auth/TOTPInput';
 import QRCodeDisplay from '@/components/Auth/QRCodeDisplay';
 import LanguageToggle from '@/components/UI/LanguageToggle';
 import ThemeToggle from '@/components/UI/ThemeToggle';
+import { getApiBaseUrl } from '@/utils/api';
 
 const RecoveryPage: React.FC = () => {
   const { t, language } = useLanguage();
@@ -34,9 +35,11 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/recovery/initiate-passwordless', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery/initiate-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({ email, language }),
       });
 
@@ -61,9 +64,11 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/recovery/verify-email-code', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery/verify-email-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({ email, code }),
       });
 
@@ -97,9 +102,11 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/recovery/verify-user-code', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery/verify-user-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({ email, recovery_code: recoveryCode, language }),
       });
 
@@ -131,9 +138,11 @@ const RecoveryPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/recovery/complete-totp-setup', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery/complete-totp-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({ email, totp_code: code }),
       });
 
@@ -159,9 +168,11 @@ const RecoveryPage: React.FC = () => {
     setResending(true);
 
     try {
-      const response = await fetch('/api/auth/recovery/initiate-passwordless', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/recovery/initiate-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({ email, language }),
       });
 

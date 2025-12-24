@@ -3,6 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import TOTPInput from '../TOTPInput';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step4Props {
   data: RegistrationData;
@@ -19,9 +20,11 @@ const Step4AuthenticatorVerify: React.FC<Step4Props> = ({ data, updateData, onNe
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/complete-totp-setup', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/complete-totp-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           email: data.email,
           totp_code: code,

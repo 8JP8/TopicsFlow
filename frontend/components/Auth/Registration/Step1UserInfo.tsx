@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step1Props {
   data: RegistrationData;
@@ -47,9 +48,11 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register-passwordless', {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/auth/register-passwordless`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required for session cookies
         body: JSON.stringify({
           username: formData.username,
           email: formData.email,

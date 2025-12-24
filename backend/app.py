@@ -210,21 +210,26 @@ def create_app(config_name=None):
     session.init_app(app)
     
     # If Redis is configured and working, replace with fallback interface
-    if app.config.get('_USE_REDIS_FALLBACK') and app.config.get('SESSION_REDIS'):
-        try:
-            from utils.session_fallback import FallbackSessionInterface
-            redis_client = app.config['SESSION_REDIS']
-            session_interface = FallbackSessionInterface(
-                redis_client=redis_client,
-                key_prefix=app.config.get('SESSION_KEY_PREFIX', 'session:'),
-                use_signer=app.config.get('SESSION_USE_SIGNER', False),
-                permanent=app.config.get('SESSION_PERMANENT', False),
-                session_file_dir=app.config.get('SESSION_FILE_DIR')
-            )
-            app.session_interface = session_interface
-            logger.info("Configured Redis session with filesystem fallback")
-        except Exception as e:
-            logger.warning(f"Failed to configure fallback session interface: {e}. Using default.")
+        if app.config.get('_USE_REDIS_FALLBACK') and app.config.get('SESSION_REDIS'):
+            try:
+                from utils.session_fallback import FallbackSessionInterface
+                if FallbackSessionInterface:
+                    redis_client = app.config['SESSION_REDIS']
+                    session_interface = FallbackSessionInterface(
+                        redis_client=redis_client,
+                        key_prefix=app.config.get('SESSION_KEY_PREFIX', 'session:'),
+                        use_signer=app.config.get('SESSION_USE_SIGNER', False),
+                        permanent=app.config.get('SESSION_PERMANENT', False),
+                        session_file_dir=app.config.get('SESSION_FILE_DIR')
+                    )
+                    app.session_interface = session_interface
+                    logger.info("Configured Redis session with filesystem fallback")
+                else:
+                    logger.warning("FallbackSessionInterface not available. Using default Redis session interface.")
+            except ImportError as e:
+                logger.warning(f"Failed to import fallback session interface: {e}. Using default.")
+            except Exception as e:
+                logger.warning(f"Failed to configure fallback session interface: {e}. Using default.")
 
     # Initialize Redis Cache and Cache Invalidator
     try:

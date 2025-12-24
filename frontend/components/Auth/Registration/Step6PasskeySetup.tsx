@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { RegistrationData } from './RegistrationWizard';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface Step6Props {
   data: RegistrationData;
@@ -29,7 +30,8 @@ const Step6PasskeySetup: React.FC<Step6Props> = ({ data, updateData, onNext, onS
 
     try {
       // Step 1: Get registration options from server
-      const optionsResponse = await fetch('/api/auth/passkey/register-options', {
+      const apiBaseUrl = getApiBaseUrl();
+      const optionsResponse = await fetch(`${apiBaseUrl}/api/auth/passkey/register-options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include session cookies for authentication
@@ -82,7 +84,7 @@ const Step6PasskeySetup: React.FC<Step6Props> = ({ data, updateData, onNext, onS
       };
 
       // Step 4: Send credential to server for verification
-      const verifyResponse = await fetch('/api/auth/passkey/register-verify', {
+      const verifyResponse = await fetch(`${apiBaseUrl}/api/auth/passkey/register-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include session cookies for verification
