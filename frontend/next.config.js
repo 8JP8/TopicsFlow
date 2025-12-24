@@ -79,8 +79,17 @@ if (!isExport) {
   };
 
   // Rewrites for API proxy (development only)
+  // Set DISABLE_API_PROXY=true to disable proxy (useful when backend is not running)
   nextConfig.rewrites = async () => {
+    // Check if proxy is disabled
+    if (process.env.DISABLE_API_PROXY === 'true') {
+      console.log('[Next.js] API proxy disabled (DISABLE_API_PROXY=true)');
+      return [];
+    }
+    
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    console.log(`[Next.js] API proxy enabled: /api/* -> ${apiUrl}/api/*`);
+    console.log('[Next.js] Note: Make sure the backend is running on', apiUrl);
     return [
       {
         source: '/api/:path*',

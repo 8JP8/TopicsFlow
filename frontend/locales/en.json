@@ -895,6 +895,7 @@
     "serverError": "Server error. Please try again later.",
     "requestTimeout": "Request timeout. Please check your connection.",
     "networkError": "Network error. Please check your connection.",
+    "backendNotRunning": "Backend is not running. Please start the backend server on port 5000.",
     "failedToSearchGifs": "Failed to search GIFs",
     "failedToLoadCategoryGifs": "Failed to load category GIFs",
     "connectedToServer": "Connected to chat server",

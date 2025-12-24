@@ -80,9 +80,13 @@ class ApiClient {
         } else if (error.code === 'ECONNABORTED') {
           // Timeout
           toast.error(translate('toast.requestTimeout'));
-        } else if (error.message === 'Network Error') {
-          // Network error
-          toast.error(translate('toast.networkError'));
+        } else if (error.message === 'Network Error' || error.code === 'ECONNREFUSED' || error.code === 'ERR_CONNECTION_REFUSED') {
+          // Network error or connection refused (backend not running)
+          if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            toast.error(translate('toast.backendNotRunning'));
+          } else {
+            toast.error(translate('toast.networkError'));
+          }
         }
         // For other errors (400, 404, etc.), let the calling code handle the error message
 

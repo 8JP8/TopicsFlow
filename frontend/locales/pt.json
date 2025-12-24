@@ -871,6 +871,7 @@
     "serverError": "Erro do servidor. Por favor, tente novamente mais tarde.",
     "requestTimeout": "Tempo de espera esgotado. Por favor, verifique sua conexão.",
     "networkError": "Erro de rede. Por favor, verifique sua conexão.",
+    "backendNotRunning": "Backend não está a correr. Por favor, inicie o servidor backend na porta 5000.",
     "failedToSearchGifs": "Falha ao pesquisar GIFs",
     "failedToLoadCategoryGifs": "Falha ao carregar GIFs da categoria",
     "connectedToServer": "Conectado ao servidor de chat",
