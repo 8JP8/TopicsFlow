@@ -62,7 +62,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     if (user?.id) {
       // In browser: 
       // - Production (Azure): Use api.topicsflow.me directly
-      // - Development: Use same origin
+      // - Local Development: Use localhost:5000 directly
       // On server: use BACKEND_IP or NEXT_PUBLIC_API_URL
       let socketUrl: string;
       if (typeof window !== 'undefined') {
@@ -78,8 +78,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           // Production but no backend URL: use api.topicsflow.me as default
           socketUrl = 'https://api.topicsflow.me';
         } else {
-          // Development: use same origin
-          socketUrl = window.location.origin;
+          // Local Development: Always use localhost:5000 directly (no proxy)
+          socketUrl = backendUrl || 'http://localhost:5000';
         }
       } else {
         // Server-side: use environment variable

@@ -9,7 +9,7 @@ class ApiClient {
     // IMPORTANT:
     // In browser: 
     // - Production (Azure): Use `api.topicsflow.me` directly for CORS compatibility
-    // - Development: Use same-origin `/api/...` (Next.js rewrites proxy to backend)
+    // - Local Development: Use `http://localhost:5000` directly (bypass Next.js proxy)
     // 
     // On the server (SSR/scripts), use BACKEND_IP or NEXT_PUBLIC_API_URL for absolute calls.
     const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
@@ -22,18 +22,15 @@ class ApiClient {
                            window.location.hostname.includes('azurestaticapps.net');
       
       if (isProduction && backendUrl) {
-        // Production: Use backend URL directly (api.topicsflow.me)
+        // Production (Azure): Use backend URL directly (api.topicsflow.me)
         baseURL = backendUrl;
       } else if (isProduction) {
         // Production but no backend URL set: use api.topicsflow.me as default
         baseURL = 'https://api.topicsflow.me';
-      } else if (backendUrl) {
-        // Development: If NEXT_PUBLIC_API_URL is set, use it directly (bypass Next.js proxy)
-        // This allows direct connection to backend without proxy
-        baseURL = backendUrl;
       } else {
-        // Development: No backend URL set, use relative paths (Next.js will proxy)
-        baseURL = '';
+        // Local Development: Always use localhost:5000 directly (no proxy)
+        // This ensures direct connection to backend for better debugging
+        baseURL = backendUrl || 'http://localhost:5000';
       }
     } else {
       // Server-side: use environment variable
@@ -540,11 +537,8 @@ export const getApiBaseUrl = (): string => {
   } else if (isProduction) {
     // Production but no backend URL set: use api.topicsflow.me as default
     return 'https://api.topicsflow.me';
-  } else if (backendUrl) {
-    // Development: If NEXT_PUBLIC_API_URL is set, use it directly (bypass Next.js proxy)
-    return backendUrl;
   } else {
-    // Development: No backend URL set, use relative paths (Next.js will proxy)
-    return '';
+    // Local Development: Always use localhost:5000 directly (no proxy)
+    return backendUrl || 'http://localhost:5000';
   }
 };

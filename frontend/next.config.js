@@ -78,9 +78,9 @@ if (!isExport) {
     ];
   };
 
-  // Rewrites for API proxy (development only)
-  // Only enable proxy if NEXT_PUBLIC_API_URL is NOT set (fallback behavior)
-  // If NEXT_PUBLIC_API_URL is set, the frontend will connect directly to the backend
+  // Rewrites for API proxy (Azure production only)
+  // In local development, frontend connects directly to localhost:5000 (no proxy)
+  // In Azure, we need to proxy /api/* to the backend URL
   nextConfig.rewrites = async () => {
     // Check if proxy is explicitly disabled
     if (process.env.DISABLE_API_PROXY === 'true') {
@@ -88,22 +88,25 @@ if (!isExport) {
       return [];
     }
     
-    // If NEXT_PUBLIC_API_URL is set, frontend will connect directly (no proxy needed)
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      console.log('[Next.js] API proxy disabled - using direct backend connection via NEXT_PUBLIC_API_URL');
+    // In local development, frontend connects directly to localhost:5000 (no proxy needed)
+    // Only enable proxy for Azure production where we need to redirect /api/* to backend
+    const isProduction = process.env.NODE_ENV === 'production';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_IP;
+    
+    if (isProduction && backendUrl) {
+      // Azure production: Proxy /api/* to backend URL
+      console.log(`[Next.js] API proxy enabled for production: /api/* -> ${backendUrl}/api/*`);
+      return [
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ];
+    } else {
+      // Local development: No proxy (frontend connects directly to localhost:5000)
+      console.log('[Next.js] API proxy disabled - using direct backend connection (localhost:5000)');
       return [];
     }
-    
-    // Fallback: Enable proxy if NEXT_PUBLIC_API_URL is not set
-    const apiUrl = 'http://localhost:5000';
-    console.log(`[Next.js] API proxy enabled: /api/* -> ${apiUrl}/api/*`);
-    console.log('[Next.js] Note: Set NEXT_PUBLIC_API_URL to use direct backend connection');
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ];
   };
 }
 

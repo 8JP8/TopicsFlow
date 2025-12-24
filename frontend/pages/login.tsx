@@ -12,7 +12,8 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 
 const LoginPage: React.FC = () => {
   const { t } = useLanguage();
-  const { login, loginWithBackupCode, refreshUser } = useAuth();
+  const auth = useAuth(); // Store auth object to avoid calling useAuth() conditionally
+  const { login, loginWithBackupCode, refreshUser } = auth;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
@@ -226,9 +227,9 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Login Card */}
-        < div className="w-full max-w-md" >
+        <div className="w-full max-w-md">
           <div className="theme-bg-secondary rounded-2xl shadow-xl p-8 border theme-border">
-            {useAuth().user && loading ? (
+            {auth.user && loading ? (
               // Showing Success/Redirect state immediately after login
               <div className="text-center py-8">
                 <div className="mb-4 flex justify-center">
@@ -243,7 +244,7 @@ const LoginPage: React.FC = () => {
                   {t('common.loading') || 'Redirecting...'}
                 </p>
               </div>
-            ) : useAuth().user ? (
+            ) : auth.user ? (
               <div className="text-center">
                 <img
                   src="https://i.postimg.cc/52jHqBD9/chat.png"
@@ -254,14 +255,14 @@ const LoginPage: React.FC = () => {
                   {t('common.welcomeBack') || 'Welcome Back'},
                 </h2>
                 <p className="text-xl theme-text-primary font-semibold mb-6">
-                  {useAuth().user?.username}
+                  {auth.user?.username}
                 </p>
                 <div className="space-y-4">
                   <Link href="/" className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors no-underline hover:no-underline">
                     {t('common.backToDashboard') || 'Return to Dashboard'}
                   </Link>
                   <button
-                    onClick={useAuth().logout}
+                    onClick={auth.logout}
                     className="w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 theme-text-primary font-medium rounded-lg transition-colors"
                   >
                     {t('auth.logout') || 'Logout'}
