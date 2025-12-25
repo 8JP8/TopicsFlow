@@ -221,10 +221,11 @@ const VoipAudioSettings: React.FC = () => {
                             .filter(device => {
                                 const label = device.label.toLowerCase();
                                 // Skip entries that are just "Default" or "Communications" variations
-                                return !label.startsWith('default -') &&
-                                    !label.startsWith('communications -') &&
-                                    !label.startsWith('predefinição -') &&
-                                    !label.startsWith('comunicações -');
+                                return !label.startsWith('default') &&
+                                    !label.startsWith('communications') &&
+                                    !label.startsWith('predefinição') &&
+                                    !label.startsWith('comunicações') &&
+                                    !label.startsWith('microfone predefinido');
                             })
                             // Remove duplicates by device label (same physical device)
                             .filter((device, index, self) =>

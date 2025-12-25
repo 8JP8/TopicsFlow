@@ -285,19 +285,41 @@ class FileStorageService:
         # Return just the file_id
         return file_id
     
-    def get_file_url(self, file_id: str, encryption_key: str = None) -> str:
+    def get_file_url(self, file_id: str, encryption_key: str = None, request=None) -> str:
         """
         Get URL to access file.
         
         Args:
             file_id: File identifier (just the ID, not the full path)
             encryption_key: Optional encryption key for secure access
+            request: Optional Flask request object to determine base URL from request context
         
         Returns:
             URL to access the file
         """
-        # Local file URL (works for both local and Azure)
-        base_url = os.getenv('API_BASE_URL', 'http://localhost:5000')
+        # Try to get base URL from request context first (best for Azure)
+        if request:
+            try:
+                base_url = f"{request.scheme}://{request.host}"
+            except:
+                base_url = None
+        else:
+            base_url = None
+        
+        # Fallback to environment variable or default
+        if not base_url:
+            base_url = os.getenv('API_BASE_URL')
+        
+        # Final fallback
+        if not base_url:
+            # In Azure, try to detect from environment
+            if os.getenv('WEBSITE_HOSTNAME'):
+                # Azure App Service
+                scheme = 'https' if os.getenv('HTTPS_ONLY', '').lower() == 'true' else 'http'
+                base_url = f"{scheme}://{os.getenv('WEBSITE_HOSTNAME')}"
+            else:
+                base_url = 'http://localhost:5000'
+        
         url = f"{base_url}/api/attachments/{file_id}"
         if encryption_key:
             url += f"?p={encryption_key}"

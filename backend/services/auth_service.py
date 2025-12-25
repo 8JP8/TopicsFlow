@@ -526,7 +526,15 @@ class AuthService:
             )
 
             if not email_result.get('success'):
-                return {'success': False, 'errors': ['Failed to send verification email']}
+                error_msg = email_result.get('error', 'Failed to send verification email')
+                logger.error(f"Failed to send verification email to {email}: {error_msg}")
+                # Return more specific error message
+                if 'not configured' in error_msg.lower():
+                    return {'success': False, 'errors': ['Email service not configured. Please contact support.']}
+                elif 'timeout' in error_msg.lower():
+                    return {'success': False, 'errors': ['Email service timeout. Please try again.']}
+                else:
+                    return {'success': False, 'errors': [f'Failed to send verification email: {error_msg}']}
 
             return {
                 'success': True,
@@ -587,7 +595,15 @@ class AuthService:
             )
 
             if not email_result.get('success'):
-                return {'success': False, 'errors': ['Failed to send verification email']}
+                error_msg = email_result.get('error', 'Failed to send verification email')
+                logger.error(f"Failed to resend verification email to {user['email']}: {error_msg}")
+                # Return more specific error message
+                if 'not configured' in error_msg.lower():
+                    return {'success': False, 'errors': ['Email service not configured. Please contact support.']}
+                elif 'timeout' in error_msg.lower():
+                    return {'success': False, 'errors': ['Email service timeout. Please try again.']}
+                else:
+                    return {'success': False, 'errors': [f'Failed to send verification email: {error_msg}']}
 
             return {
                 'success': True,

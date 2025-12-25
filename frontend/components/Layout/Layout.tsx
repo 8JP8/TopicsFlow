@@ -55,6 +55,45 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [mobileMenuOpen]);
 
+  // Swipe handlers for mobile menu
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+
+  // Minimum swipe distance
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    // Swipe Left (Open Menu) - assuming menu is on the right?
+    // Wait, the menu is: `right-2`. So it's on the right.
+    // If menu is closed: Swipe Left (from right edge?) or just Swipe Left anywhere to open?
+    // User said: "swipe between menu and o conteúdo" - "mechanic of swipe between menu and content".
+    // Usually means: Swipe Left to open menu (if it's on right), Swipe Right to close it.
+
+    if (isLeftSwipe && !mobileMenuOpen) {
+      // Optional: limit to right edge for opening? For now, let's allow "swipe left" to open menu
+      setMobileMenuOpen(true);
+    }
+
+    if (isRightSwipe && mobileMenuOpen) {
+      setMobileMenuOpen(false);
+    }
+  };
+
+
   // Preference listener for support widget
   useEffect(() => {
     // Initial check
@@ -141,7 +180,14 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
   }, [t, router.pathname, user?.is_admin, theme]);
 
   return (
-    <div className={`min-h-screen theme-bg-primary ${theme}`} data-theme={theme} suppressHydrationWarning>
+    <div
+      className={`min-h-screen theme-bg-primary ${theme}`}
+      data-theme={theme}
+      suppressHydrationWarning
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Header */}
       <header className={`h-16 flex items-center justify-between px-3 md:px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
         {/* Logo Section */}

@@ -255,7 +255,8 @@
     "pageNotFound": "Página Não Encontrada",
     "pageNotFoundDesc": "Parece que esta página ainda não existe, ou talvez tenha desaparecido no vazio.",
     "didYouMean": "Queria dizer?",
-    "whereAreWe": "Onde estamos?"
+    "whereAreWe": "Onde estamos?",
+    "rateLimitExceeded": "Muitos pedidos. Por favor, aguarde um momento e tente novamente."
   },
   "success": {
     "emailVerified": "Email verificado com sucesso",
@@ -872,6 +873,7 @@
     "requestTimeout": "Tempo de espera esgotado. Por favor, verifique sua conexão.",
     "networkError": "Erro de rede. Por favor, verifique sua conexão.",
     "backendNotRunning": "Backend não está a correr. Por favor, inicie o servidor backend na porta 5000.",
+    "rateLimitExceeded": "Muitos pedidos. Por favor, aguarde um momento e tente novamente.",
     "failedToSearchGifs": "Falha ao pesquisar GIFs",
     "failedToLoadCategoryGifs": "Falha ao carregar GIFs da categoria",
     "connectedToServer": "Conectado ao servidor de chat",
@@ -1579,6 +1581,7 @@
   "GIF": "Gif",
   "about": {
     "title": "Sobre o TopicsFlow - O Futuro das Discussões",
+    "documentation": "# TopicsFlow - Plataforma de Discussão Estilo Reddit\n\nUma plataforma de discussão abrangente ao estilo Reddit com autenticação baseada em autenticador, mensagens em tempo real, gestão de temas, sistema de publicações e comentários, salas de chat, sistema de moderação, modo anónimo e capacidades PWA.\n\n## Funcionalidades\n\n### 🔐 Segurança e Autenticação\n- **2FA Baseado em TOTP** com compatibilidade Google/Microsoft Authenticator\n- **Recuperação de Conta** via verificação SMS e perguntas de segurança\n- **Códigos de Backup** para acesso à conta quando o autenticador não está disponível\n- **Gestão Segura de Sessões** com encriptação adequada\n- **Banimento Multi-identificador** (IP, email, telefone) para moderadores\n\n### 💬 Chat em Tempo Real\n- **Comunicação WebSocket** via Socket.IO\n- **Salas de Chat baseadas em Tópicos** com participantes ilimitados\n- **Personalização de Sala de Chat**: Carregue imagens de perfil e imagens de fundo\n- **Modo Anónimo** com nomes de utilizador falsos por tópico\n- **Mensagens Privadas** entre utilizadores com funcionalidade \"Apagar para mim\"\n- **Tipos de Mensagem**: Texto, emojis, GIFs (integração Tenor), imagens, vídeos, ficheiros\n- **Anexos de Ficheiro**: Imagens e vídeos armazenados externamente com desduplicação (sistema de ficheiros local ou Azure Blob Storage)\n- **Visualização de Multimédia**: Visualizador de imagens em ecrã inteiro e reprodutor de vídeo melhorado com opções de download/partilha\n- **Indicadores de Escrita** e presença de utilizador\n- **Filtragem de Conteúdo**: Links bloqueados, profanidade filtrada\n- **Gestão de Mensagens**: Apagar mensagens com motivo (para proprietários/moderadores), denunciar mensagens\n\n### 📝 Gestão de Tópicos\n- **Tópicos Públicos** que qualquer pessoa pode entrar\n- **Criação de Tópicos** com títulos, descrições e etiquetas\n- **Ordenação de Tópicos**: Por atividade, contagem de membros ou data de criação\n- **Pesquisa e Filtragem**: Por nome, etiquetas ou conteúdo\n- **Propriedade do Tópico**: O criador tem controlo total e poderes de moderação\n\n### 🛡️ Sistema de Moderação\n- **Permissões Multi-nível**: Proprietário (3) → Moderador (2) → Utilizador (1)\n- **Sistema de Denúncias Abrangente**: Denuncie utilizadores, mensagens, publicações, comentários, salas de chat, fundos de sala de chat e imagens de sala de chat\n- **Denúncias Contextuais**: Anexar histórico de mensagens, informações de proprietário/moderador para análise de administração\n- **Ações de Moderação**: Apagar mensagens (com motivo para proprietários), banir utilizadores, silenciar utilizadores, avisar utilizadores\n- **Gestão de Banimentos**: Banimentos temporários e permanentes com motivos detalhados\n- **Interface de Revisão de Denúncias** para moderadores e proprietários com avisos predefinidos\n- **Gestão de Conteúdo**: Silenciar/ocultar tópicos, publicações e chats por utilizador\n\n### 🎨 Experiência do Utilizador\n- **Temas Claro/Escuro** com transições suaves e esquema de cores azul/roxo harmonizado\n- **Internacionalização**: Suporte total para Inglês e Português com traduções abrangentes\n- **Suporte PWA**: Instale em qualquer dispositivo com avisos nativos de instalação do navegador e notificações\n- **Design Responsivo**: Otimizado para telemóvel, tablet e computador\n- **Notificações em Tempo Real**: Para mensagens, menções e denúncias\n- **Gestão de Itens Ocultos**: Organize mensagens privadas ocultas, publicações, salas de chat e tópicos com separadores de categoria\n- **Fotos de Perfil de Utilizador**: Carregar, atualizar e apagar fotos de perfil (armazenadas como binário na base de dados)\n- **Visuais de Sala de Chat**: Fotos de perfil personalizadas e imagens de fundo com sobreposição de escurecimento\n- **Manuseamento de Multimédia**: Armazenamento seguro de ficheiros com chaves de encriptação, desduplicação e suporte Azure Blob Storage\n\n## Stack Tecnológico\n\n### Backend\n- **Flask** (Framework web Python)\n- **Flask-SocketIO** (Comunicação WebSocket em tempo real)\n- **MongoDB** (Base de dados NoSQL)\n- **PyOTP** (Autenticação TOTP)\n- **Redis** (Armazenamento de sessão e cache)\n\n### Frontend\n- **Next.js** com TypeScript\n- **Socket.IO Client** (Comunicação em tempo real)\n- **Tailwind CSS** (Estilo com variáveis de tema)\n- **React Hot Toast** (Notificações)\n- **PWA** capacidades com service workers e avisos de instalação nativos\n- **Visualizador de Imagem Modal**: Visualização de imagem em ecrã inteiro com controlos de download\n- **Reprodutor de Vídeo Melhorado**: Suporte a ecrã inteiro, download e menu de contexto\n- **Menus de Contexto**: Menus de clique direito para publicações, mensagens, salas de chat e utilizadores\n\n### Infraestrutura\n- **Docker** com builds multi-etapa\n- **Docker Compose** para orquestração\n- **Nginx** proxy reverso (produção)\n- **Configuração baseada em ambiente**\n\n## Início Rápido\n\n### Pré-requisitos\n\n- Docker e Docker Compose\n- Node.js 18+ (for desenvolvimento local)\n- Python 3.11+ (for desenvolvimento local)\n- Git\n\n### Instalação\n\n1. **Clonar o repositório**\n   ```bash\n   git clone <repository-url>\n   cd RINTEP2\n   ```\n\n2. **Iniciar a aplicação**\n   ```bash\n   ./START.sh\n   ```\n\n   Isto irá:\n   - Verificar pré-requisitos\n   - Configurar variáveis de ambiente\n   - Criar diretórios necessários\n   - Iniciar todos os serviços (MongoDB, Redis, Backend, Frontend)\n   - Aguardar que os serviços estejam saudáveis\n\n3. **Aceder à aplicação**\n   - Frontend: http://localhost:3000\n   - Backend API: http://localhost:5000\n   - MongoDB: localhost:27017\n   - Redis: localhost:6379\n\n### Configuração Manual (Alternativa)\n\nSe preferir configurar manualmente:\n\n1. **Configurar variáveis de ambiente**\n   ```bash\n   cp .env.example .env\n   # Edite .env com a sua configuração\n   ```\n\n2. **Iniciar serviços com Docker Compose**\n   ```bash\n   docker-compose up --build\n   ```\n\n3. **Ou executar localmente para desenvolvimento**\n\n   **Backend:**\n   ```bash\n   cd backend\n   python -m venv venv\n   source venv/bin/activate  # No Windows: venv\\Scripts\\activate\n   pip install -r requirements.txt\n   python app.py\n   ```\n\n   **Frontend:**\n   ```bash\n   cd frontend\n   npm install\n   npm run dev\n   ```",
     "sectionTitle": "Sobre o TopicsFlow",
     "sectionSubtitle": "A evolução da discussão em comunidade",
     "metaDescription": "TopicsFlow é uma plataforma de discussão moderna ao estilo Reddit com salas de chat em tempo real.",
@@ -1717,53 +1720,116 @@
       "extended": {
         "publications": {
           "title": "Publicações Dinâmicas",
-          "shortDesc": "Fóruns de comunidade para discussões profundas e organizadas.",
+          "shortDesc": "Fóruns da comunidade para discussões aprofundadas.",
           "longDesc": "Espaços inspirados no Reddit onde pode partilhar ideias, votar em conteúdos e manter as discussões de longa duração organizadas dentro de Tópicos especializados. O nosso sistema suporta texto rico, incorporação de media e comentários encadeados para um envolvimento significativo.",
-          "color": "blue"
+          "color": "blue",
+          "subtitle": "Discussões da Comunidade",
+          "bullet1": "Formatação de Texto Rico",
+          "bullet2": "Conversas em Tópicos"
         },
         "chat": {
           "title": "Chat de Grupo em Tempo Real",
           "shortDesc": "Centros sociais instantâneos para cada tópico de discussão.",
-          "longDesc": "Salas de mensagens instantâneas emparelhadas com cada tópico do fórum. Experimente conversas fluidas com indicadores de escrita, rastreio de presença e reações em tempo real que dão vida à sua comunidade.",
-          "color": "purple"
+          "longDesc": "Salas de mensagens instantâneas emparelhadas com cada tópico do fórum. Experimente conversas fluidas com indicadores de escrita, rastreamento de presença e reações em tempo real que dão vida à sua comunidade.",
+          "color": "purple",
+          "subtitle": "Comunicação em Tempo Real",
+          "bullet1": "Mensagens Instantâneas",
+          "bullet2": "Salas de Chat Personalizadas"
         },
         "voip": {
           "title": "VOIP de Alta Qualidade",
           "shortDesc": "Salas de voz cristalinas integradas nos chats.",
-          "longDesc": "Comunicação por voz perfeitamente integrada diretamente nas suas salas de chat. Junte-se ou saia de chamadas com um único clique, acompanhe os oradores ativos e desfrute de áudio de baixa latência para uma experiência verdadeiramente colaborativa.",
-          "color": "emerald"
+          "longDesc": "Comunicação de voz perfeita integrada diretamente nas suas salas de chat. Junte-se ou saia de chamadas com um único clique, acompanhe os oradores ativos e desfrute de áudio de baixa latência para uma experiência verdadeiramente colaborativa.",
+          "color": "emerald",
+          "subtitle": "Comunicação de Voz",
+          "bullet1": "Áudio Cristalino",
+          "bullet2": "Cancelamento de Ruído"
         },
         "anonymous": {
           "title": "Privacidade Avançada",
           "shortDesc": "Envolva-se livremente com identidades únicas por tópico.",
-          "longDesc": "Um sistema de identidade único onde pode escolher um pseudónimo personalizado para cada tópico. Isto protege o seu perfil principal, permitindo-lhe manter-se ativo em discussões sensíveis ou privadas sem compromissos.",
-          "color": "cyan"
+          "longDesc": "Um sistema de identidade único onde pode escolher um alias personalizado para cada tópico. Isto protege o seu perfil principal enquanto permite que permaneça ativo em discussões sensíveis ou privadas sem compromisso.",
+          "color": "cyan",
+          "subtitle": "Foco na Privacidade",
+          "bullet1": "Modo Anónimo",
+          "bullet2": "Identidade Segura"
         },
         "multimedia": {
-          "title": "Multimédia",
+          "title": "Riqueza Multimédia",
           "shortDesc": "Partilhe imagens, vídeos e GIFs de alta resolução facilmente.",
-          "longDesc": "Expresse-se totalmente com suporte para imagens de alta resolução, reprodução de vídeo otimizada e pesquisa integrada de GIFs do Tenor. O nosso armazenamento seguro garante que o seu conteúdo multimédia está sempre acessível e seguro.",
-          "color": "orange"
+          "longDesc": "Expresse-se totalmente com suporte para imagens de alta resolução, reprodução de vídeo otimizada e pesquisa de GIFs Tenor integrada. O nosso armazenamento seguro garante que os seus media estejam sempre acessíveis e seguros.",
+          "color": "orange",
+          "subtitle": "Suporte Multimédia Rico",
+          "bullet1": "Reprodução de Vídeo HD",
+          "bullet2": "Suporte Universal de Ficheiros"
         },
         "support": {
           "title": "Suporte Profissional",
           "shortDesc": "Sistema de tickets integrado para assistência direta.",
-          "longDesc": "Uma plataforma de suporte profissional onde pode reportar bugs, solicitar ajuda ou contactar a equipa de moderação. Acompanhe o estado dos seus pedidos em tempo real com feedback direto dos administradores.",
-          "color": "red"
+          "longDesc": "Uma plataforma de helpdesk profissional onde pode reportar bugs, solicitar ajuda ou contactar a equipa de moderação. Acompanhe o estado dos seus pedidos em tempo real com feedback direto dos administradores.",
+          "color": "red",
+          "subtitle": "Assistência ao Utilizador",
+          "bullet1": "Centro de Ajuda 24/7",
+          "bullet2": "Resolução Rápida"
         },
         "notifications": {
           "title": "Notificações Inteligentes",
-          "shortDesc": "Mantenha-se atualizado com alertas de comunidade em tempo real.",
+          "shortDesc": "Mantenha-se atualizado com alertas da comunidade em tempo real.",
           "longDesc": "Nunca perca nada com alertas em tempo real no desktop e na aplicação. Seja notificado de menções, mensagens diretas, convites para tópicos e discussões ativas que mais lhe interessam.",
-          "color": "yellow"
+          "color": "yellow",
+          "subtitle": "Alertas Inteligentes",
+          "bullet1": "Atualizações em Tempo Real",
+          "bullet2": "Preferências Personalizáveis"
         },
         "security": {
           "title": "Segurança Inigualável",
           "shortDesc": "2FA baseada em autenticador e recuperação segura.",
-          "longDesc": "Autenticação TOTP (2FA) de padrão industrial compatível com o Google e Microsoft Authenticator. Inclui sistemas de recuperação de conta e códigos de reserva para garantir que nunca perde o acesso aos seus dados.",
-          "color": "indigo"
+          "longDesc": "Autenticação TOTP padrão da indústria (2FA) compatível com Google e Microsoft Authenticator. Inclui sistemas de recuperação de conta e códigos de backup para garantir que nunca perde o acesso aos seus dados.",
+          "color": "indigo",
+          "subtitle": "Proteção Avançada",
+          "bullet1": "Autenticação de Dois Fatores",
+          "bullet2": "Encriptação de Dados"
+        },
+        "discovery": {
+          "title": "Tópicos da Comunidade",
+          "shortDesc": "Explore comunidades",
+          "longDesc": "Pesquise tópicos, filtre por tags e encontre novas comunidades para participar.",
+          "subtitle": "Descoberta",
+          "bullet1": "Pesquisa e Filtros",
+          "bullet2": "Listas de Tópicos"
+        },
+        "moderation": {
+          "title": "Painel de Admin",
+          "shortDesc": "Ferramentas poderosas",
+          "longDesc": "Gerencie denúncias, banir utilizadores e resolva tickets de suporte eficientemente.",
+          "subtitle": "Administração",
+          "bullet1": "Gestão de Denúncias",
+          "bullet2": "Banimentos de Usuário"
+        },
+        "profiles": {
+          "title": "Identidade do Utilizador",
+          "shortDesc": "Expresse-se",
+          "longDesc": "Personalize o seu avatar, banner, país e visualize as suas estatísticas de reputação.",
+          "subtitle": "Personalização",
+          "bullet1": "Avatar/Banner Personalizado",
+          "bullet2": "Estatísticas de Reputação"
+        },
+        "customization": {
+          "title": "Tema da Interface",
+          "shortDesc": "O seu estilo",
+          "longDesc": "Alterne entre os modos Claro e Escuro ou sincronize com as preferências do sistema.",
+          "subtitle": "Customização",
+          "bullet1": "Modo Claro/Escuro",
+          "bullet2": "Sincronização de Sistema"
         }
       }
+    },
+    "readmeViewer": {
+      "title": "Documentação do Projeto",
+      "subtitle": "Leia a documentação mais recente diretamente do GitHub",
+      "viewOnGithub": "Ver no GitHub",
+      "readFull": "Ler Documentação Completa",
+      "showLess": "Mostrar Menos"
     },
     "goToDashboard": "Ir para o Painel",
     "takeATour": "Fazer a Visita Guiada",
@@ -1870,8 +1936,5 @@
     "messageInputDesc": "Escreva, envie GIFs ou anexe ficheiros aqui.",
     "settingsCompleteTitle": "Guia Concluído",
     "settingsCompleteDesc": "Você representa o coração da nossa comunidade. Divirta-se no TopicsFlow!"
-  },
-  "support": {
-    "title": "Suporte"
   }
 }

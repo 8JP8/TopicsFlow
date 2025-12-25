@@ -1,7 +1,7 @@
 import '@/styles/globals.css';
 import React, { useState, useEffect } from 'react';
 import type { AppProps } from 'next/app';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast, ToastBar } from 'react-hot-toast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -78,7 +78,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
 
   const showFloatingControl = router.pathname !== '/';
   // Show snowfall on all pages EXCEPT root ('/') and settings ('/settings')
-  const showSnowfall = router.pathname !== '/' && !router.pathname.startsWith('/settings');
+  const showSnowfall = router.pathname !== '/' && !router.pathname.startsWith('/settings') && router.pathname !== '/profile';
 
   return (
     <>
@@ -146,7 +146,34 @@ function MyApp({ Component, pageProps }: AppProps) {
                     },
                   },
                 }}
-              />
+              >
+                {(t) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20, scale: 0.8 }}
+                    animate={{
+                      opacity: t.visible ? 1 : 0,
+                      y: t.visible ? 0 : -20,
+                      scale: t.visible ? 1 : 0.8,
+                    }}
+                    transition={{ duration: 0.2 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.7}
+                    onDragEnd={(e, { offset, velocity }) => {
+                      if (Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 500) {
+                        toast.dismiss(t.id);
+                      }
+                    }}
+                    style={{
+                      // Ensure the touch area is usable
+                      touchAction: 'none',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <ToastBar toast={t} />
+                  </motion.div>
+                )}
+              </Toaster>
             </VoipProvider>
           </SocketProvider>
         </ThemeProvider>

@@ -4,7 +4,8 @@ import {
     LifeBuoy, Zap, Layout, Globe, Bell, Lock,
     ArrowBigUp, ArrowBigDown, MoreHorizontal, Send,
     Paperclip, Phone, Video, Volume2, MicOff, Search,
-    Image as ImageIcon, Gift, Smile
+    Image as ImageIcon, Gift, Smile, Hash, Gavel, AlertTriangle,
+    UserCircle, MapPin, Calendar, Palette, Moon, Sun, Monitor, ChevronRight
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -513,6 +514,245 @@ export const MultimediaMockup = () => {
                     <Zap size={28} className="text-orange-500 mb-1" />
                     <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">Fast Transfer</div>
                 </motion.div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Discovery Mockup: Matches TopicList.tsx
+ */
+export const DiscoveryMockup = () => {
+    return (
+        <div className="w-full h-full flex flex-col p-5 bg-slate-950/50">
+            {/* Search Bar - Matches TopicList search */}
+            <div className="relative mb-4">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Search size={14} />
+                </div>
+                <div className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-9 pr-4 text-[11px] text-slate-400 font-medium shadow-sm flex items-center">
+                    search topics...
+                </div>
+            </div>
+
+            {/* Tags Filter - Matches TopicList tags */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+                {['technology', 'gaming', 'science', 'art'].map((tag, i) => (
+                    <div
+                        key={tag}
+                        className={`px-2 py-1 rounded-full text-[9px] font-medium border ${i === 0 ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-900 text-slate-400 border-slate-800'}`}
+                    >
+                        #{tag}
+                    </div>
+                ))}
+            </div>
+
+            {/* Topic List - Matches TopicList items */}
+            <div className="space-y-2 flex-1 overflow-hidden relative">
+                {/* Fade out bottom */}
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-slate-950/50 to-transparent z-10" />
+
+                {[1, 2, 3].map((i) => (
+                    <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="bg-slate-900 border border-slate-700/50 rounded-lg p-3 hover:bg-slate-800/50 transition-colors"
+                    >
+                        <div className="flex justify-between items-start mb-1">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-bold text-slate-200">t/{i === 1 ? 'web_development' : i === 2 ? 'pc_gaming' : 'digital_art'}</span>
+                                {i === 1 && <span className="bg-red-500 text-white text-[8px] px-1 rounded-full font-bold min-w-[16px] text-center">3</span>}
+                            </div>
+                            <div className="flex items-center gap-1 text-[9px] text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded">
+                                <Users size={8} /> {i === 1 ? '1.2k' : i === 2 ? '854' : '3.4k'}
+                            </div>
+                        </div>
+                        <div className="text-[9px] text-slate-500 line-clamp-2 leading-relaxed mb-2">
+                            {i === 1 ? 'Discussions about modern web stack, React, and Next.js.' : 'PC building, deals, and troubleshooting community.'}
+                        </div>
+                        <div className="flex gap-1">
+                            {(i === 1 ? ['react', 'js'] : ['hardware']).map(t => (
+                                <span key={t} className="px-1.5 py-0.5 bg-slate-950 rounded text-[8px] text-slate-500">#{t}</span>
+                            ))}
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Moderation Mockup: Matches ReportsModal.tsx
+ */
+export const ModerationMockup = () => {
+    return (
+        <div className="w-full h-full flex flex-col p-4 bg-slate-950/50 text-slate-300">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                <div className="text-[11px] font-bold text-slate-200">Reports Management</div>
+                <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-[9px] text-red-400 font-bold">2 Pending</span>
+                </div>
+            </div>
+
+            {/* Table Header */}
+            <div className="grid grid-cols-4 gap-2 mb-2 px-2 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="col-span-2">Reported Content</div>
+                <div>Reason</div>
+                <div className="text-right">Action</div>
+            </div>
+
+            {/* Report Items */}
+            <div className="space-y-2">
+                {[1, 2].map((i) => (
+                    <motion.div
+                        key={i}
+                        className="bg-slate-900 border border-slate-800 rounded-lg p-2 grid grid-cols-4 gap-2 items-center"
+                    >
+                        <div className="col-span-2 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <div className="w-4 h-4 rounded bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-400">U</div>
+                                <span className="text-[10px] font-medium text-blue-400 truncate">@user_{i}99</span>
+                            </div>
+                            <div className="text-[9px] text-slate-500 truncate italic">"Check out this link..."</div>
+                        </div>
+
+                        <div className="text-[9px] text-red-400 font-medium bg-red-950/30 px-1 py-0.5 rounded self-start inline-block">
+                            {i === 1 ? 'Spam' : 'Harassment'}
+                        </div>
+
+                        <div className="flex justify-end gap-1">
+                            <div className="p-1 bg-slate-800 text-slate-400 rounded hover:bg-slate-700 transition-colors cursor-pointer">
+                                <ShieldCheck size={10} />
+                            </div>
+                            <div className="p-1 bg-red-900/30 text-red-500 rounded hover:bg-red-600 hover:text-white transition-colors cursor-pointer">
+                                <Gavel size={10} />
+                            </div>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+
+            {/* Pagination Mock */}
+            <div className="mt-auto flex justify-center pt-2">
+                <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Profiles Mockup: Matches profile.tsx form
+ */
+export const ProfilesMockup = () => {
+    return (
+        <div className="w-full h-full p-5 bg-slate-950/50 flex flex-col">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 shadow-xl relative overflow-hidden flex-1">
+                <div className="absolute top-0 left-0 w-full h-16 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-20" />
+
+                {/* Avatar Edit */}
+                <div className="relative mb-4 flex items-center gap-3 mt-4">
+                    <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-600 flex items-center justify-center relative shadow-lg">
+                        <span className="text-lg font-bold text-slate-400">J</span>
+                        <div className="absolute bottom-0 right-0 p-1 bg-blue-600 rounded-full border-2 border-slate-900 text-white">
+                            <Palette size={8} />
+                        </div>
+                    </div>
+                    <div>
+                        <div className="h-2 w-20 bg-slate-700 rounded mb-1.5" />
+                        <div className="h-1.5 w-12 bg-slate-800 rounded" />
+                    </div>
+                </div>
+
+                {/* Fields */}
+                <div className="space-y-3">
+                    <div>
+                        <div className="text-[9px] font-bold text-slate-500 mb-1 uppercase">Username</div>
+                        <div className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-[10px] text-slate-300">
+                            JoaoSilva_PT
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-[9px] font-bold text-slate-500 mb-1 uppercase">Region</div>
+                        <div className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-2 bg-green-700 rounded-sm opacity-80" />
+                                <span className="text-[10px] text-slate-300">Portugal</span>
+                            </div>
+                            <ChevronRight size={10} className="text-slate-600 rotate-90" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-2">
+                    <div className="px-3 py-1 bg-slate-800 rounded text-[9px] font-bold text-slate-400">Cancel</div>
+                    <div className="px-3 py-1 bg-blue-600 rounded text-[9px] font-bold text-white shadow-lg shadow-blue-900/20">Save</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Customization Mockup: Matches ThemeToggle / Layout
+ */
+export const CustomizationMockup = () => {
+    const [isDark, setIsDark] = useState(true);
+
+    useEffect(() => {
+        const interval = setInterval(() => setIsDark(d => !d), 2000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-950/50">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4 w-full max-w-[200px]">
+                <div className="text-xs font-bold text-slate-300 uppercase tracking-widest">Appearance</div>
+
+                {/* Toggle */}
+                <motion.div
+                    animate={{ backgroundColor: isDark ? 'rgb(15, 23, 42)' : 'rgb(226, 232, 240)' }}
+                    className="w-16 h-8 rounded-full p-1 cursor-pointer flex items-center relative border border-slate-500/30"
+                >
+                    <motion.div
+                        layout
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        animate={{ x: isDark ? 32 : 0 }}
+                        className="w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center text-slate-800"
+                    >
+                        {isDark ? <Moon size={12} className="text-indigo-600" /> : <Sun size={12} className="text-orange-500" />}
+                    </motion.div>
+                </motion.div>
+
+                {/* Preview Card */}
+                <motion.div
+                    animate={{
+                        backgroundColor: isDark ? 'rgb(30, 41, 59)' : 'rgb(255, 255, 255)',
+                        borderColor: isDark ? 'rgb(51, 65, 85)' : 'rgb(203, 213, 225)'
+                    }}
+                    className="w-full p-3 rounded-lg border mt-2 transition-colors duration-300"
+                >
+                    <motion.div
+                        animate={{ backgroundColor: isDark ? 'rgb(51, 65, 85)' : 'rgb(241, 245, 249)' }}
+                        className="h-2 w-2/3 rounded mb-2"
+                    />
+                    <motion.div
+                        animate={{ backgroundColor: isDark ? 'rgb(51, 65, 85)' : 'rgb(241, 245, 249)' }}
+                        className="h-2 w-1/2 rounded"
+                    />
+                </motion.div>
+
+                <div className="text-[9px] text-slate-500 font-medium">
+                    {isDark ? 'Dark Mode Active' : 'Light Mode Active'}
+                </div>
             </div>
         </div>
     );

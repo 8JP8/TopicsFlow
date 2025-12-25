@@ -604,7 +604,8 @@ def create_chat_room_message(room_id):
                 attachments,
                 file_storage,
                 user_id=user_id,
-                secret_key=secret_key
+                secret_key=secret_key,
+                request=request
             )
             
             if errors:
@@ -1472,7 +1473,7 @@ def update_chat_picture(room_id):
                         )
                         secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
                         encryption_key = _generate_encryption_key(file_id, secret_key)
-                        processed_picture = file_storage.get_file_url(file_id, encryption_key)
+                        processed_picture = file_storage.get_file_url(file_id, encryption_key, request=request)
                 else:
                     logger.error(f"Failed to process image: {image_result.get('error')}")
                     return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
@@ -1586,7 +1587,7 @@ def update_chat_background(room_id):
                         )
                         secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
                         encryption_key = _generate_encryption_key(file_id, secret_key)
-                        processed_background = file_storage.get_file_url(file_id, encryption_key)
+                        processed_background = file_storage.get_file_url(file_id, encryption_key, request=request)
                 else:
                     logger.error(f"Failed to process background image: {image_result.get('error')}")
                     return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500

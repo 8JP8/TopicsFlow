@@ -9,6 +9,36 @@ const NotificationPermissionDialog: React.FC<NotificationPermissionDialogProps> 
   const { t } = useLanguage();
   const [requesting, setRequesting] = useState(false);
 
+  // Auto-close if permission is granted externally
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      onClose();
+      return;
+    }
+
+    const checkPermission = async () => {
+      try {
+        const permissionStatus = await navigator.permissions.query({ name: 'notifications' });
+        permissionStatus.onchange = () => {
+          if (permissionStatus.state === 'granted') {
+            onClose();
+          }
+        };
+      } catch (error) {
+        // Fallback polling for browsers that don't support permission query for notifications
+        const interval = setInterval(() => {
+          if (Notification.permission === 'granted') {
+            onClose();
+            clearInterval(interval);
+          }
+        }, 1000);
+        return () => clearInterval(interval);
+      }
+    };
+
+    checkPermission();
+  }, [onClose]);
+
   const handleEnable = async () => {
     if (!('Notification' in window)) {
       alert(t('notificationDialog.browserNotSupported'));

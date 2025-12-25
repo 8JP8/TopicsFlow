@@ -8,152 +8,9 @@ const ReadmeViewer: React.FC = () => {
     const { t } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const readmeContent = `# TopicsFlow - Reddit-Style Discussion Platform
+    const readmeContent = t('about.documentation') || `# TopicsFlow - Reddit-Style Discussion Platform
 
-A comprehensive Reddit-style discussion platform with authenticator-based authentication, real-time messaging, theme management, posts and comments system, chat rooms, moderation system, anonymous mode, and PWA capabilities.
-
-## Features
-
-### 🔐 Security & Authentication
-- **TOTP-based 2FA** with Google/Microsoft Authenticator compatibility
-- **Account Recovery** via SMS verification and security questions
-- **Backup Codes** for account access when authenticator is unavailable
-- **Secure Session Management** with proper encryption
-- **Multi-identifier Banning** (IP, email, phone) for moderators
-
-### 💬 Real-time Chat
-- **WebSocket Communication** via Socket.IO
-- **Topic-based Chat Rooms** with unlimited participants
-- **Chatroom Customization**: Upload profile pictures and background images
-- **Anonymous Mode** with per-topic fake usernames
-- **Private Messaging** between users with "Delete for me" functionality
-- **Message Types**: Text, emojis, GIFs (Tenor integration), images, videos, files
-- **File Attachments**: Images and videos stored externally with deduplication (local filesystem or Azure Blob Storage)
-- **Media Viewing**: Full-screen image viewer and enhanced video player with download/share options
-- **Typing Indicators** and user presence
-- **Content Filtering**: Links blocked, profanity filtered
-- **Message Management**: Delete messages with reason (for owners/moderators), report messages
-
-### 📝 Topic Management
-- **Public Topics** that anyone can join
-- **Topic Creation** with titles, descriptions, and tags
-- **Topic Sorting**: By activity, member count, or creation date
-- **Search & Filtering**: By name, tags, or content
-- **Topic Ownership**: Creator has full control and moderation powers
-
-### 🛡️ Moderation System
-- **Multi-level Permissions**: Owner (3) → Moderator (2) → User (1)
-- **Comprehensive Reporting System**: Report users, messages, posts, comments, chatrooms, chatroom backgrounds, and chatroom pictures
-- **Context-Aware Reports**: Attach message history, owner/moderator information for admin analysis
-- **Moderation Actions**: Delete messages (with reason for owners), ban users, timeout users, warn users
-- **Ban Management**: Temporary and permanent bans with detailed reasons
-- **Report Review Interface** for moderators and owners with predefined warnings
-- **Content Management**: Silence/hide topics, posts, and chats per user
-
-### 🎨 User Experience
-- **Dark/Light Themes** with smooth transitions and harmonized blue/purple color scheme
-- **Internationalization**: Full English and Portuguese support with comprehensive translations
-- **PWA Support**: Install on any device with native browser install prompts and notifications
-- **Responsive Design**: Mobile, tablet, and desktop optimized
-- **Real-time Notifications**: For messages, mentions, and reports
-- **Hidden Items Management**: Organize hidden private messages, publications, chatrooms, and topics with category separators
-- **User Profile Pictures**: Upload, update, and delete profile pictures (stored as binary in database)
-- **Chatroom Visuals**: Custom profile pictures and background images with dimming overlay
-- **Media Handling**: Secure file storage with encryption keys, deduplication, and Azure Blob Storage support
-
-## Technology Stack
-
-### Backend
-- **Flask** (Python web framework)
-- **Flask-SocketIO** (real-time WebSocket communication)
-- **MongoDB** (NoSQL database)
-- **PyOTP** (TOTP authentication)
-- **Redis** (session storage and caching)
-
-### Frontend
-- **Next.js** with TypeScript
-- **Socket.IO Client** (real-time communication)
-- **Tailwind CSS** (styling with theme variables)
-- **React Hot Toast** (notifications)
-- **PWA** capabilities with service workers and native install prompts
-- **Image Viewer Modal**: Full-screen image viewing with download controls
-- **Enhanced Video Player**: Fullscreen support, download, and right-click context menu
-- **Context Menus**: Right-click menus for posts, messages, chatrooms, and users
-
-### Infrastructure
-- **Docker** with multi-stage builds
-- **Docker Compose** for orchestration
-- **Nginx** reverse proxy (production)
-- **Environment-based configuration**
-
-## Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose
-- Node.js 18+ (for local development)
-- Python 3.11+ (for local development)
-- Git
-
-### Installation
-
-1. **Clone the repository**
-   \`\`\`bash
-   git clone <repository-url>
-   cd RINTEP2
-   \`\`\`
-
-2. **Start the application**
-   \`\`\`bash
-   ./START.sh
-   \`\`\`
-
-   This will:
-   - Check prerequisites
-   - Set up environment variables
-   - Create necessary directories
-   - Start all services (MongoDB, Redis, Backend, Frontend)
-   - Wait for services to be healthy
-
-3. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5000
-   - MongoDB: localhost:27017
-   - Redis: localhost:6379
-
-### Manual Setup (Alternative)
-
-If you prefer to set up manually:
-
-1. **Set up environment variables**
-   \`\`\`bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   \`\`\`
-
-2. **Start services with Docker Compose**
-   \`\`\`bash
-   docker-compose up --build
-   \`\`\`
-
-3. **Or run locally for development**
-
-   **Backend:**
-   \`\`\`bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\\Scripts\\activate
-   pip install -r requirements.txt
-   python app.py
-   \`\`\`
-
-   **Frontend:**
-   \`\`\`bash
-   cd frontend
-   npm install
-   npm run dev
-   \`\`\`
-`;
+A comprehensive Reddit-style discussion platform. (Documentation not loaded)`;
 
     return (
         <div className="max-w-6xl mx-auto mb-20 p-4 md:p-8 bg-slate-800/30 rounded-[3rem] border border-slate-700/50 backdrop-blur-sm relative overflow-hidden">
@@ -167,8 +24,8 @@ If you prefer to set up manually:
                             <FileText className="w-6 h-6 text-blue-400" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white">Project Documentation</h2>
-                            <p className="text-slate-400 text-sm">Read the latest documentation directly from GitHub</p>
+                            <h2 className="text-2xl font-bold text-white">{t('about.readmeViewer.title') || 'Project Documentation'}</h2>
+                            <p className="text-slate-400 text-sm">{t('about.readmeViewer.subtitle') || 'Read the latest documentation directly from GitHub'}</p>
                         </div>
                     </div>
 
@@ -179,7 +36,7 @@ If you prefer to set up manually:
                         className="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl flex items-center gap-2 transition-all group"
                     >
                         <Github className="w-5 h-5 text-slate-300 group-hover:text-white" />
-                        <span className="text-slate-300 group-hover:text-white font-medium">View on GitHub</span>
+                        <span className="text-slate-300 group-hover:text-white font-medium">{t('about.readmeViewer.viewOnGithub') || 'View on GitHub'}</span>
                     </a>
                 </div>
 
@@ -218,12 +75,12 @@ If you prefer to set up manually:
                     >
                         {isExpanded ? (
                             <>
-                                <span>Show Less</span>
+                                <span>{t('about.readmeViewer.showLess') || 'Show Less'}</span>
                                 <ChevronUp className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
                             </>
                         ) : (
                             <>
-                                <span>Read Full Documentation</span>
+                                <span>{t('about.readmeViewer.readFull') || 'Read Full Documentation'}</span>
                                 <ChevronDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
                             </>
                         )}

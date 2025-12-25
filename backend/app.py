@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, send_file, redirect
+from flask import Flask, send_from_directory, send_file, redirect, request, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_session import Session
@@ -361,6 +361,36 @@ def create_app(config_name=None):
     from socketio_handlers import register_socketio_handlers
     register_socketio_handlers(socketio)
 
+    # Register 404 error handler BEFORE static routes
+    @app.errorhandler(404)
+    def handle_404(e):
+        """Handle 404 errors by serving the built 404.html from Next.js (404.tsx)."""
+        static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+        
+        # For API routes, return JSON error
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'errors': ['Resource not found']}), 404
+        
+        # Try to serve the built 404.html from Next.js (from pages/404.tsx)
+        # Next.js static export creates 404.html in the output directory
+        not_found_path = os.path.join(static_folder, '404.html')
+        if os.path.exists(not_found_path):
+            return send_file(not_found_path), 404
+        
+        # Also try 404/index.html (in case Next.js uses directory structure)
+        not_found_dir_path = os.path.join(static_folder, '404', 'index.html')
+        if os.path.exists(not_found_dir_path):
+            return send_file(not_found_dir_path), 404
+        
+        # For non-API routes, try to serve index.html (SPA fallback)
+        # This allows client-side routing to handle the 404
+        index_path = os.path.join(static_folder, 'index.html')
+        if os.path.exists(index_path):
+            return send_file(index_path)
+        
+        # Last resort: return simple 404 message
+        return jsonify({'success': False, 'errors': ['Page not found']}), 404
+
     # Serve static frontend files (for Azure deployment)
     # IMPORTANT: Register static routes AFTER SocketIO handlers to ensure Socket.IO routes are processed first
     static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -391,13 +421,19 @@ def create_app(config_name=None):
             if path != "" and os.path.exists(os.path.join(static_folder, path)):
                 return send_from_directory(static_folder, path)
 
-            # Check for 404.html first
+            # Check for built 404.html from Next.js (from pages/404.tsx)
+            # Next.js static export creates 404.html in the output directory
             not_found_path = os.path.join(static_folder, '404.html')
             if path == '404' or path == '404.html':
                 if os.path.exists(not_found_path):
                     return send_file(not_found_path), 404
+                # Also try 404/index.html structure (in case Next.js uses directory structure)
+                not_found_dir_path = os.path.join(static_folder, '404', 'index.html')
+                if os.path.exists(not_found_dir_path):
+                    return send_file(not_found_dir_path), 404
             
             # Serve index.html for all other routes (SPA)
+            # This allows client-side routing to handle invalid routes
             index_path = os.path.join(static_folder, 'index.html')
             if os.path.exists(index_path):
                 return send_file(index_path)

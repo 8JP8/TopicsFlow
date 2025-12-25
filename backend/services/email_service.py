@@ -100,12 +100,25 @@ class EmailService:
                 logger.info(f"Email sent successfully to {to_email}")
                 return {'success': True, 'data': response.json()}
             else:
-                logger.error(f"Failed to send email: {response.status_code} - {response.text}")
-                return {'success': False, 'error': f'Failed to send email: {response.status_code}'}
+                # Try to parse error response from Resend API
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('message', f'HTTP {response.status_code}')
+                    logger.error(f"Failed to send email to {to_email}: {response.status_code} - {error_message}")
+                    return {'success': False, 'error': f'Email service error: {error_message}'}
+                except (ValueError, KeyError):
+                    logger.error(f"Failed to send email to {to_email}: {response.status_code} - {response.text}")
+                    return {'success': False, 'error': f'Failed to send email: HTTP {response.status_code}'}
 
+        except requests.exceptions.Timeout:
+            logger.error(f"Email sending timeout for {to_email}")
+            return {'success': False, 'error': 'Email service timeout'}
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Email service connection error for {to_email}: {str(e)}")
+            return {'success': False, 'error': 'Email service connection failed'}
         except requests.exceptions.RequestException as e:
-            logger.error(f"Email sending error: {str(e)}")
-            return {'success': False, 'error': 'Failed to send email'}
+            logger.error(f"Email sending error for {to_email}: {str(e)}")
+            return {'success': False, 'error': f'Email service error: {str(e)}'}
 
     def _get_email_template(self, title_bg: str, title: str, body_content: str) -> str:
         """Helper to constructing the common HTML skeleton."""

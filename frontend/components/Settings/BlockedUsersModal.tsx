@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import ReportUserDialog from '../Reports/ReportUserDialog';
 import Avatar from '../UI/Avatar';
 import useEscapeKey from '@/hooks/useEscapeKey';
+import { UserX } from 'lucide-react';
 
 interface BlockedUser {
   id: string;
@@ -83,7 +84,10 @@ const BlockedUsersModal: React.FC<BlockedUsersModalProps> = ({ isOpen, onClose }
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold theme-text-primary">{t('settings.blockedUsers') || 'Blocked Users'}</h2>
+              <div className="flex items-center">
+                <UserX className="w-6 h-6 mr-3 theme-text-primary" />
+                <h2 className="text-2xl font-bold theme-text-primary">{t('settings.blockedUsers') || 'Blocked Users'}</h2>
+              </div>
               <button
                 onClick={onClose}
                 className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -158,4 +162,3 @@ const BlockedUsersModal: React.FC<BlockedUsersModalProps> = ({ isOpen, onClose }
 };
 
 export default BlockedUsersModal;
-

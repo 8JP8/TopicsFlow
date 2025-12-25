@@ -49,18 +49,28 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
 
     try {
       const apiBaseUrl = getApiBaseUrl();
+      const requestBody = {
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        language: language || 'en',
+      };
+      
+      console.log('[Registration] Sending request to:', `${apiBaseUrl}/api/auth/register-passwordless`);
+      console.log('[Registration] Request body:', requestBody);
+      
       const response = await fetch(`${apiBaseUrl}/api/auth/register-passwordless`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         credentials: 'include', // Required for session cookies
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          language,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();
+      
+      console.log('[Registration] Response status:', response.status);
+      console.log('[Registration] Response data:', result);
 
       if (response.ok && result.success) {
         updateData({
@@ -71,18 +81,30 @@ const Step1UserInfo: React.FC<Step1Props> = ({ data, updateData, onNext }) => {
         toast.success(t('registration.emailSent'));
         onNext();
       } else {
-        const errorMessage = result.errors?.[0] || result.error || t('errors.generic');
-        if (errorMessage.includes('username')) {
-          setErrors({ username: t('errors.usernameTaken') });
-        } else if (errorMessage.includes('email')) {
-          setErrors({ email: t('errors.emailTaken') });
+        // Handle rate limiting
+        if (response.status === 429) {
+          toast.error(t('errors.rateLimitExceeded') || 'Too many requests. Please wait a moment and try again.');
+          return;
+        }
+        
+        const errorMessage = result.errors?.[0] || result.error || result.message || t('errors.generic');
+        console.error('[Registration] Error:', errorMessage, result);
+        
+        if (errorMessage.toLowerCase().includes('username')) {
+          setErrors({ username: t('errors.usernameTaken') || errorMessage });
+        } else if (errorMessage.toLowerCase().includes('email')) {
+          setErrors({ email: t('errors.emailTaken') || errorMessage });
         } else {
           toast.error(errorMessage);
         }
       }
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(t('errors.network'));
+    } catch (error: any) {
+      console.error('[Registration] Network error:', error);
+      if (error.message?.includes('429')) {
+        toast.error(t('errors.rateLimitExceeded') || 'Too many requests. Please wait a moment and try again.');
+      } else {
+        toast.error(t('errors.network') || 'Network error. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, useAnimation, useMotionValue, AnimatePresence, animate, useSpring } from 'framer-motion';
-import { ChevronLeft, ChevronRight, MessageSquare, Mic2, Fingerprint, LifeBuoy, Zap, Bell, Shield, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Mic2, Fingerprint, LifeBuoy, Zap, Bell, Shield, ArrowRight, Search, Gavel, UserCircle, Palette } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import FeatureModal from './FeatureModal';
 
@@ -13,6 +13,10 @@ const iconMap: Record<string, any> = {
     support: LifeBuoy,
     notifications: Bell,
     security: Shield,
+    discovery: Search,
+    moderation: Gavel,
+    profiles: UserCircle,
+    customization: Palette,
 };
 
 const colorMap: Record<string, string> = {
@@ -33,9 +37,10 @@ export default function FeatureCarousel() {
     const [hoveredCard, setHoveredCard] = useState<number | null>(null);
     const [centeredIndex, setCenteredIndex] = useState<number | null>(null);
     const [isSnapping, setIsSnapping] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Feature keys in order
-    const featureKeys = ['publications', 'chat', 'voip', 'anonymous', 'multimedia', 'support', 'notifications', 'security'];
+    const featureKeys = ['publications', 'chat', 'voip', 'anonymous', 'multimedia', 'support', 'notifications', 'security', 'discovery', 'moderation', 'profiles', 'customization'];
 
     // Map data for usage
     const features = useMemo(() => featureKeys.map(key => ({
@@ -44,6 +49,9 @@ export default function FeatureCarousel() {
         shortDesc: t(`about.carousel.extended.${key}.shortDesc`),
         longDesc: t(`about.carousel.extended.${key}.longDesc`),
         color: t(`about.carousel.extended.${key}.color`),
+        subtitle: t(`about.carousel.extended.${key}.subtitle`),
+        bullet1: t(`about.carousel.extended.${key}.bullet1`),
+        bullet2: t(`about.carousel.extended.${key}.bullet2`),
     })), [language, t]);
 
     // Infinite loop trick: Triple the array
@@ -79,7 +87,7 @@ export default function FeatureCarousel() {
             const deltaTime = timestamp - lastTimestampRef.current;
             lastTimestampRef.current = timestamp;
 
-            if (!isPaused && !selectedFeature && !isSnapping) {
+            if (!isPaused && !selectedFeature && !isSnapping && !isDragging) {
                 const currentX = xRaw.get();
                 const nextX = currentX - (speed * deltaTime) / 1000;
                 xRaw.set(wrapAround(nextX));
@@ -91,7 +99,7 @@ export default function FeatureCarousel() {
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPaused, selectedFeature, isSnapping, wrapAround, xRaw]);
+    }, [isPaused, selectedFeature, isSnapping, isDragging, wrapAround, xRaw]);
 
     // Snapping Logic - Precision Centering
     const snapToNearest = useCallback(() => {
@@ -166,7 +174,17 @@ export default function FeatureCarousel() {
                 >
                     <motion.div
                         style={{ x: xRaw }}
-                        className="flex gap-4 md:gap-10 items-center will-change-transform"
+                        className="flex gap-4 md:gap-10 items-center will-change-transform cursor-grab active:cursor-grabbing"
+                        drag="x"
+                        dragConstraints={{ left: -totalSetWidth, right: 0 }}
+                        onDragStart={() => {
+                            setIsDragging(true);
+                            setIsPaused(true);
+                        }}
+                        onDragEnd={() => {
+                            setIsDragging(false);
+                            snapToNearest();
+                        }}
                     >
                         {loopedFeatures.map((feature, idx) => {
                             const Icon = iconMap[feature.key] || Zap;

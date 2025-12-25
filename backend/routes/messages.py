@@ -126,7 +126,8 @@ def create_message(topic_id):
                 attachments,
                 file_storage,
                 user_id=user_id,
-                secret_key=secret_key
+                secret_key=secret_key,
+                request=request
             )
             
             if errors:
@@ -591,7 +592,8 @@ def send_private_message():
                 attachments,
                 file_storage,
                 user_id=user_id,
-                secret_key=secret_key
+                secret_key=secret_key,
+                request=request
             )
             
             if errors:

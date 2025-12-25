@@ -492,29 +492,35 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   };
 
   const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showMentionDropdown) return;
-
     const filteredUsers = mentionUsers.filter(u =>
       u.username.toLowerCase().includes(mentionSearch.toLowerCase())
     );
 
-    if (e.key === 'ArrowDown') {
+    if (showMentionDropdown) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) =>
+          prev < filteredUsers.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) => prev > 0 ? prev - 1 : 0);
+      } else if (e.key === 'Enter' && filteredUsers.length > 0) {
+        e.preventDefault();
+        handleSelectMention(filteredUsers[selectedMentionIndex].username);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionDropdown(false);
+      } else if (e.key === 'Tab' && filteredUsers.length > 0) {
+        e.preventDefault();
+        handleSelectMention(filteredUsers[selectedMentionIndex].username);
+      }
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      // Send message on Enter (unless shift is held for new line)
       e.preventDefault();
-      setSelectedMentionIndex((prev) =>
-        prev < filteredUsers.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedMentionIndex((prev) => prev > 0 ? prev - 1 : 0);
-    } else if (e.key === 'Enter' && filteredUsers.length > 0) {
-      e.preventDefault();
-      handleSelectMention(filteredUsers[selectedMentionIndex].username);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setShowMentionDropdown(false);
-    } else if (e.key === 'Tab' && filteredUsers.length > 0) {
-      e.preventDefault();
-      handleSelectMention(filteredUsers[selectedMentionIndex].username);
+      if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+        handleSendMessage(e as any);
+      }
     }
   };
 
@@ -1070,11 +1076,33 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex gap-2">
+            <form 
+              onSubmit={handleSendMessage} 
+              className="flex gap-2"
+              onKeyDown={(e) => {
+                // Handle Enter key even when buttons are focused
+                if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
+                  const target = e.target as HTMLElement;
+                  // Only prevent default if not in a button (buttons should handle their own clicks)
+                  if (target.tagName !== 'BUTTON' && (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0)) {
+                    e.preventDefault();
+                    handleSendMessage(e as any);
+                  }
+                }
+              }}
+            >
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowGifPicker(!showGifPicker)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+                        handleSendMessage(e as any);
+                      }
+                    }
+                  }}
                   className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   title={t('chat.addGif')}
                 >
@@ -1106,6 +1134,14 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+                        handleSendMessage(e as any);
+                      }
+                    }
+                  }}
                   className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   title={t('chat.attachFile') || 'Attach file'}
                 >

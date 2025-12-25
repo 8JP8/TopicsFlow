@@ -1592,7 +1592,21 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
           {/* Message Input */}
           <div className="border-t theme-border p-4">
-            <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
+            <form 
+              onSubmit={handleSendMessage} 
+              className="flex items-center space-x-3"
+              onKeyDown={(e) => {
+                // Handle Enter key even when buttons are focused
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  const target = e.target as HTMLElement;
+                  // Only prevent default if not in a button (buttons should handle their own clicks)
+                  if (target.tagName !== 'BUTTON' && (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0)) {
+                    e.preventDefault();
+                    handleSendMessage(e as any);
+                  }
+                }
+              }}
+            >
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -1644,6 +1658,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+                      handleSendMessage(e as any);
+                    }
+                  }
+                }}
                 className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
                 title={t('common.attachFile') || 'Attach file'}
               >
@@ -1656,6 +1678,14 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               <button
                 type="button"
                 onClick={() => setShowGifPicker(!showGifPicker)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+                      handleSendMessage(e as any);
+                    }
+                  }
+                }}
                 className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
                 title={t('privateMessages.addGif')}
               >

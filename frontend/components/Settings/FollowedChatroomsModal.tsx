@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
@@ -113,7 +114,10 @@ const FollowedChatroomsModal: React.FC<FollowedChatroomsModalProps> = ({ isOpen,
                 <LoadingSpinner size="lg" />
               </div>
             ) : chatrooms.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-12 flex flex-col items-center">
+                <div className="p-4 rounded-full theme-bg-tertiary mb-4">
+                  <MessageSquare className="w-8 h-8 theme-text-secondary" />
+                </div>
                 <p className="text-lg theme-text-primary mb-2">
                   {t('settings.noFollowedChatrooms') || 'No followed chatrooms'}
                 </p>

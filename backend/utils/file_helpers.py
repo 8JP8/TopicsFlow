@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 def process_attachments(attachments: List[Dict[str, Any]], 
                        file_storage: FileStorageService,
                        user_id: str = None,
-                       secret_key: str = None) -> Tuple[List[Dict[str, Any]], List[str]]:
+                       secret_key: str = None,
+                       request = None) -> Tuple[List[Dict[str, Any]], List[str]]:
     """
     Process attachments: convert base64 to files, store them, and return file references.
     
@@ -69,8 +70,8 @@ def process_attachments(attachments: List[Dict[str, Any]],
                 if secret_key:
                     encryption_key = _generate_encryption_key(file_id, secret_key)
                 
-                # Get file URL
-                file_url = file_storage.get_file_url(file_id, encryption_key)
+                # Get file URL (pass request for proper URL generation in Azure)
+                file_url = file_storage.get_file_url(file_id, encryption_key, request=request)
                 
                 # Create processed attachment (NO base64 data - only file reference)
                 processed_attachment = {

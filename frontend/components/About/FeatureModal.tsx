@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, MessageSquare, Users, Mic2, ShieldCheck, Fingerprint, LifeBuoy, Zap, Bell, Shield } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MessageSquare, Users, Mic2, ShieldCheck, Fingerprint, LifeBuoy, Zap, Bell, Shield, Search, Gavel, UserCircle, Palette } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import * as Mockups from './FeatureMockups';
 
@@ -42,6 +43,10 @@ const iconMap: Record<string, any> = {
     support: LifeBuoy,
     notifications: Bell,
     security: Shield,
+    discovery: Search,
+    moderation: Gavel,
+    profiles: UserCircle,
+    customization: Palette,
 };
 
 const mockupMap: Record<string, any> = {
@@ -53,10 +58,17 @@ const mockupMap: Record<string, any> = {
     support: Mockups.SupportMockup,
     notifications: Mockups.NotificationsMockup,
     security: Mockups.SecurityMockup,
+    discovery: Mockups.DiscoveryMockup,
+    moderation: Mockups.ModerationMockup,
+    profiles: Mockups.ProfilesMockup,
+    customization: Mockups.CustomizationMockup,
 };
 
 export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures, onNavigate }: FeatureModalProps) {
     const { t } = useLanguage();
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
     const currentIndex = allFeatures.findIndex(f => f.key === featureKey);
     const feature = allFeatures[currentIndex] || {};
     const Icon = iconMap[feature.key] || Zap;
@@ -65,6 +77,29 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
 
     const next = () => onNavigate((currentIndex + 1) % allFeatures.length);
     const prev = () => onNavigate((currentIndex - 1 + allFeatures.length) % allFeatures.length);
+
+    // Swipe handlers
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEndHandler = () => {
+        if (!touchStart || !touchEnd) return;
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > 50;
+        const isRightSwipe = distance < -50;
+
+        if (isLeftSwipe) {
+            next();
+        } else if (isRightSwipe) {
+            prev();
+        }
+    };
 
     return (
         <AnimatePresence>
@@ -84,15 +119,18 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                         initial={{ scale: 0.9, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        className={`relative w-full max-w-6xl h-full max-h-[90vh] bg-gradient-to-br ${gradientMap[feature.color] || gradientMap.blue} border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col`}
+                        onTouchStart={onTouchStart}
+                        onTouchMove={onTouchMove}
+                        onTouchEnd={onTouchEndHandler}
+                        className={`relative w-full max-w-6xl h-full max-h-[85vh] md:max-h-[90vh] mt-8 md:mt-0 bg-gradient-to-br ${gradientMap[feature.color] || gradientMap.blue} border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col`}
                     >
                         {/* Header Controls */}
-                        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 md:px-10 md:py-8 border-b border-white/5 bg-slate-950/40 shrink-0">
+                        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 md:px-10 md:py-8 border-b border-white/5 bg-slate-950/40 shrink-0 z-20">
                             <div className="flex items-center gap-2 sm:gap-6">
                                 <button onClick={prev} className="p-2 sm:p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
                                     <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
                                 </button>
-                                <span className="hidden sm:inline text-xs font-black text-slate-500 tracking-[0.3em] uppercase italic">
+                                <span className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase italic">
                                     {String(currentIndex + 1).padStart(2, '0')} — {String(allFeatures.length).padStart(2, '0')}
                                 </span>
                                 <button onClick={next} className="p-2 sm:p-3 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white border border-white/5 active:scale-90">
@@ -110,18 +148,19 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                             </button>
                         </div>
 
-                        {/* Main Content */}
-                        <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden custom-scrollbar">
+                        {/* Main Content - Unified Scroll */}
+                        <div className="flex-1 flex flex-col md:flex-row overflow-y-auto custom-scrollbar relative">
+
                             {/* Left Side: Info */}
                             <div className="w-full md:w-5/12 p-6 sm:p-10 md:p-14 flex flex-col justify-center bg-slate-950/20 shrink-0">
                                 <motion.div
                                     key={`${feature.key}-title`}
-                                    initial={{ x: -30, opacity: 0 }}
+                                    initial={{ x: -20, opacity: 0 }}
                                     animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.1, duration: 0.6 }}
+                                    transition={{ delay: 0.1, duration: 0.5 }}
                                 >
                                     <span className="font-black text-[10px] uppercase tracking-[0.3em] mb-4 md:mb-6 block italic" style={{ color: featureColor }}>
-                                        Platform Core Architecture
+                                        {feature.subtitle}
                                     </span>
                                     <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white mb-6 md:mb-8 leading-[1.1] tracking-tighter">
                                         {feature.title}
@@ -134,20 +173,20 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                                     <div className="space-y-6">
                                         <div className="flex items-start gap-4 group">
                                             <div className="w-2 h-2 rounded-full mt-2 transition-transform group-hover:scale-150" style={{ backgroundColor: featureColor }} />
-                                            <p className="text-sm font-bold text-slate-400 tracking-wide uppercase italic">Low-latency distributed infrastructure</p>
+                                            <p className="text-sm font-bold text-slate-400 tracking-wide uppercase italic">{feature.bullet1}</p>
                                         </div>
                                         <div className="flex items-start gap-4 group">
                                             <div className="w-2 h-2 rounded-full mt-2 transition-transform group-hover:scale-150" style={{ backgroundColor: featureColor }} />
-                                            <p className="text-sm font-bold text-slate-400 tracking-wide uppercase italic">End-to-end encrypted metadata</p>
+                                            <p className="text-sm font-bold text-slate-400 tracking-wide uppercase italic">{feature.bullet2}</p>
                                         </div>
                                     </div>
                                 </motion.div>
                             </div>
 
                             {/* Right Side: Mockup */}
-                            <div className="w-full md:w-7/12 p-10 flex items-center justify-center bg-slate-950/60 relative border-l border-white/5 overflow-x-auto md:overflow-hidden overflow-y-auto">
+                            <div className="w-full md:w-7/12 p-4 sm:p-8 md:p-10 flex items-center justify-center bg-slate-950/60 relative border-l border-white/5">
                                 {/* Decorative background glow */}
-                                <div className="absolute inset-0 opacity-30 pointer-events-none">
+                                <div className="absolute inset-0 opacity-30 pointer-events-none overflow-hidden">
                                     <div
                                         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[160px]"
                                         style={{ background: `radial-gradient(circle, ${featureColor}44 0%, transparent 70%)` }}
@@ -156,17 +195,20 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
 
                                 <motion.div
                                     key={`${feature.key}-mockup`}
-                                    initial={{ scale: 0.8, opacity: 0, rotateY: -10 }}
-                                    animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-                                    exit={{ scale: 0.8, opacity: 0, rotateY: 10 }}
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 100 }}
-                                    className="w-full h-full min-h-[400px] md:min-h-0 relative z-10 flex items-center justify-center"
+                                    className="w-full relative z-10 flex items-center justify-center py-4"
                                 >
-                                    <div className="w-full h-full min-h-[400px] max-w-[500px] max-h-[500px] bg-slate-900/40 rounded-[3rem] border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden ring-1 ring-white/5">
-                                        <Mockup />
+                                    <div className="w-full max-w-[600px] bg-slate-900/40 rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden ring-1 ring-white/5">
+                                        {/* Ensure Mockup scales nicely and expands */}
+                                        <div className="w-full h-auto min-h-[400px] flex items-center justify-center">
+                                            <Mockup />
+                                        </div>
                                     </div>
                                 </motion.div>
                             </div>
+
                         </div>
                     </motion.div>
                 </div>
