@@ -25,6 +25,8 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName } from '@/utils/anonymousStorage';
 import { analyzeImageBrightness, getTextColorClass } from '@/utils/imageBrightness';
+import AudioPlayer from '@/components/UI/AudioPlayer';
+import { Mic, Square, Send, X, Trash2 } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -150,6 +152,85 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
     return () => clearTimeout(timeoutId);
   }, [mentionSearch, roomMembers, room.is_public]);
 
+  // Audio Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast.error(t('chat.micError') || 'Could not access microphone');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    setAudioBlob(null);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // User interaction state
   const [showUserBanner, setShowUserBanner] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ userId: string, username: string, x?: number, y?: number } | null>(null);
@@ -271,7 +352,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             // Assume it's base64, add data URL prefix
             imageUrl = `data:image/jpeg;base64,${imageUrl}`;
           }
-          
+
           const isDark = await analyzeImageBrightness(imageUrl);
           setIsBackgroundDark(isDark);
         } catch (error) {
@@ -291,11 +372,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   // Detect theme
   useEffect(() => {
     const detectTheme = () => {
-      const isDark = document.documentElement.classList.contains('dark') || 
-                    document.documentElement.getAttribute('data-theme') === 'dark';
+      const isDark = document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark';
       setTheme(isDark ? 'dark' : 'light');
     };
-    
+
     detectTheme();
     // Watch for theme changes
     const observer = new MutationObserver(detectTheme);
@@ -303,7 +384,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
       attributes: true,
       attributeFilter: ['class', 'data-theme']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -334,7 +415,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
           if (prev.some(m => m.id === message.id)) return prev;
           return [...prev, message];
         });
-          scrollToBottom();
+        scrollToBottom();
       });
 
       return () => {
@@ -556,7 +637,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) {
+    if (!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0 && !audioBlob) {
       return;
     }
 
@@ -569,22 +650,42 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
         attachments = await uploadFiles(selectedFiles);
       }
 
+      // Handle Audio Upload
+      if (audioBlob) {
+        const audioDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(audioBlob);
+        });
+        attachments.push({
+          type: 'audio',
+          data: audioDataUrl,
+          filename: `voice_message_${Date.now()}.webm`,
+          size: audioBlob.size,
+          mime_type: 'audio/webm'
+        });
+      }
+
       // Determine message type
       let messageType = 'text';
       if (selectedGifUrl) {
         messageType = 'gif';
+      } else if (audioBlob) {
+        messageType = 'audio';
       } else if (attachments.length > 0) {
         if (attachments.some(a => a.type === 'image')) {
           messageType = 'image';
         } else if (attachments.some(a => a.type === 'video')) {
           messageType = 'video';
+        } else if (attachments.some(a => a.type === 'audio')) {
+          messageType = 'audio';
         } else {
           messageType = 'file';
         }
       }
 
       const response = await api.post(API_ENDPOINTS.CHAT_ROOMS.SEND_MESSAGE(room.id), {
-        content: messageInput.trim() || (selectedGifUrl ? '[GIF]' : '') || (attachments.length > 0 ? '[Attachment]' : ''),
+        content: messageInput.trim() || (selectedGifUrl ? '[GIF]' : '') || (audioBlob ? '[Voice Message]' : '') || (attachments.length > 0 ? '[Attachment]' : ''),
         message_type: messageType,
         gif_url: selectedGifUrl,
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -595,10 +696,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
         setMessageInput('');
         setSelectedGifUrl(null);
         setSelectedFiles([]);
+        setAudioBlob(null);
+        setIsRecording(false); // Ensure recording state is reset
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        // Message will be added via Socket.IO event
       } else {
         toast.error(response.data.errors?.[0] || t('chat.failedToSendMessage'));
       }
@@ -662,7 +764,13 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 {/* Chat Room Picture */}
                 {roomData?.picture ? (
                   <img
-                    src={roomData.picture.startsWith('data:') ? roomData.picture : `data:image/jpeg;base64,${roomData.picture}`}
+                    src={
+                      roomData.picture.includes('http')
+                        ? `${roomData.picture}?t=${new Date().getTime()}` // Add timestamp to bust cache for URLs
+                        : roomData.picture.startsWith('data:')
+                          ? roomData.picture
+                          : `data:image/jpeg;base64,${roomData.picture}`
+                    }
                     alt={room.name}
                     className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 theme-border"
                   />
@@ -680,6 +788,26 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     e.preventDefault();
                     e.stopPropagation();
                     setChatContextMenu({ x: e.clientX, y: e.clientY });
+                  }}
+                  onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    const timer = setTimeout(() => {
+                      setChatContextMenu({ x: touch.clientX, y: touch.clientY });
+                      // Vibrate to indicate long press
+                      if (navigator.vibrate) navigator.vibrate(50);
+                    }, 800); // 800ms long press
+                    // Store timer ID on the element or in a ref? 
+                    // Since this is inline, we tricky. Better to use a ref in the component.
+                    // But we can attach it to the event target temporarily or just rely on TouchEnd clearing it.
+                    (e.target as any).longPressTimer = timer;
+                  }}
+                  onTouchEnd={(e) => {
+                    const timer = (e.target as any).longPressTimer;
+                    if (timer) clearTimeout(timer);
+                  }}
+                  onTouchMove={(e) => {
+                    const timer = (e.target as any).longPressTimer;
+                    if (timer) clearTimeout(timer);
                   }}
                 >
                   <h2 className="text-xl font-bold theme-text-primary break-words">
@@ -798,13 +926,12 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
-                    backgroundImage: `url(${
-                      roomData.background_picture.startsWith('data:')
+                    backgroundImage: `url(${roomData.background_picture.startsWith('data:')
+                      ? roomData.background_picture
+                      : roomData.background_picture.startsWith('http://') || roomData.background_picture.startsWith('https://')
                         ? roomData.background_picture
-                        : roomData.background_picture.startsWith('http://') || roomData.background_picture.startsWith('https://')
-                          ? roomData.background_picture
-                          : `data:image/jpeg;base64,${roomData.background_picture}`
-                    })`,
+                        : `data:image/jpeg;base64,${roomData.background_picture}`
+                      })`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center center',
                     backgroundRepeat: 'no-repeat',
@@ -871,11 +998,10 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span
-                          className={`font-medium cursor-pointer hover:underline ${
-                            isBackgroundDark !== null 
-                              ? getTextColorClass(isBackgroundDark, theme === 'light')
-                              : 'text-gray-900 dark:text-gray-100'
-                          }`}
+                          className={`font-medium cursor-pointer hover:underline ${isBackgroundDark !== null
+                            ? getTextColorClass(isBackgroundDark, theme === 'light')
+                            : 'text-gray-900 dark:text-gray-100'
+                            }`}
                           onClick={(e) => {
                             if (message.user_id) {
                               const rect = e?.currentTarget?.getBoundingClientRect();
@@ -909,13 +1035,12 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                           isModerator={message.is_moderator}
                           isAnonymous={message.is_anonymous}
                         />
-                        <span className={`text-xs ${
-                          isBackgroundDark !== null 
-                            ? isBackgroundDark 
-                              ? 'text-gray-300' 
-                              : 'text-gray-600'
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}>
+                        <span className={`text-xs ${isBackgroundDark !== null
+                          ? isBackgroundDark
+                            ? 'text-gray-300'
+                            : 'text-gray-600'
+                          : 'text-gray-500 dark:text-gray-400'
+                          }`}>
                           {new Date(message.created_at).toLocaleTimeString()}
                         </span>
                       </div>
@@ -975,11 +1100,10 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                               }
                             })}
                             {message.content && message.content !== '[Attachment]' && (
-                              <div className={`whitespace-pre-wrap ${
-                                isBackgroundDark !== null 
-                                  ? getTextColorClass(isBackgroundDark, theme === 'light')
-                                  : 'text-gray-700 dark:text-gray-300'
-                              }`}>
+                              <div className={`whitespace-pre-wrap ${isBackgroundDark !== null
+                                ? getTextColorClass(isBackgroundDark, theme === 'light')
+                                : 'text-gray-700 dark:text-gray-300'
+                                }`}>
                                 {message.content.split(/(@\w+)/g).map((part, idx) => {
                                   if (part.startsWith('@')) {
                                     const username = part.substring(1);
@@ -1002,11 +1126,10 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                             )}
                           </div>
                         ) : (
-                          <div className={`whitespace-pre-wrap ${
-                            isBackgroundDark !== null 
-                              ? getTextColorClass(isBackgroundDark, theme === 'light')
-                              : 'text-gray-700 dark:text-gray-300'
-                          }`}>
+                          <div className={`whitespace-pre-wrap ${isBackgroundDark !== null
+                            ? getTextColorClass(isBackgroundDark, theme === 'light')
+                            : 'text-gray-700 dark:text-gray-300'
+                            }`}>
                             {message.content.split(/(@\w+)/g).map((part, idx) => {
                               if (part.startsWith('@')) {
                                 const username = part.substring(1);
@@ -1076,8 +1199,21 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               </div>
             )}
 
-            <form 
-              onSubmit={handleSendMessage} 
+            {audioBlob && (
+              <div className="mb-2 flex items-center gap-2 px-2 border border-blue-200 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/10 p-1">
+                <AudioPlayer src={URL.createObjectURL(audioBlob)} className="flex-1 bg-transparent" />
+                <button
+                  type="button"
+                  onClick={cancelRecording}
+                  className="p-2 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSendMessage}
               className="flex gap-2"
               onKeyDown={(e) => {
                 // Handle Enter key even when buttons are focused
@@ -1151,45 +1287,84 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 </button>
               </div>
 
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={handleMessageInputChange}
-                  onKeyDown={handleMentionKeyDown}
-                  placeholder={t('chat.sendMessage')}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              {isRecording ? (
+                <div className="flex-1 flex items-center gap-3 px-4 py-2 border border-red-300 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/20 h-[42px]">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="font-mono text-red-600 dark:text-red-400 font-medium">
+                    {formatTime(recordingDuration)}
+                  </span>
+                  <div className="flex-1" />
+                </div>
+              ) : (
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={messageInput}
+                    onChange={handleMessageInputChange}
+                    onKeyDown={handleMentionKeyDown}
+                    placeholder={t('chat.sendMessage')}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[42px]"
+                  />
 
-                {/* Mention Dropdown */}
-                {showMentionDropdown && mentionUsers.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-1 z-50">
-                    <MentionList
-                      users={mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))}
-                      selectedIndex={selectedMentionIndex}
-                      onSelect={handleSelectMention}
-                    />
-                  </div>
+                  {/* Mention Dropdown */}
+                  {showMentionDropdown && mentionUsers.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-1 z-50">
+                      <MentionList
+                        users={mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))}
+                        selectedIndex={selectedMentionIndex}
+                        onSelect={handleSelectMention}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
-                )}
-              </div>
               <button
-                type="submit"
-                disabled={(!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || uploadingFiles}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                type="button" // Controlled manually
+                onClick={(e) => {
+                  if (isRecording) {
+                    stopRecording();
+                    // Wait for blob to set, then send? stopRecording is async in effect.
+                    // Actually stopRecording sets state. We can't send immediately.
+                    // User flow: Click Mic -> Record -> Click Stop -> Preview -> Click Send.
+                    // OR Click Stop & Send?
+                    // If button is Send Icon during recording, implying Stop & Send?
+                    // The request says "replaces send button...".
+                    // If I click it, it stops. And likely stays as 'audioBlob' state so user can preview or send.
+                    // Let's make it Stop, then user presses Send again to confirm?
+                    // OR separate buttons.
+                    // If I click the button while recording, it should STOP. 
+                    // Then the button becomes SEND (because audioBlob exists).
+                    // So 1 click stops. 2nd click sends.
+                  } else if (audioBlob || messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
+                    handleSendMessage(e as any);
+                  } else {
+                    startRecording();
+                  }
+                }}
+                disabled={uploadingFiles}
+                className={`px-4 py-2 rounded-lg text-white flex items-center gap-1 transition-colors ${isRecording
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : (messageInput.trim() || audioBlob || selectedGifUrl || selectedFiles.length > 0)
+                    ? 'bg-blue-500 hover:bg-blue-600'
+                    : 'bg-gray-400 hover:bg-gray-500' // Mic button style
+                  } ${uploadingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={isRecording ? 'Stop Recording' : (messageInput.trim() ? t('chat.send') : 'Record Audio')}
               >
                 {uploadingFiles ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    {t('common.uploading') || 'Uploading...'}
+                    <span className="hidden sm:inline">{t('common.uploading')}</span>
                   </>
+                ) : isRecording ? (
+                  // While recording, button acts as Stop
+                  <Square size={20} fill="currentColor" />
+                ) : (messageInput.trim() || audioBlob || selectedGifUrl || selectedFiles.length > 0) ? (
+                  // Send Airline Icon
+                  <Send size={20} />
                 ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                    {t('chat.send')}
-                  </>
+                  // Mic Icon
+                  <Mic size={20} />
                 )}
               </button>
             </form>

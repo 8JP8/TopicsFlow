@@ -2,7 +2,9 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.notification import Notification
 from utils.decorators import require_auth, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
+
 
 logger = logging.getLogger(__name__)
 notifications_bp = Blueprint('notifications', __name__)
@@ -10,6 +12,7 @@ notifications_bp = Blueprint('notifications', __name__)
 
 @notifications_bp.route('', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='notifications', key_func=user_cache_key('notifications'))
 @log_requests
 def get_notifications():
     """Get notifications for the current user."""
@@ -43,6 +46,7 @@ def get_notifications():
 
 @notifications_bp.route('/unread-count', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='notifications', key_func=user_cache_key('notifications'))
 @log_requests
 def get_unread_count():
     """Get count of unread notifications for the current user."""
@@ -84,6 +88,12 @@ def mark_notification_as_read(notification_id):
         success = notification_model.mark_as_read(notification_id, user_id)
 
         if success:
+            # Invalidate notifications cache
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_notifications(user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Notification marked as read'
@@ -112,6 +122,12 @@ def mark_all_as_read():
         success = notification_model.mark_all_as_read(user_id)
 
         if success:
+            # Invalidate notifications cache
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_notifications(user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'All notifications marked as read'
@@ -140,6 +156,12 @@ def delete_notification(notification_id):
         success = notification_model.delete_notification(notification_id, user_id)
 
         if success:
+            # Invalidate notifications cache
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_notifications(user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Notification deleted'

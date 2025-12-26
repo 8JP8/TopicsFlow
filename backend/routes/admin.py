@@ -10,6 +10,7 @@ from models.topic import Topic
 from models.private_message import PrivateMessage
 from utils.decorators import require_auth, require_json, log_requests
 from utils.admin_middleware import require_admin
+from utils.cache_decorator import cache_result
 from bson import ObjectId
 from datetime import datetime
 import logging
@@ -25,6 +26,7 @@ admin_bp = Blueprint('admin', __name__)
 @admin_bp.route('/reports', methods=['GET'])
 @require_auth()
 @require_admin()
+@cache_result(ttl=60, key_prefix='admin:reports')
 @log_requests
 def get_all_reports():
     """Get all reports with filtering (admin only)."""
@@ -136,6 +138,11 @@ def dismiss_report(report_id):
         success = report_model.dismiss_report(report_id, admin_id, notes)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Report dismissed successfully'
@@ -310,6 +317,13 @@ def take_action_on_report(report_id):
             notes
         )
 
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+            if action_taken == 'user_banned':
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_banned_users()
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': f'Action taken: {action_taken}',
@@ -340,6 +354,11 @@ def reopen_report(report_id):
         success = report_model.reopen_report(report_id, admin_id, reason)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Report reopened successfully'
@@ -359,6 +378,7 @@ def reopen_report(report_id):
 @admin_bp.route('/tickets', methods=['GET'])
 @require_auth()
 @require_admin()
+@cache_result(ttl=60, key_prefix='admin:tickets')
 @log_requests
 def get_all_tickets():
     """Get all support tickets with filtering (admin only)."""
@@ -464,6 +484,15 @@ def update_ticket(ticket_id):
             message = 'Response added successfully'
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_tickets()
+                # Try to invalidate user tickets if possible (ticket owner)
+                ticket = ticket_model.get_ticket_by_id(ticket_id)
+                if ticket and ticket.get('user_id'):
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_user_tickets(str(ticket['user_id']))
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             updated_ticket = ticket_model.get_ticket_by_id(ticket_id)
             return jsonify({
                 'success': True,
@@ -514,6 +543,13 @@ def ban_user(user_id):
         success = user_model.ban_user(user_id, reason, admin_id, duration_days)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_banned_users()
+                # Invalidate user entity cache
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('user', user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'User banned successfully',
@@ -547,6 +583,12 @@ def unban_user(user_id):
         success = user_model.unban_user(user_id, admin_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_banned_users()
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('user', user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'User unbanned successfully'
@@ -562,6 +604,7 @@ def unban_user(user_id):
 @admin_bp.route('/users/banned', methods=['GET'])
 @require_auth()
 @require_admin()
+@cache_result(ttl=300, key_prefix='admin:users:banned')
 @log_requests
 def get_banned_users():
     """Get all banned users (admin only)."""
@@ -637,6 +680,7 @@ def get_banned_users():
 @admin_bp.route('/users/<user_id>/messages', methods=['GET'])
 @require_auth()
 @require_admin()
+@cache_result(ttl=60, key_prefix='admin:user_messages')
 @log_requests
 def get_user_messages(user_id):
     """Get recent messages from a user (admin only)."""
@@ -701,6 +745,7 @@ def get_user_messages(user_id):
 @admin_bp.route('/deleted-messages', methods=['GET'])
 @require_auth()
 @require_admin()
+@cache_result(ttl=60, key_prefix='admin:messages:deleted')
 @log_requests
 def get_deleted_messages():
     """Get all deleted messages for admin review."""

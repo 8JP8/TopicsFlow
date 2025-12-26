@@ -166,3 +166,33 @@ class CacheInvalidator:
             logger.debug(f"Invalidated {deleted} keys matching pattern: {pattern}")
         return deleted
 
+    def invalidate_user_notifications(self, user_id: str) -> int:
+        """Invalidate all notifications cache for a user."""
+        return self.invalidate_pattern(f"notifications:user:{user_id}*")
+
+    def invalidate_admin_reports(self) -> int:
+        """Invalidate admin reports cache."""
+        return self.invalidate_pattern("admin:reports*")
+
+    def invalidate_admin_tickets(self) -> int:
+        """Invalidate admin tickets cache."""
+        return self.invalidate_pattern("admin:tickets*")
+
+    def invalidate_admin_banned_users(self) -> int:
+        """Invalidate admin banned users cache."""
+        return self.invalidate_pattern("admin:users:banned*")
+
+    def invalidate_user_reports(self, user_id: str) -> int:
+        """Invalidate user's reports cache."""
+        # Pattern matches both user:{id}:reports (new style) and legacy if any
+        return self.invalidate_pattern(f"reports:user:{user_id}*")
+
+    def invalidate_user_tickets(self, user_id: str) -> int:
+        """Invalidate user's tickets cache."""
+        return self.invalidate_pattern(f"tickets:user:{user_id}*")
+
+    def invalidate_user_friends(self, user_id: str) -> int:
+        """Invalidate user's friends cache."""
+        return self.invalidate_pattern(f"friends:user:{user_id}*")
+
+

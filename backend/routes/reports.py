@@ -5,6 +5,7 @@ from models.topic import Topic
 from models.user import User
 from utils.validators import validate_pagination_params, validate_report_reason
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -131,7 +132,12 @@ def create_report():
         # Emit admin notification
         try:
             from socketio_handlers import emit_admin_notification
-            socketio = current_app.extensions.get('socketio')
+            socketio = current_app.extensions.get('socketio') if current_app.extensions else None
+            
+            # Use safe socketio access
+            if socketio and isinstance(socketio, dict):
+                 socketio = socketio.get('socketio')
+
             if socketio:
                 emit_admin_notification(socketio, 'new_report', {
                     'report_id': str(report_id),
@@ -140,6 +146,13 @@ def create_report():
                 })
         except Exception as e:
             logger.warning(f"Failed to emit admin notification: {str(e)}")
+
+        # Invalidate caches
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_user_reports(reporter_id)
+            current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
 
         return jsonify({
             'success': True,
@@ -158,6 +171,7 @@ def create_report():
 
 @reports_bp.route('/my-reports', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='reports', key_func=user_cache_key('reports'))
 @log_requests
 def get_my_reports():
     """Get reports submitted by current user."""
@@ -199,6 +213,7 @@ def get_my_reports():
 
 @reports_bp.route('/', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='reports:list', key_func=user_cache_key('reports:list'))
 @log_requests
 def get_reports():
     """Get reports with filtering and pagination."""
@@ -337,6 +352,14 @@ def review_report(report_id):
         )
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+                # Invalidate reporter's cache
+                if report.get('reported_by'):
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_user_reports(str(report['reported_by']))
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Report reviewed successfully'
@@ -379,6 +402,13 @@ def dismiss_report(report_id):
         success = report_model.dismiss_report(report_id, user_id, reason)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+                if report.get('reported_by'):
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_user_reports(str(report['reported_by']))
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Report dismissed successfully'
@@ -421,6 +451,13 @@ def escalate_report(report_id):
         success = report_model.escalate_report(report_id, user_id, reason)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_reports()
+                if report.get('reported_by'):
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_user_reports(str(report['reported_by']))
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Report escalated successfully'

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.notification_settings import NotificationSettings
 from utils.decorators import require_auth, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,11 @@ def follow_post(post_id):
         success = notification_settings.follow_post(user_id, post_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post followed successfully'
@@ -52,6 +58,11 @@ def unfollow_post(post_id):
         success = notification_settings.unfollow_post(user_id, post_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post unfollowed successfully'
@@ -107,6 +118,11 @@ def follow_chat_room(chat_room_id):
         success = notification_settings.follow_chat_room(user_id, chat_room_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Chat room followed successfully'
@@ -135,6 +151,11 @@ def unfollow_chat_room(chat_room_id):
         success = notification_settings.unfollow_chat_room(user_id, chat_room_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Chat room unfollowed successfully'
@@ -166,6 +187,11 @@ def mute_topic(topic_id):
         success = notification_settings.mute_topic(user_id, topic_id, minutes)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             action = 'unmuted' if minutes == 0 else ('muted indefinitely' if minutes == -1 else f'muted for {minutes} minutes')
             return jsonify({
                 'success': True,
@@ -195,6 +221,11 @@ def unmute_topic(topic_id):
         success = notification_settings.unmute_topic(user_id, topic_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:notification:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Topic unmuted successfully'
@@ -263,6 +294,7 @@ def get_topic_mute_status(topic_id):
 
 @notification_settings_bp.route('/posts/followed', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='settings:notification:posts', key_func=user_cache_key('settings:notification:posts'))
 @log_requests
 def get_followed_posts():
     """Get all posts that the current user is following."""
@@ -308,6 +340,7 @@ def get_followed_posts():
 
 @notification_settings_bp.route('/chat-rooms/followed', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='settings:notification:chatrooms', key_func=user_cache_key('settings:notification:chatrooms'))
 @log_requests
 def get_followed_chatrooms():
     """Get all chatrooms that the current user is following."""

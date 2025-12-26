@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.ticket import Ticket
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,13 @@ def create_ticket():
         except Exception as e:
             logger.warning(f"Failed to emit admin notification: {str(e)}")
 
+        # Invalidate caches
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_user_tickets(user_id)
+            current_app.config['CACHE_INVALIDATOR'].invalidate_admin_tickets()
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Support ticket created successfully',
@@ -77,6 +85,7 @@ def create_ticket():
 @tickets_bp.route('/my-tickets', methods=['GET'])
 @tickets_bp.route('/my', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='tickets', key_func=user_cache_key('tickets'))
 @log_requests
 def get_my_tickets():
     """Get current user's support tickets."""
@@ -188,6 +197,12 @@ def update_ticket_as_user(ticket_id):
             )
 
             if success:
+                try:
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_user_tickets(user_id)
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_admin_tickets()
+                except Exception as e:
+                    logger.error(f"Cache invalidation failed: {e}")
+
                 updated_ticket = ticket_model.get_ticket_by_id(ticket_id)
                 return jsonify({
                     'success': True,
@@ -234,6 +249,12 @@ def delete_ticket(ticket_id):
         success = ticket_model.delete_ticket(ticket_id)
 
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_tickets(user_id)
+                current_app.config['CACHE_INVALIDATOR'].invalidate_admin_tickets()
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Ticket deleted successfully'
@@ -248,6 +269,7 @@ def delete_ticket(ticket_id):
 
 @tickets_bp.route('/categories', methods=['GET'])
 @require_auth()
+@cache_result(ttl=86400, key_prefix='tickets:categories')
 @log_requests
 def get_ticket_categories():
     """Get available ticket categories."""

@@ -5,6 +5,7 @@ from models.message import Message
 from models.topic import Topic
 from utils.validators import validate_message_content, validate_pagination_params
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ messages_bp = Blueprint('messages', __name__)
 
 @messages_bp.route('/topic/<topic_id>', methods=['GET'])
 @log_requests
+@cache_result(ttl=30, key_prefix='messages:topic')
 def get_topic_messages(topic_id):
     """Get messages for a topic with pagination."""
     try:
@@ -202,6 +204,14 @@ def create_message(topic_id):
             logger.warning(f"Failed to emit socket event for message {message_id}: {str(e)}")
             # Don't fail the request if socket emission fails
 
+        # Invalidate topic messages cache
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:topic:{topic_id}*")
+            # Also invalidate topic stats if cached
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:stats:topic:{topic_id}*")
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Message created successfully',
@@ -289,6 +299,19 @@ def delete_message(message_id):
                     related_message_id=message_id
                 )
             
+            # Invalidate caches
+            try:
+                # Need topic_id/chat_room_id to invalidate correctly
+                # Message object (L255) has topic_id
+                if message.get('topic_id'):
+                    topic_id = message['topic_id']
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:topic:{topic_id}*")
+                
+                # If private message (unlikely in this route but good to handle if shared logic),
+                # but delete_message route below handles PMs. This route seems to be for Topic/ChatRoom messages.
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': f'Message {"permanently " if mode == "hard" else ""}deleted successfully'
@@ -445,6 +468,7 @@ def get_user_messages(user_id):
 
 @messages_bp.route('/topic/<topic_id>/stats', methods=['GET'])
 @log_requests
+@cache_result(ttl=60, key_prefix='messages:stats:topic')
 def get_topic_message_stats(topic_id):
     """Get message statistics for a topic."""
     try:
@@ -493,6 +517,7 @@ def get_user_message_count_in_topic(topic_id, user_id):
 
 @messages_bp.route('/private', methods=['GET'])
 @require_auth()
+@cache_result(ttl=30, key_prefix='messages:private', key_func=user_cache_key('messages:private'))
 @log_requests
 def get_private_messages():
     """Get private message conversations for current user."""
@@ -688,6 +713,16 @@ def send_private_message():
         except Exception as e:
             logger.warning(f"Failed to create notification for private message: {str(e)}")
 
+        # Invalidate private message caches for both sender and receiver
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:private:user:{user_id}*")
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:private:user:{to_user_id}*")
+            # Also invalidate conversation lists
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"user:pm_conversations:user:{user_id}*")
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"user:pm_conversations:user:{to_user_id}*")
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Private message sent successfully',
@@ -734,6 +769,23 @@ def delete_private_message(message_id):
             success = pm_model.delete_message_for_me(message_id, user_id)
 
         if success:
+            # Invalidate caches
+            try:
+                # We need other user ID to invalidate their cache too if hard delete (unsend)
+                # But even for soft delete, WE need to invalidate OUR cache.
+                from_id = str(message['from_user_id'])
+                to_id = str(message['to_user_id'])
+                
+                # Invalidate my cache
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:private:user:{user_id}*")
+                
+                # If hard delete, invalidate other user's cache too
+                if mode == 'hard':
+                    other_id = to_id if from_id == user_id else from_id
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"messages:private:user:{other_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Message deleted successfully'

@@ -9,6 +9,7 @@ from models.private_message import PrivateMessage
 from models.conversation_settings import ConversationSettings
 from models.friend import Friend
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 from utils.image_compression import compress_image_base64
 import logging
 from utils.i18n import normalize_language
@@ -19,6 +20,7 @@ users_bp = Blueprint('users', __name__)
 
 @users_bp.route('/profile', methods=['GET'])
 @require_auth()
+@cache_result(ttl=3600, key_prefix='user:profile', key_func=user_cache_key('user:profile'))
 @log_requests
 def get_user_profile():
     """Get current user's profile."""
@@ -117,6 +119,13 @@ def update_user_profile():
 
         if success:
             updated_user = user_model.get_user_by_id(user_id)
+            
+            # Invalidate user profile cache
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"user:profile:{user_id}")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Profile updated successfully',
@@ -252,6 +261,7 @@ def delete_account():
 
 @users_bp.route('/topics', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='user:topics', key_func=user_cache_key('user:topics'))
 @log_requests
 def get_user_topics():
     """Get topics that the current user is a member of."""
@@ -336,6 +346,7 @@ def delete_anonymous_identity(topic_id):
 
 @users_bp.route('/private-messages/conversations', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='user:pm_conversations', key_func=user_cache_key('user:pm_conversations'))
 @log_requests
 def get_private_conversations():
     """Get list of private message conversations."""
@@ -397,6 +408,7 @@ def get_private_conversation(other_user_id):
 
 @users_bp.route('/private-messages/unread-count', methods=['GET'])
 @require_auth()
+@cache_result(ttl=30, key_prefix='user:pm_unread', key_func=user_cache_key('user:pm_unread'))
 @log_requests
 def get_unread_message_count():
     """Get unread private message count for current user."""
@@ -604,6 +616,7 @@ def delete_conversation(other_user_id):
 # Friends routes
 @users_bp.route('/friends', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='user:friends', key_func=user_cache_key('user:friends'))
 @log_requests
 def get_friends():
     """Get all friends of current user."""

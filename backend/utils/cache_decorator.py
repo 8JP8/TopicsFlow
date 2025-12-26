@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 from typing import Any, Callable, Optional
-from flask import current_app
+from flask import current_app, request
 
 logger = logging.getLogger(__name__)
 
@@ -126,4 +126,53 @@ def cache_key_simple(key_prefix: str, *arg_indices: int):
         return ':'.join(key_parts)
     
     return key_func
+
+
+def user_cache_key(key_prefix: str):
+    """
+    Helper to create cache key that includes current user ID from request context.
+    Requires @require_auth decorator to be applied *before* this (outer).
+    
+    Note: Since decorators applied top-down wrap inner functions, @cache_result should be 
+    ABOVE @require_auth if we want to cache the result of the guarded function.
+    BUT: If @cache_result is outer, it runs BEFORE @require_auth, so request.current_user 
+    might NOT be set yet!
+    
+    CORRECTION: 
+    If we use @cache_result -> @require_auth:
+      cache_result wrapper runs.
+      It calls generates key.
+      It calls decorated function (which is the require_auth wrapper).
+      require_auth wrapper runs, sets user, calls original function.
+    
+    So if cache_result wrapper runs first, request.current_user is NOT set.
+    
+    If we use @require_auth -> @cache_result:
+      require_auth wrapper runs.
+      It sets user.
+      It calls decorated function (which is the cache_result wrapper).
+      cache_result wrapper runs.
+      It generates key (User IS set!).
+      It checks cache.
+    
+    So correct order is:
+    @require_auth()
+    @cache_result(key_func=user_cache_key(...))
+    def route(): ...
+    """
+    def key_func(func_name: str, args: tuple, kwargs: dict) -> str:
+        user_id = 'anon'
+        if hasattr(request, 'current_user') and request.current_user:
+            user_id = str(request.current_user.get('id') or request.current_user.get('_id'))
+        
+        # Include query parameters in hash
+        # Merge kwargs and request.args for the hash
+        params_to_hash = kwargs.copy()
+        if request.args:
+            params_to_hash.update(request.args.to_dict())
+            
+        return _generate_cache_key(f"{key_prefix}:user:{user_id}", func_name, args, params_to_hash)
+    
+    return key_func
+
 

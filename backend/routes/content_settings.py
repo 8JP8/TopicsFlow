@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.user_content_settings import UserContentSettings
 from utils.decorators import require_auth, log_requests
+from utils.cache_decorator import cache_result, user_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,11 @@ def silence_topic(topic_id):
         success = settings_model.silence_topic(user_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Topic silenced successfully'
@@ -54,6 +60,11 @@ def unsilence_topic(topic_id):
         success = settings_model.unsilence_topic(user_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Topic unsilenced successfully'
@@ -83,6 +94,12 @@ def hide_topic(topic_id):
         success = settings_model.hide_topic(user_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"topics:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Topic hidden successfully'
@@ -112,6 +129,12 @@ def unhide_topic(topic_id):
         success = settings_model.unhide_topic(user_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"topics:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Topic unhidden successfully'
@@ -153,6 +176,11 @@ def silence_post(post_id):
         success = settings_model.silence_post(user_id, post_id, str(topic_id))
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post silenced successfully'
@@ -194,6 +222,11 @@ def unsilence_post(post_id):
         success = settings_model.unsilence_post(user_id, post_id, str(topic_id))
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post unsilenced successfully'
@@ -235,6 +268,12 @@ def hide_post(post_id):
         success = settings_model.hide_post(user_id, post_id, str(topic_id))
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"posts:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post hidden successfully'
@@ -276,6 +315,12 @@ def unhide_post(post_id):
         success = settings_model.unhide_post(user_id, post_id, str(topic_id))
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"posts:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Post unhidden successfully'
@@ -322,6 +367,12 @@ def hide_chat(chat_id):
         success = settings_model.hide_chat(user_id, chat_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_room:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Chat hidden successfully'
@@ -363,6 +414,12 @@ def unhide_chat(chat_id):
         success = settings_model.unhide_chat(user_id, chat_id, topic_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_room:list:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Chat unhidden successfully'
@@ -392,6 +449,11 @@ def hide_comment(comment_id):
         success = settings_model.hide_comment(user_id, comment_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Comment hidden successfully'
@@ -421,6 +483,11 @@ def unhide_comment(comment_id):
         success = settings_model.unhide_comment(user_id, comment_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Comment unhidden successfully'
@@ -450,6 +517,11 @@ def hide_chat_message(message_id):
         success = settings_model.hide_chat_message(user_id, message_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Message hidden successfully'
@@ -480,6 +552,11 @@ def unhide_chat_message(message_id):
         success = settings_model.unhide_chat_message(user_id, message_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Message unhidden successfully'
@@ -510,6 +587,11 @@ def unhide_private_message(message_id):
         success = pm_model.restore_message_for_me(message_id, user_id)
         
         if success:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"settings:content:user:{user_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Message unhidden successfully'
@@ -524,6 +606,7 @@ def unhide_private_message(message_id):
 
 @content_settings_bp.route('/hidden-items', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='settings:content', key_func=user_cache_key('settings:content'))
 @log_requests
 def get_hidden_items():
     """Get all hidden items for the current user."""
@@ -550,6 +633,7 @@ def get_hidden_items():
 
 @content_settings_bp.route('/silenced-items', methods=['GET'])
 @require_auth()
+@cache_result(ttl=300, key_prefix='settings:content', key_func=user_cache_key('settings:content'))
 @log_requests
 def get_silenced_items():
     """Get all silenced items for the current user."""

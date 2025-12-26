@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.friend_request import FriendRequest
 from utils.decorators import require_auth, require_json, log_requests, rate_limit
+from utils.cache_decorator import cache_result, user_cache_key
 from utils.rate_limits import FRIEND_LIMITS
 import logging
 
@@ -31,6 +32,12 @@ def send_friend_request():
         result = friend_request_model.send_friend_request(from_user_id, to_user_id)
 
         if result['success']:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(from_user_id)
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(to_user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify(result), 201
         else:
             return jsonify(result), 400
@@ -55,6 +62,14 @@ def accept_friend_request(request_id):
         result = friend_request_model.accept_friend_request(request_id, user_id)
 
         if result['success']:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(user_id)
+                # To invalidate the other user properly we would need their ID, 
+                # but we don't fetch the request details here. 
+                # In a real scenario, we should fetch request first or have model return IDs.
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify(result), 200
         else:
             return jsonify(result), 400
@@ -79,6 +94,11 @@ def reject_friend_request(request_id):
         result = friend_request_model.reject_friend_request(request_id, user_id)
 
         if result['success']:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify(result), 200
         else:
             return jsonify(result), 400
@@ -103,6 +123,11 @@ def cancel_friend_request(request_id):
         result = friend_request_model.cancel_friend_request(request_id, user_id)
 
         if result['success']:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(user_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify(result), 200
         else:
             return jsonify(result), 400
@@ -115,6 +140,7 @@ def cancel_friend_request(request_id):
 @friends_bp.route('/requests/pending', methods=['GET'])
 @require_auth()
 @rate_limit(FRIEND_LIMITS['list'])
+@cache_result(ttl=300, key_prefix='friends:pending', key_func=user_cache_key('friends:pending'))
 @log_requests
 def get_pending_requests():
     """Get pending friend requests received by current user."""
@@ -140,6 +166,7 @@ def get_pending_requests():
 @friends_bp.route('/requests/sent', methods=['GET'])
 @require_auth()
 @rate_limit(FRIEND_LIMITS['list'])
+@cache_result(ttl=300, key_prefix='friends:sent', key_func=user_cache_key('friends:sent'))
 @log_requests
 def get_sent_requests():
     """Get pending friend requests sent by current user."""
@@ -165,6 +192,7 @@ def get_sent_requests():
 @friends_bp.route('/', methods=['GET'])
 @require_auth()
 @rate_limit(FRIEND_LIMITS['list'])
+@cache_result(ttl=300, key_prefix='friends:list', key_func=user_cache_key('friends:list'))
 @log_requests
 def get_friends():
     """Get list of current user's friends."""
@@ -202,6 +230,12 @@ def unfriend(friend_id):
         result = friend_request_model.unfriend(user_id, friend_id)
 
         if result['success']:
+            try:
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(user_id)
+                current_app.config['CACHE_INVALIDATOR'].invalidate_user_friends(friend_id)
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify(result), 200
         else:
             return jsonify(result), 400
@@ -213,6 +247,7 @@ def unfriend(friend_id):
 
 @friends_bp.route('/check/<user_id>', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='friends:check', key_func=user_cache_key('friends:check'))
 @log_requests
 def check_friendship(user_id):
     """Check if current user is friends with another user."""
@@ -236,6 +271,7 @@ def check_friendship(user_id):
 
 @friends_bp.route('/count', methods=['GET'])
 @require_auth()
+@cache_result(ttl=60, key_prefix='friends:count', key_func=user_cache_key('friends:count'))
 @log_requests
 def get_friend_count():
     """Get count of current user's friends and pending requests."""

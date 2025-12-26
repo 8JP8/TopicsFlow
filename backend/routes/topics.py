@@ -4,15 +4,34 @@ from models.topic import Topic
 from models.anonymous_identity import AnonymousIdentity
 from models.conversation_settings import ConversationSettings
 from utils.validators import validate_topic_title, validate_topic_description, validate_tags, validate_pagination_params
+from utils.validators import validate_topic_title, validate_topic_description, validate_tags, validate_pagination_params
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result
+import hashlib
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 topics_bp = Blueprint('topics', __name__)
 
 
+def get_topics_cache_key(func_name, args, kwargs):
+    """Generate cache key for topic list based on request args."""
+    # Create a unique key based on query parameters
+    params = [
+        request.args.get('sort_by', 'last_activity'),
+        request.args.get('limit', '20'),
+        request.args.get('offset', '0'),
+        request.args.get('search', ''),
+        ','.join(sorted(request.args.getlist('tags')))
+    ]
+    key_string = '_'.join(str(p) for p in params)
+    key_hash = hashlib.md5(key_string.encode()).hexdigest()
+    return f"topic:list:{key_hash}"
+
 @topics_bp.route('/', methods=['GET'])
 @log_requests
+@cache_result(ttl=300, key_func=get_topics_cache_key)
 def get_topics():
     """Get list of public topics with filtering and pagination."""
     try:
@@ -200,6 +219,11 @@ def create_topic():
             'message': 'Topic created successfully',
             'data': created_topic
         })
+        
+        # Invalidate topic list cache
+        if current_app.config.get('CACHE_INVALIDATOR'):
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern('topic:list:*')
+            
         return response, 201
 
     except Exception as e:
@@ -209,6 +233,7 @@ def create_topic():
 
 @topics_bp.route('/<topic_id>', methods=['GET'])
 @log_requests
+@cache_result(ttl=300, key_func=lambda f, a, k: f"topic:{k.get('topic_id')}")
 def get_topic(topic_id):
     """Get details of a specific topic."""
     try:
@@ -308,6 +333,10 @@ def update_topic(topic_id):
             except Exception as e:
                 logger.warning(f"[UPDATE_TOPIC] Failed to emit socket event: {str(e)}")
             
+            # Invalidate topic cache
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('topic', topic_id)
+
             return jsonify({
                 'success': True,
                 'message': 'Topic updated successfully',
@@ -337,6 +366,10 @@ def delete_topic(topic_id):
         success = topic_model.delete_topic(topic_id, user_id)
 
         if success:
+            # Invalidate topic cache
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('topic', topic_id)
+
             return jsonify({
                 'success': True,
                 'message': 'Topic deletion requested. It will be permanently deleted in 7 days pending admin approval.'
@@ -365,6 +398,10 @@ def join_topic(topic_id):
         success = topic_model.add_member(topic_id, user_id)
 
         if success:
+            # Invalidate topic cache (member count changed)
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('topic', topic_id)
+
             return jsonify({
                 'success': True,
                 'message': 'Joined topic successfully'
@@ -393,6 +430,10 @@ def leave_topic(topic_id):
         success = topic_model.remove_member(topic_id, user_id)
 
         if success:
+            # Invalidate topic cache (member count changed)
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('topic', topic_id)
+
             return jsonify({
                 'success': True,
                 'message': 'Left topic successfully'

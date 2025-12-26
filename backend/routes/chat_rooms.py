@@ -6,15 +6,37 @@ from models.anonymous_identity import AnonymousIdentity
 from models.conversation_settings import ConversationSettings
 from utils.validators import validate_message_content, validate_pagination_params
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result
 from bson import ObjectId
+import hashlib
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 chat_rooms_bp = Blueprint('chat_rooms', __name__)
 
 
+def get_topic_conversations_key(func_name, args, kwargs):
+    topic_id = kwargs.get('topic_id')
+    
+    # Include user_id in cache key as query results depend on it (is_member, etc)
+    from services.auth_service import AuthService
+    from flask import current_app
+    user_suffix = "anon"
+    try:
+        auth = AuthService(current_app.db)
+        if auth.is_authenticated():
+            res = auth.get_current_user()
+            if res.get('success'):
+                user_suffix = res['user']['id']
+    except:
+        pass
+        
+    return f"chat_rooms:list:topic_{topic_id}:{user_suffix}"
+
 @chat_rooms_bp.route('/topics/<topic_id>/conversations', methods=['GET'])
 @log_requests
+@cache_result(ttl=300, key_func=get_topic_conversations_key)
 def get_topic_conversations(topic_id):
     """Get all conversations (chat rooms) for a topic (Discord-style)."""
     try:
@@ -245,6 +267,10 @@ def create_conversation(topic_id):
         if not new_room:
             return jsonify({'success': False, 'errors': ['Failed to create chat room']}), 500
 
+        # Cache Invalidation
+        if current_app.config.get('CACHE_INVALIDATOR'):
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f'chat_rooms:list:topic_{topic_id}:*')
+        
         return jsonify({
             'success': True,
             'message': 'Chat room created successfully',
@@ -258,6 +284,7 @@ def create_conversation(topic_id):
 
 @chat_rooms_bp.route('/<room_id>', methods=['GET'])
 @log_requests
+@cache_result(ttl=300, key_func=lambda f, a, k: f"chat_room:{k.get('room_id')}")
 def get_chat_room(room_id):
     """Get a specific chat room by ID."""
     try:
@@ -301,6 +328,30 @@ def join_chat_room(room_id):
             except Exception as e:
                 logger.warning(f"Failed to set follow status for user {user_id} on chatroom {room_id}: {str(e)}")
             
+            # Cache Invalidation
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                 current_app.config['CACHE_INVALIDATOR'].invalidate_entity('chat_room', room_id)
+                 # Invalidate list for this user as their membership status changed
+                 # Since we can't easily invalidate just for one user in the pattern without complex logic, 
+                 # we rely on the fact that get_topic_conversations uses user_id in key.
+                 # Actually, we need to invalidate the list for THIS user.
+                 # But our invalidator is pattern based.
+                 # Let's invalidate the specific entity `chat_room` which might be returned in lists?
+                 # Lists are cached by topic. If I join, the list for ME changes (is_joined=True).
+                 # So I need to invalidate `chat_rooms:list:topic_*:user_{user_id}`.
+                 # We don't have topic_id here easily without fetching room.
+                 pass 
+
+            # Fetch room to get topic_id for invalidation
+            try:
+                room = chat_room_model.get_chat_room_by_id(room_id)
+                if room and current_app.config.get('CACHE_INVALIDATOR'):
+                     topic_id = room.get('topic_id')
+                     if topic_id:
+                         current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_rooms:list:topic_{topic_id}:{user_id}")
+            except:
+                pass
+
             return jsonify({
                 'success': True,
                 'message': 'Joined chat room successfully'
@@ -329,6 +380,17 @@ def leave_chat_room(room_id):
         success = chat_room_model.leave_chat_room(room_id, user_id)
 
         if success:
+            # Cache Invalidation
+            try:
+                room = chat_room_model.get_chat_room_by_id(room_id)
+                if room and current_app.config.get('CACHE_INVALIDATOR'):
+                     current_app.config['CACHE_INVALIDATOR'].invalidate_entity('chat_room', room_id)
+                     topic_id = room.get('topic_id')
+                     if topic_id:
+                         current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_rooms:list:topic_{topic_id}:{user_id}")
+            except:
+                pass
+
             return jsonify({
                 'success': True,
                 'message': 'Left chat room successfully'
@@ -985,6 +1047,14 @@ def delete_chat_room(room_id):
         success = chat_room_model.delete_chat_room(room_id, user_id)
 
         if success:
+            # Cache Invalidation
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('chat_room', room_id)
+                # We need topic_id to invalidate lists. 
+                # Ideally we should have fetched it before, but get_chat_room_by_id checks db.
+                # Since it's soft delete, we can still fetch? Or maybe optimization is to just invalidate generic?
+                current_app.config['CACHE_INVALIDATOR'].invalidate_pattern('chat_rooms:list:*')
+
             return jsonify({
                 'success': True,
                 'message': 'Chatroom deletion requested. It will be permanently deleted in 7 days pending admin approval.'
@@ -1486,6 +1556,13 @@ def update_chat_picture(room_id):
 
         if result.modified_count > 0:
             updated_room = chat_room_model.get_chat_room_by_id(room_id)
+            
+            # Cache Invalidation
+            if current_app.config.get('CACHE_INVALIDATOR'):
+                current_app.config['CACHE_INVALIDATOR'].invalidate_entity('chat_room', room_id)
+                if updated_room and updated_room.get('topic_id'):
+                     current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_rooms:list:topic_{updated_room.get('topic_id')}:*")
+
             return jsonify({
                 'success': True,
                 'message': 'Picture updated successfully',

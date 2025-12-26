@@ -4,6 +4,7 @@ GIF API routes for Tenor integration
 from flask import Blueprint, request, jsonify, current_app
 from services.tenor_service import TenorService
 from utils.decorators import require_auth, log_requests
+from utils.cache_decorator import cache_result
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,7 @@ gifs_bp = Blueprint('gifs', __name__)
 
 @gifs_bp.route('/search', methods=['GET'])
 @require_auth()
+@cache_result(ttl=3600, key_prefix='gifs:search')
 @log_requests
 def search_gifs():
     """Search for GIFs using Tenor API v2."""
@@ -52,6 +54,7 @@ def search_gifs():
 
 @gifs_bp.route('/trending', methods=['GET'])
 @require_auth()
+@cache_result(ttl=3600, key_prefix='gifs:trending')
 @log_requests
 def get_trending_gifs():
     """Get featured GIFs from Tenor API v2 (trending endpoint for backward compatibility)."""
@@ -99,6 +102,7 @@ def get_trending_gifs():
 
 @gifs_bp.route('/popular', methods=['GET'])
 @require_auth()
+@cache_result(ttl=3600, key_prefix='gifs:popular')
 @log_requests
 def get_popular_gifs():
     """Get popular GIFs from Tenor API v2."""
@@ -142,6 +146,7 @@ def get_popular_gifs():
 
 @gifs_bp.route('/recent', methods=['GET'])
 @require_auth()
+@cache_result(ttl=3600, key_prefix='gifs:recent')
 @log_requests
 def get_recent_gifs():
     """Get recent GIFs from Tenor API v2."""
@@ -185,6 +190,7 @@ def get_recent_gifs():
 
 @gifs_bp.route('/categories', methods=['GET'])
 @require_auth()
+@cache_result(ttl=86400, key_prefix='gifs:categories')
 @log_requests
 def get_categories():
     """Get GIF categories from Tenor."""

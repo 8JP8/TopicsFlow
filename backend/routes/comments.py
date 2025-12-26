@@ -6,6 +6,7 @@ from models.topic import Topic
 from models.anonymous_identity import AnonymousIdentity
 from utils.validators import validate_message_content
 from utils.decorators import require_auth, require_json, log_requests
+from utils.cache_decorator import cache_result
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ comments_bp = Blueprint('comments', __name__)
 
 @comments_bp.route('/posts/<post_id>/comments', methods=['GET'])
 @log_requests
+@cache_result(ttl=120, key_prefix='comments:post')
 def get_post_comments(post_id):
     """Get all comments for a post, organized as a tree."""
     try:
@@ -233,6 +235,12 @@ def create_comment(post_id):
         except Exception as e:
             logger.warning(f"Failed to notify post followers: {str(e)}")
 
+        # Invalidate post comments cache
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"comments:post:{post_id}*")
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Comment created successfully',
@@ -324,6 +332,12 @@ def reply_to_comment(comment_id):
         except Exception as e:
             logger.warning(f"Failed to emit socket event for reply {reply_id}: {str(e)}")
 
+        # Invalidate post comments cache
+        try:
+            current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"comments:post:{post_id}*")
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Reply created successfully',
@@ -389,6 +403,15 @@ def upvote_comment(comment_id):
             except Exception as e:
                 logger.warning(f"Failed to emit socket event: {str(e)}")
 
+            # Invalidate post comments cache
+            try:
+                # We need post_id to invalidate. It's in updated_comment.
+                post_id = updated_comment.get('post_id')
+                if post_id:
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"comments:post:{post_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': 'Comment upvoted successfully',
@@ -416,10 +439,20 @@ def delete_comment(comment_id):
 
         mode = request.args.get('mode', 'soft')
 
-        comment_model = Comment(current_app.db)
+        # Get comment first to retrieve post_id for invalidation
+        comment = comment_model.get_comment_by_id(comment_id)
+        post_id = comment.get('post_id') if comment else None
+
         success = comment_model.delete_comment(comment_id, user_id, mode)
 
         if success:
+            # Invalidate post comments cache
+            if post_id:
+                try:
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"comments:post:{post_id}*")
+                except Exception as e:
+                    logger.error(f"Cache invalidation failed: {e}")
+
             return jsonify({
                 'success': True,
                 'message': f'Comment {"permanently " if mode == "hard" else ""}deleted successfully'
@@ -464,6 +497,14 @@ def downvote_comment(comment_id):
                     }, room=room_name)
             except Exception as e:
                 logger.warning(f"Failed to emit socket event: {str(e)}")
+
+            # Invalidate post comments cache
+            try:
+                post_id = updated_comment.get('post_id')
+                if post_id:
+                    current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"comments:post:{post_id}*")
+            except Exception as e:
+                logger.error(f"Cache invalidation failed: {e}")
 
             return jsonify({
                 'success': True,
