@@ -12,6 +12,7 @@ python-dotenv==1.0.1
 twilio==9.2.0
 sendgrid==6.11.0
 python-socketio==5.11.3
+greenlet>=3.0.0
 eventlet==0.36.1
 redis==5.0.7
 marshmallow==3.21.3
