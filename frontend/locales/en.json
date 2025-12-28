@@ -658,11 +658,6 @@
     "about": "About",
     "startTour": "Helper Guide"
   },
-  "followedPublications": "Followedpublications",
-  "followedChatrooms": "Followedchatrooms",
-  "backToDashboard": "Backtodashboard",
-  "enableBrowserNotifications": "Enablebrowsernotifications",
-  "noFollowedPublications": "Nofollowedpublications",
   "anonymousIdentities": {
     "title": "Anonymous Identities",
     "subtitle": "Manage your anonymous identities across different topics. Each identity is unique to a specific topic.",
