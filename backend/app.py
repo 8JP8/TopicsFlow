@@ -628,11 +628,23 @@ def create_db_indexes(app):
         db.tickets.create_index("reviewed_by")
 
         # Conversation settings collection indexes (Upgrade to partial indexes)
-        db.conversation_settings.create_index(
-            [("user_id", 1), ("other_user_id", 1)], 
-            unique=True, 
-            partialFilterExpression={"other_user_id": {"$exists": True}}
-        )
+        try:
+            db.conversation_settings.create_index(
+                [("user_id", 1), ("other_user_id", 1)], 
+                unique=True, 
+                partialFilterExpression={"other_user_id": {"$exists": True}}
+            )
+        except Exception as e:
+            if "already exists with different options" in str(e):
+                print("Index conflict detected. Dropping old index: user_id_1_other_user_id_1")
+                db.conversation_settings.drop_index("user_id_1_other_user_id_1")
+                db.conversation_settings.create_index(
+                    [("user_id", 1), ("other_user_id", 1)], 
+                    unique=True, 
+                    partialFilterExpression={"other_user_id": {"$exists": True}}
+                )
+            else:
+                print(f"Index creation failed: {e}")
         db.conversation_settings.create_index(
             [("user_id", 1), ("topic_id", 1), ("type", 1)], 
             unique=True, 
