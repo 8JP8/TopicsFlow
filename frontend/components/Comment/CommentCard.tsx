@@ -479,7 +479,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
           onBlockUser={async (userId) => {
             try {
               await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
-              toast.success(t('chat.blockedUser', { username: comment.author_username }));
+              toast.success(t('chat.blockedUser', { username: comment.author_username || 'Unknown' }));
             } catch (e: any) {
               toast.error(e.response?.data?.errors?.[0] || t('errors.generic'));
             }

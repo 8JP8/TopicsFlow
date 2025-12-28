@@ -445,7 +445,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
             if (!post.user_id) return;
             try {
               await api.post(API_ENDPOINTS.USERS.BLOCK(post.user_id));
-              toast.success(t('chat.blockedUser', { username: post.author_username }));
+              toast.success(t('chat.blockedUser', { username: post.author_username || 'Unknown' }));
             } catch (e: any) {
               toast.error(e.response?.data?.errors?.[0] || t('errors.generic'));
             }
