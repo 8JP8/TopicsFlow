@@ -50,6 +50,8 @@
     "fullscreen": "Ecrã inteiro",
     "characters": "caracteres",
     "send": "Enviar",
+    "holdToRecord": "Clique para gravar",
+    "stopRecording": "Clique para parar",
     "linkCopied": "Link copiado para a área de transferência!",
     "uploading": "A carregar...",
     "login": "Login",
