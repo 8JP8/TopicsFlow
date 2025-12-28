@@ -146,10 +146,39 @@ const UserBanner: React.FC<UserBannerProps> = ({
   // Reduced inset on gray background to make margin narrower
   const grayCircleClass = "absolute inset-0.5 bg-gray-500 dark:bg-gray-700 rounded-full -z-10";
 
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Adjust horizontal position if it overflows the viewport
+  const bannerStyle: React.CSSProperties = hasCoordinates ? { position: 'absolute', top: y, left: x } : {};
+  if (hasCoordinates && x && typeof window !== 'undefined') {
+    const windowWidth = window.innerWidth;
+    const bannerWidth = 320; // w-80 is 20rem = 320px
+    const margin = 20;
+
+    // If x + width > window, shift left
+    if (x + bannerWidth > windowWidth) {
+      // Target position: windowWidth - bannerWidth - margin
+      // But prefer to keep near mouse if possible? 
+      // User requirement: "pan to the left margin so it is the more visible as possible"
+      // We can simply clamp/shift it.
+      const newX = Math.max(margin, windowWidth - bannerWidth - margin);
+      // Check if newX is drastically far from mouse? 
+      // Often context menus open at mouse. If mouse is at right edge, menu should open to Left.
+      // Current logic mimics standard behavior: if close to edge, shift left.
+      bannerStyle.left = newX;
+    }
+  }
+
   const content = (
     <div
-      className="theme-bg-secondary rounded-lg shadow-xl overflow-hidden w-80 border theme-border"
-      style={hasCoordinates ? { position: 'absolute', top: y, left: x } : {}}
+      ref={contentRef}
+      className={`theme-bg-secondary rounded-lg shadow-xl overflow-hidden w-80 border theme-border ${
+        // Mobile sizing adjustment requested by user: "size down banner on mobile"
+        // We can use sm:w-80 and default w-[90vw] or similar?
+        // Let's stick w-80 for now but maybe max-w-[90vw] for mobile safety
+        ''
+        } max-w-[90vw]`}
+      style={bannerStyle}
       onClick={(e) => e.stopPropagation()}
     >
       {loading ? (

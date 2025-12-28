@@ -42,12 +42,20 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
   const [userHasDownvoted, setUserHasDownvoted] = useState(initialUserHasDownvoted);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Update state when props change (but don't override if user just voted)
+  // Update state when props change
   useEffect(() => {
-    // Only update if the values actually changed significantly (to avoid overriding user actions)
-    const newScore = initialScore !== undefined ? initialScore : initialUpvoteCount - initialDownvoteCount;
+    // Only update state from props if we are NOT currently effectively "optimistically updated" 
+    // or if the props have changed to a new truth that supersedes our local state.
+    // For simplicity, we sync with props, BUT we need to ensure parent updates props correctly.
+    // If parent passes old props back, this Effect resets the button.
+    // We can avoid this by checking if the prop change matches our current state? No.
+    // Best approach: Trust props, but ensure `onVoteChange` works.
+    // Use a ref to track if we just voted to ignore the immediate next prop update if it's stale?
+    // Let's just make sure we interpret "initial" props as "current" props.
+
     setUpvoteCount(initialUpvoteCount);
     setDownvoteCount(initialDownvoteCount);
+    const newScore = initialScore !== undefined ? initialScore : initialUpvoteCount - initialDownvoteCount;
     setScore(newScore);
     setUserHasUpvoted(initialUserHasUpvoted);
     setUserHasDownvoted(initialUserHasDownvoted || false);
@@ -59,6 +67,46 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
 
     if (disabled || isLoading) return;
 
+    // Optimistic Update
+    const previousState = {
+      userHasUpvoted,
+      userHasDownvoted,
+      upvoteCount,
+      downvoteCount,
+      score
+    };
+
+    // Calculate new state logic
+    const newUpvoted = !userHasUpvoted;
+    const newDownvoted = false; // Cannot be both
+    let newUpCount = upvoteCount;
+    let newDownCount = downvoteCount;
+
+    if (newUpvoted) {
+      newUpCount++;
+      if (userHasDownvoted) newDownCount--;
+    } else {
+      newUpCount--;
+    }
+
+    // Simple score estimation
+    const newScore = newUpCount - newDownCount;
+
+    setUserHasUpvoted(newUpvoted);
+    setUserHasDownvoted(newDownvoted);
+    setUpvoteCount(newUpCount);
+    setDownvoteCount(newDownCount);
+    setScore(newScore);
+
+    // Notify parent immediately
+    if (onVoteChange) {
+      onVoteChange(newUpvoted, newDownvoted, newUpCount, newDownCount, newScore);
+    }
+
+    // No loading state for optimistic UI to prevent "disabled" feel, or keep it short
+    // We'll skip setting isLoading to true to allow rapid toggling, or handle race conditions.
+    // Better to keep isLoading=true to prevent double-clicks, but it blocks immediate feedback if button greys out.
+    // User wants "lit up", so we shouldn't disable it visually too much.
     setIsLoading(true);
 
     try {
@@ -69,28 +117,34 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
       const response = await api.post(endpoint);
 
       if (response.data.success) {
+        // Sync with server truth if needed, or just trust our math. 
+        // Server might return different score if others voted.
         const data = response.data.data;
-        const newUpvoted = data?.user_has_upvoted ?? !userHasUpvoted;
-        const newDownvoted = data?.user_has_downvoted ?? false;
-        const newUpCount = data?.upvote_count ?? upvoteCount;
-        const newDownCount = data?.downvote_count ?? downvoteCount;
-        const newScore = data?.score ?? (newUpCount - newDownCount);
-
-        setUserHasUpvoted(newUpvoted);
-        setUserHasDownvoted(newDownvoted);
-        setUpvoteCount(newUpCount);
-        setDownvoteCount(newDownCount);
-        setScore(newScore);
-
-        if (onVoteChange) {
-          onVoteChange(newUpvoted, newDownvoted, newUpCount, newDownCount, newScore);
+        if (data) {
+          // Update with actual server data to be safe
+          setUserHasUpvoted(data.user_has_upvoted);
+          setUserHasDownvoted(data.user_has_downvoted);
+          setUpvoteCount(data.upvote_count);
+          setDownvoteCount(data.downvote_count);
+          setScore(data.score);
         }
       } else {
-        toast.error(response.data.errors?.[0] || 'Failed to upvote');
+        // Revert on failure
+        throw new Error(response.data.errors?.[0] || 'Failed to upvote');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || 'Failed to upvote';
       toast.error(errorMessage);
+
+      // Revert state
+      setUserHasUpvoted(previousState.userHasUpvoted);
+      setUserHasDownvoted(previousState.userHasDownvoted);
+      setUpvoteCount(previousState.upvoteCount);
+      setDownvoteCount(previousState.downvoteCount);
+      setScore(previousState.score);
+      if (onVoteChange) {
+        onVoteChange(previousState.userHasUpvoted, previousState.userHasDownvoted, previousState.upvoteCount, previousState.downvoteCount, previousState.score);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -102,38 +156,73 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
 
     if (disabled || isLoading) return;
 
+    // Optimistic Update
+    const previousState = {
+      userHasUpvoted,
+      userHasDownvoted,
+      upvoteCount,
+      downvoteCount,
+      score
+    };
+
+    const newDownvoted = !userHasDownvoted;
+    const newUpvoted = false;
+    let newUpCount = upvoteCount;
+    let newDownCount = downvoteCount;
+
+    if (newDownvoted) {
+      newDownCount++;
+      if (userHasUpvoted) newUpCount--;
+    } else {
+      newDownCount--;
+    }
+
+    const newScore = newUpCount - newDownCount;
+
+    setUserHasUpvoted(newUpvoted);
+    setUserHasDownvoted(newDownvoted);
+    setUpvoteCount(newUpCount);
+    setDownvoteCount(newDownCount);
+    setScore(newScore);
+
+    if (onVoteChange) {
+      onVoteChange(newUpvoted, newDownvoted, newUpCount, newDownCount, newScore);
+    }
+
     setIsLoading(true);
 
     try {
       const endpoint = contentType === 'post'
         ? API_ENDPOINTS.POSTS.DOWNVOTE(contentId)
-        : API_ENDPOINTS.COMMENTS.DOWNVOTE?.(contentId) || API_ENDPOINTS.COMMENTS.UPVOTE(contentId); // Fallback if downvote not available for comments
+        : API_ENDPOINTS.COMMENTS.DOWNVOTE?.(contentId) || API_ENDPOINTS.COMMENTS.UPVOTE(contentId);
 
       const response = await api.post(endpoint);
 
       if (response.data.success) {
         const data = response.data.data;
-        const newUpvoted = data?.user_has_upvoted ?? false;
-        const newDownvoted = data?.user_has_downvoted ?? !userHasDownvoted;
-        const newUpCount = data?.upvote_count ?? upvoteCount;
-        const newDownCount = data?.downvote_count ?? downvoteCount;
-        const newScore = data?.score ?? (newUpCount - newDownCount);
-
-        setUserHasUpvoted(newUpvoted);
-        setUserHasDownvoted(newDownvoted);
-        setUpvoteCount(newUpCount);
-        setDownvoteCount(newDownCount);
-        setScore(newScore);
-
-        if (onVoteChange) {
-          onVoteChange(newUpvoted, newDownvoted, newUpCount, newDownCount, newScore);
+        if (data) {
+          setUserHasUpvoted(data.user_has_upvoted);
+          setUserHasDownvoted(data.user_has_downvoted);
+          setUpvoteCount(data.upvote_count);
+          setDownvoteCount(data.downvote_count);
+          setScore(data.score);
         }
       } else {
-        toast.error(response.data.errors?.[0] || 'Failed to downvote');
+        throw new Error(response.data.errors?.[0] || 'Failed to downvote');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || 'Failed to downvote';
       toast.error(errorMessage);
+
+      // Revert
+      setUserHasUpvoted(previousState.userHasUpvoted);
+      setUserHasDownvoted(previousState.userHasDownvoted);
+      setUpvoteCount(previousState.upvoteCount);
+      setDownvoteCount(previousState.downvoteCount);
+      setScore(previousState.score);
+      if (onVoteChange) {
+        onVoteChange(previousState.userHasUpvoted, previousState.userHasDownvoted, previousState.upvoteCount, previousState.downvoteCount, previousState.score);
+      }
     } finally {
       setIsLoading(false);
     }

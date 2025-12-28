@@ -11,8 +11,8 @@ import LanguageSelect from '@/components/UI/LanguageSelect';
 
 const BlockedUsersModal = dynamic(() => import('@/components/Settings/BlockedUsersModal'));
 const HiddenItemsModal = dynamic(() => import('@/components/Settings/HiddenItemsModal'));
-const FollowedPublicationsModal = dynamic(() => import('@/components/Settings/FollowedPublicationsModal'));
-const FollowedChatroomsModal = dynamic(() => import('@/components/Settings/FollowedChatroomsModal'));
+const FollowedItemsModal = dynamic(() => import('@/components/Settings/FollowedItemsModal'));
+const MutedItemsModal = dynamic(() => import('@/components/Settings/MutedItemsModal'));
 const BackupCodesModal = dynamic(() => import('@/components/Settings/BackupCodesModal'));
 const DeleteAccountModal = dynamic(() => import('@/components/Settings/DeleteAccountModal'));
 const NotificationPermissionDialog = dynamic(() => import('@/components/UI/NotificationPermissionDialog'));
@@ -43,8 +43,8 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'privacy' | 'anonymous-identities'>('preferences');
   const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
   const [showHiddenItemsModal, setShowHiddenItemsModal] = useState(false);
-  const [showFollowedPublicationsModal, setShowFollowedPublicationsModal] = useState(false);
-  const [showFollowedChatroomsModal, setShowFollowedChatroomsModal] = useState(false);
+  const [showFollowedItemsModal, setShowFollowedItemsModal] = useState(false);
+  const [showMutedItemsModal, setShowMutedItemsModal] = useState(false);
   const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -433,32 +433,36 @@ const Settings: React.FC = () => {
                   </button>
 
                   <button
-                    id="followed-publications-btn"
-                    onClick={() => setShowFollowedPublicationsModal(true)}
+                    id="followed-items-btn"
+                    onClick={() => setShowFollowedItemsModal(true)}
                     className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
                   >
                     <div className="flex items-center">
                       <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
                         <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                         </svg>
                       </div>
-                      <span className="font-medium theme-text-primary">{t('settings.followedPublications')}</span>
+                      <span className="font-medium theme-text-primary">{t('settings.followedItems') || 'Followed Items'}</span>
                     </div>
                   </button>
 
                   <button
-                    id="followed-chatrooms-btn"
-                    onClick={() => setShowFollowedChatroomsModal(true)}
+                    id="muted-items-btn"
+                    onClick={() => setShowMutedItemsModal(true)}
                     className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
                   >
                     <div className="flex items-center">
-                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-3 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                        <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-3 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 9a5 5 0 0 1 .95 2.293" />
+                          <path d="M19.364 5.636a9 9 0 0 1 1.889 9.96" />
+                          <path d="m2 2 20 20" />
+                          <path d="m7 7-.587.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298V11" />
+                          <path d="M9.828 4.172A.686.686 0 0 1 11 4.657v.686" />
                         </svg>
                       </div>
-                      <span className="font-medium theme-text-primary">{t('settings.followedChatrooms')}</span>
+                      <span className="font-medium theme-text-primary">{t('settings.mutedItems') || 'Muted Items'}</span>
                     </div>
                   </button>
                 </div>
@@ -699,7 +703,7 @@ const Settings: React.FC = () => {
                       type="button"
                       onClick={handleBrowserNotificationsToggle}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${preferences.browser_notifications_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                          }`}
+                        }`}
                       aria-pressed={!!preferences.browser_notifications_enabled}
                     >
                       <span
@@ -824,16 +828,16 @@ const Settings: React.FC = () => {
           onClose={() => setShowHiddenItemsModal(false)}
         />
       )}
-      {showFollowedPublicationsModal && (
-        <FollowedPublicationsModal
-          isOpen={showFollowedPublicationsModal}
-          onClose={() => setShowFollowedPublicationsModal(false)}
+      {showFollowedItemsModal && (
+        <FollowedItemsModal
+          isOpen={showFollowedItemsModal}
+          onClose={() => setShowFollowedItemsModal(false)}
         />
       )}
-      {showFollowedChatroomsModal && (
-        <FollowedChatroomsModal
-          isOpen={showFollowedChatroomsModal}
-          onClose={() => setShowFollowedChatroomsModal(false)}
+      {showMutedItemsModal && (
+        <MutedItemsModal
+          isOpen={showMutedItemsModal}
+          onClose={() => setShowMutedItemsModal(false)}
         />
       )}
       {showBackupCodesModal && (

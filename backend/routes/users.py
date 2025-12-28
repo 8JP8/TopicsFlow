@@ -364,6 +364,17 @@ def get_private_conversations():
         pm_model = PrivateMessage(current_app.db)
         conversations = pm_model.get_conversations(user_id, limit)
 
+        # Get mute status for each conversation
+        from models.notification_settings import NotificationSettings
+        ns_model = NotificationSettings(current_app.db)
+        
+        for conv in conversations:
+            other_user_id = conv.get('other_user_id')
+            if other_user_id:
+                conv['is_muted'] = ns_model.is_private_message_muted(user_id, other_user_id)
+            else:
+                conv['is_muted'] = False
+
         return jsonify({
             'success': True,
             'data': conversations
@@ -1071,7 +1082,8 @@ def mute_topic(topic_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.mute_topic(user_id, topic_id, minutes)
 
         if success:
@@ -1097,7 +1109,8 @@ def unmute_topic(topic_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.unmute_topic(user_id, topic_id)
 
         if success:
@@ -1130,7 +1143,8 @@ def mute_chat_room(chat_room_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.mute_chat_room(user_id, chat_room_id, minutes)
 
         if success:
@@ -1156,7 +1170,8 @@ def unmute_chat_room(chat_room_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.unmute_chat_room(user_id, chat_room_id)
 
         if success:
@@ -1189,7 +1204,8 @@ def mute_post(post_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.mute_post(user_id, post_id, minutes)
 
         if success:
@@ -1215,7 +1231,8 @@ def unmute_post(post_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.unmute_post(user_id, post_id)
 
         if success:
@@ -1250,18 +1267,15 @@ def mute_chat(chat_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        # Get chat to find topic_id
+        # Get chat to verify it exists
         chat_model = ChatRoom(current_app.db)
         chat = chat_model.get_chat_room_by_id(chat_id)
         if not chat:
             return jsonify({'success': False, 'errors': ['Chat not found']}), 404
         
-        topic_id = chat.get('topic_id')
-        if not topic_id:
-            return jsonify({'success': False, 'errors': ['Chat topic not found']}), 404
-
-        settings_model = ConversationSettings(current_app.db)
-        success = settings_model.mute_chat(user_id, chat_id, str(topic_id), minutes)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
+        success = settings_model.mute_chat_room(user_id, chat_id, minutes)
 
         if success:
             return jsonify({
@@ -1288,18 +1302,15 @@ def unmute_chat(chat_id):
         current_user_result = auth_service.get_current_user()
         user_id = current_user_result['user']['id']
 
-        # Get chat to find topic_id
+        # Get chat to verify it exists
         chat_model = ChatRoom(current_app.db)
         chat = chat_model.get_chat_room_by_id(chat_id)
         if not chat:
             return jsonify({'success': False, 'errors': ['Chat not found']}), 404
         
-        topic_id = chat.get('topic_id')
-        if not topic_id:
-            return jsonify({'success': False, 'errors': ['Chat topic not found']}), 404
-
-        settings_model = ConversationSettings(current_app.db)
-        success = settings_model.unmute_chat(user_id, chat_id, str(topic_id))
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
+        success = settings_model.unmute_chat_room(user_id, chat_id)
 
         if success:
             return jsonify({

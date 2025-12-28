@@ -164,8 +164,7 @@ class NotificationSettings:
     def mute_topic(self, user_id: str, topic_id: str, minutes: int) -> bool:
         """
         Mute a topic for a specified duration.
-        This will mute all publications and chatrooms inside the topic.
-        minutes: -1 means mute indefinitely until unmuted, 0 means unmute
+        minutes: -1 means mute indefinitely, > 0 means mute for N minutes, 0 means unmute
         """
         try:
             if minutes == 0:
@@ -236,10 +235,8 @@ class NotificationSettings:
             if not settings:
                 return False
 
-            # Check if mute has expired
             if settings.get('muted_until'):
                 if datetime.utcnow() > settings['muted_until']:
-                    # Mute expired, unmute it
                     self.unmute_topic(user_id, topic_id)
                     return False
 
@@ -247,12 +244,173 @@ class NotificationSettings:
         except Exception as e:
             print(f"Error checking topic mute status: {str(e)}")
             return False
-    
+
+    def mute_chat_room(self, user_id: str, chat_room_id: str, minutes: int) -> bool:
+        """Mute a chat room for a specified duration."""
+        try:
+            if minutes == 0:
+                return self.unmute_chat_room(user_id, chat_room_id)
+
+            mute_until = None
+            if minutes > 0:
+                mute_until = datetime.utcnow() + timedelta(minutes=minutes)
+
+            self.collection.update_one(
+                {
+                    'user_id': ObjectId(user_id),
+                    'chat_room_id': ObjectId(chat_room_id),
+                    'type': 'chat_room'
+                },
+                {
+                    '$set': {
+                        'muted': True,
+                        'muted_until': mute_until,
+                        'updated_at': datetime.utcnow()
+                    },
+                    '$setOnInsert': {
+                        'user_id': ObjectId(user_id),
+                        'chat_room_id': ObjectId(chat_room_id),
+                        'type': 'chat_room',
+                        'following': True,
+                        'created_at': datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            print(f"Error muting chat room: {str(e)}")
+            return False
+
+    def unmute_chat_room(self, user_id: str, chat_room_id: str) -> bool:
+        """Unmute a chat room."""
+        try:
+            self.collection.update_one(
+                {
+                    'user_id': ObjectId(user_id),
+                    'chat_room_id': ObjectId(chat_room_id),
+                    'type': 'chat_room'
+                },
+                {
+                    '$set': {
+                        'muted': False,
+                        'muted_until': None,
+                        'updated_at': datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except Exception as e:
+            print(f"Error unmuting chat room: {str(e)}")
+            return False
+
+    def is_chat_room_muted(self, user_id: str, chat_room_id: str) -> bool:
+        """Check if a chat room is currently muted."""
+        try:
+            settings = self.collection.find_one({
+                'user_id': ObjectId(user_id),
+                'chat_room_id': ObjectId(chat_room_id),
+                'type': 'chat_room',
+                'muted': True
+            })
+
+            if not settings:
+                return False
+
+            if settings.get('muted_until'):
+                if datetime.utcnow() > settings['muted_until']:
+                    self.unmute_chat_room(user_id, chat_room_id)
+                    return False
+
+            return True
+        except Exception as e:
+            print(f"Error checking chat room mute status: {str(e)}")
+            return False
+
+    def mute_post(self, user_id: str, post_id: str, minutes: int) -> bool:
+        """Mute a post for a specified duration."""
+        try:
+            if minutes == 0:
+                return self.unmute_post(user_id, post_id)
+
+            mute_until = None
+            if minutes > 0:
+                mute_until = datetime.utcnow() + timedelta(minutes=minutes)
+
+            self.collection.update_one(
+                {
+                    'user_id': ObjectId(user_id),
+                    'post_id': ObjectId(post_id),
+                    'type': 'post'
+                },
+                {
+                    '$set': {
+                        'muted': True,
+                        'muted_until': mute_until,
+                        'updated_at': datetime.utcnow()
+                    },
+                    '$setOnInsert': {
+                        'user_id': ObjectId(user_id),
+                        'post_id': ObjectId(post_id),
+                        'type': 'post',
+                        'following': True,
+                        'created_at': datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            print(f"Error muting post: {str(e)}")
+            return False
+
+    def unmute_post(self, user_id: str, post_id: str) -> bool:
+        """Unmute a post."""
+        try:
+            self.collection.update_one(
+                {
+                    'user_id': ObjectId(user_id),
+                    'post_id': ObjectId(post_id),
+                    'type': 'post'
+                },
+                {
+                    '$set': {
+                        'muted': False,
+                        'muted_until': None,
+                        'updated_at': datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except Exception as e:
+            print(f"Error unmuting post: {str(e)}")
+            return False
+
+    def is_post_muted(self, user_id: str, post_id: str) -> bool:
+        """Check if a post is currently muted."""
+        try:
+            settings = self.collection.find_one({
+                'user_id': ObjectId(user_id),
+                'post_id': ObjectId(post_id),
+                'type': 'post',
+                'muted': True
+            })
+
+            if not settings:
+                return False
+
+            if settings.get('muted_until'):
+                if datetime.utcnow() > settings['muted_until']:
+                    self.unmute_post(user_id, post_id)
+                    return False
+
+            return True
+        except Exception as e:
+            print(f"Error checking post mute status: {str(e)}")
+            return False
+
     def mute_private_message(self, user_id: str, other_user_id: str, minutes: int) -> bool:
-        """
-        Mute a private message conversation for a specified duration.
-        minutes: -1 means mute indefinitely until unmuted, 0 means unmute
-        """
+        """Mute a private message conversation."""
         try:
             if minutes == 0:
                 return self.unmute_private_message(user_id, other_user_id)
@@ -323,10 +481,8 @@ class NotificationSettings:
             if not settings:
                 return False
 
-            # Check if mute has expired
             if settings.get('muted_until'):
                 if datetime.utcnow() > settings['muted_until']:
-                    # Mute expired, unmute it
                     self.unmute_private_message(user_id, other_user_id)
                     return False
 
@@ -336,7 +492,7 @@ class NotificationSettings:
             return False
 
     def block_user(self, user_id: str, other_user_id: str) -> bool:
-        """Block a user (for private messages)."""
+        """Block a user."""
         try:
             self.collection.update_one(
                 {
@@ -482,99 +638,51 @@ class NotificationSettings:
     def migrate_from_conversation_settings(self) -> int:
         """
         Migrate data from conversation_settings collection to notification_settings.
-        Returns the number of documents migrated.
         """
         try:
-            from models.conversation_settings import ConversationSettings
-            conv_settings = ConversationSettings(self.db)
-            
-            # Get all conversation settings
-            all_settings = list(conv_settings.collection.find({}))
+            conv_coll = self.db.conversation_settings
+            all_settings = list(conv_coll.find({}))
             migrated_count = 0
             
             for setting in all_settings:
                 try:
-                    # Determine the type based on what fields are present
+                    user_id = setting.get('user_id')
+                    if not user_id: continue
+                    
+                    target_query = {'user_id': user_id}
+                    target_update = {
+                        '$set': {
+                            'muted': setting.get('muted', False),
+                            'muted_until': setting.get('muted_until'),
+                            'updated_at': datetime.utcnow()
+                        },
+                        '$setOnInsert': {
+                            'created_at': setting.get('created_at', datetime.utcnow())
+                        }
+                    }
+                    
                     if 'other_user_id' in setting:
-                        # Private message
-                        self.collection.update_one(
-                            {
-                                'user_id': setting['user_id'],
-                                'other_user_id': setting['other_user_id'],
-                                'type': 'private_message'
-                            },
-                            {
-                                '$set': {
-                                    'muted': setting.get('muted', False),
-                                    'muted_until': setting.get('muted_until'),
-                                    'blocked': setting.get('blocked', False),
-                                    'updated_at': datetime.utcnow()
-                                },
-                                '$setOnInsert': {
-                                    'user_id': setting['user_id'],
-                                    'other_user_id': setting['other_user_id'],
-                                    'type': 'private_message',
-                                    'created_at': setting.get('created_at', datetime.utcnow())
-                                }
-                            },
-                            upsert=True
-                        )
-                        migrated_count += 1
+                        target_query.update({'other_user_id': setting['other_user_id'], 'type': 'private_message'})
+                        target_update['$setOnInsert']['type'] = 'private_message'
+                        target_update['$set']['blocked'] = setting.get('blocked', False)
                     elif 'topic_id' in setting and setting.get('type') == 'topic':
-                        # Topic
-                        self.collection.update_one(
-                            {
-                                'user_id': setting['user_id'],
-                                'topic_id': setting['topic_id'],
-                                'type': 'topic'
-                            },
-                            {
-                                '$set': {
-                                    'muted': setting.get('muted', False),
-                                    'muted_until': setting.get('muted_until'),
-                                    'updated_at': datetime.utcnow()
-                                },
-                                '$setOnInsert': {
-                                    'user_id': setting['user_id'],
-                                    'topic_id': setting['topic_id'],
-                                    'type': 'topic',
-                                    'created_at': setting.get('created_at', datetime.utcnow())
-                                }
-                            },
-                            upsert=True
-                        )
-                        migrated_count += 1
+                        target_query.update({'topic_id': setting['topic_id'], 'type': 'topic'})
+                        target_update['$setOnInsert']['type'] = 'topic'
                     elif 'chat_room_id' in setting and setting.get('type') == 'chat_room':
-                        # Chat room
-                        self.collection.update_one(
-                            {
-                                'user_id': setting['user_id'],
-                                'chat_room_id': setting['chat_room_id'],
-                                'type': 'chat_room'
-                            },
-                            {
-                                '$set': {
-                                    'muted': setting.get('muted', False),
-                                    'muted_until': setting.get('muted_until'),
-                                    'updated_at': datetime.utcnow()
-                                },
-                                '$setOnInsert': {
-                                    'user_id': setting['user_id'],
-                                    'chat_room_id': setting['chat_room_id'],
-                                    'type': 'chat_room',
-                                    'following': True,
-                                    'created_at': setting.get('created_at', datetime.utcnow())
-                                }
-                            },
-                            upsert=True
-                        )
-                        migrated_count += 1
+                        target_query.update({'chat_room_id': setting['chat_room_id'], 'type': 'chat_room'})
+                        target_update['$setOnInsert']['type'] = 'chat_room'
+                        target_update['$setOnInsert']['following'] = True
+                    else:
+                        continue
+                        
+                    self.collection.update_one(target_query, target_update, upsert=True)
+                    migrated_count += 1
                 except Exception as e:
-                    print(f"Error migrating setting: {str(e)}")
+                    print(f"Error migrating setting {setting.get('_id')}: {str(e)}")
                     continue
             
             return migrated_count
         except Exception as e:
-            print(f"Error migrating conversation settings: {str(e)}")
+            print(f"Error during migration: {str(e)}")
             return 0
 

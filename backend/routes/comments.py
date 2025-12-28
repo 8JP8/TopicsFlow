@@ -173,7 +173,12 @@ def create_comment(post_id):
                     logger.info(f"Skipping notification for follower {follower_id} - topic {topic_id} is muted")
                     continue
                 
-                # Verify user is still following the post (should be true since we got them from get_post_followers, but double-check)
+                # Check if post itself is muted
+                if notification_settings.is_post_muted(follower_id, post_id):
+                    logger.info(f"Skipping notification for follower {follower_id} - post {post_id} is muted")
+                    continue
+                
+                # Verify user is still following the post
                 if not notification_settings.is_following_post(follower_id, post_id):
                     logger.info(f"Skipping notification for follower {follower_id} - post {post_id} is not followed")
                     continue

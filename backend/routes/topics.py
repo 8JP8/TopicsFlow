@@ -77,15 +77,56 @@ def get_topics():
             search=search if search else None
         )
 
-        # Add user_permission_level for each topic if user is authenticated
+        # Get hidden topics and mute status if user is authenticated
         if user_id:
+            from models.user_content_settings import UserContentSettings
+            ucs_model = UserContentSettings(current_app.db)
+            from models.notification_settings import NotificationSettings
+            ns_model = NotificationSettings(current_app.db)
+            
+            filtered_topics = []
             for topic in topics:
+                t_id = str(topic['id'])
+                # Filter hidden topics
+                if ucs_model.is_topic_hidden(user_id, t_id):
+                    continue
+                
+                # Check for invite-only access (require_approval = True)
+                # Users can see it if:
+                # 1. It's NOT invite only (require_approval is False/missing)
+                # 2. They are the owner
+                # 3. They are a member (user_permission_level > 0)
+                
+                is_invite_only = topic.get('settings', {}).get('require_approval', False)
+                is_owner = str(topic.get('owner_id')) == str(user_id)
+                
+                # Ensure permission level is calculated
                 permission_level = topic_model.calculate_permission_level(topic, user_id)
                 topic['user_permission_level'] = permission_level
+                
+                is_member = permission_level > 0
+                
+                if is_invite_only and not is_owner and not is_member:
+                    continue
+
+                # Add mute status
+                topic['is_muted'] = ns_model.is_topic_muted(user_id, t_id)
+                
+                filtered_topics.append(topic)
+            
+            topics = filtered_topics
         else:
-            # Set permission level to 0 for unauthenticated users
+            # Set defaults for unauthenticated users and filter invite-only
+            public_topics = []
             for topic in topics:
+                is_invite_only = topic.get('settings', {}).get('require_approval', False)
+                if is_invite_only:
+                    continue
+                    
                 topic['user_permission_level'] = 0
+                topic['is_muted'] = False
+                public_topics.append(topic)
+            topics = public_topics
 
         # Get total count for pagination (more efficient - use count_documents)
         try:
@@ -790,7 +831,8 @@ def mute_topic(topic_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
         
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.mute_topic(user_id, topic_id, minutes)
         
         if success:
@@ -821,7 +863,8 @@ def unmute_topic(topic_id):
             return jsonify({'success': False, 'errors': ['Authentication required']}), 401
         user_id = current_user_result['user']['id']
         
-        settings_model = ConversationSettings(current_app.db)
+        from models.notification_settings import NotificationSettings
+        settings_model = NotificationSettings(current_app.db)
         success = settings_model.unmute_topic(user_id, topic_id)
         
         if success:

@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import Layout from '@/components/Layout/Layout';
 import { motion } from 'framer-motion';
 import { ChevronDown, Shield, Lock, Users } from 'lucide-react';
-import FeatureCarousel from '@/components/About/FeatureCarousel';
+import LoadingSpinner from '@/components/UI/LoadingSpinner';
 
 // Lazy load heavy globe component only
 const GlobeBackground = dynamic(() => import('@/components/UI/GlobeBackground'), {
@@ -16,6 +16,11 @@ const GlobeBackground = dynamic(() => import('@/components/UI/GlobeBackground'),
 
 const ReadmeViewer = dynamic(() => import('@/components/About/ReadmeViewer'), {
     loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-900/20 rounded-3xl animate-pulse" />,
+    ssr: false
+});
+
+const FeatureCarousel = dynamic(() => import('@/components/About/FeatureCarousel'), {
+    loading: () => <div className="h-96 flex items-center justify-center"><LoadingSpinner /></div>,
     ssr: false
 });
 

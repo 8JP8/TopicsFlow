@@ -1,6 +1,6 @@
-import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ContextMenu from './ContextMenu';
+import { Bell, BellOff, Flag, Eye, EyeOff, Volume2, Trash2, Share2 } from 'lucide-react';
 
 interface PostContextMenuProps {
   postId: string;
@@ -12,8 +12,15 @@ interface PostContextMenuProps {
   onHide?: (postId: string) => void;
   onReport?: (postId: string) => void;
   onDelete?: (postId: string) => void;
+  onSilence?: (postId: string, minutes?: number) => void;
+  onShare?: (postId: string) => void;
+  onReportUser?: (userId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  authorId?: string;
+  authorUsername?: string;
   isFollowed?: boolean;
   isHidden?: boolean;
+  isSilenced?: boolean;
   isOwner?: boolean;
 }
 
@@ -27,12 +34,19 @@ const PostContextMenu: React.FC<PostContextMenuProps> = ({
   onHide,
   onReport,
   onDelete,
+  onSilence,
+  onShare,
+  onReportUser,
+  onBlockUser,
+  authorId,
+  authorUsername,
   isFollowed = false,
   isHidden = false,
+  isSilenced = false,
   isOwner = false,
 }) => {
   const { t } = useLanguage();
-  
+
   const items = [
     {
       label: t('posts.reportPost') || 'Report Post',
@@ -42,12 +56,19 @@ const PostContextMenu: React.FC<PostContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      ),
+      icon: <Flag className="w-4 h-4" />,
       disabled: !onReport,
+    },
+    {
+      label: t('contextMenu.sharePost') || 'Share Post',
+      action: () => {
+        if (onShare) {
+          onShare(postId);
+        }
+        onClose();
+      },
+      icon: <Share2 className="w-4 h-4" />,
+      disabled: !onShare,
     },
     {
       label: isFollowed ? (t('contextMenu.unfollowPost') || 'Unfollow Post') : (t('contextMenu.followPost') || 'Follow Post'),
@@ -57,17 +78,36 @@ const PostContextMenu: React.FC<PostContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {isFollowed ? (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          )}
-        </svg>
-      ),
+      icon: isFollowed ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />,
       disabled: !onFollow,
     },
+    // Mute Options: Only if followed
+    ...(isFollowed ? [{
+      label: isSilenced ? (t('mute.unmutePost') || 'Unmute Post') : (t('mute.mutePost') || 'Mute Post'),
+      action: () => {
+        if (isSilenced) {
+          if (onSilence) onSilence(postId, 0);
+          onClose();
+        }
+      },
+      icon: isSilenced ? <Volume2 className="w-4 h-4" /> : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-volume-off-icon lucide-volume-off w-4 h-4">
+          <path d="M16 9a5 5 0 0 1 .95 2.293" />
+          <path d="M19.364 5.636a9 9 0 0 1 1.889 9.96" />
+          <path d="m2 2 20 20" />
+          <path d="m7 7-.587.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298V11" />
+          <path d="M9.828 4.172A.686.686 0 0 1 11 4.657v.686" />
+        </svg>
+      ),
+      disabled: !onSilence,
+      submenu: !isSilenced ? [
+        { label: t('mute.15minutes') || '15 Minutes', action: () => { if (onSilence) onSilence(postId, 15); onClose(); } },
+        { label: t('mute.1hour') || '1 Hour', action: () => { if (onSilence) onSilence(postId, 60); onClose(); } },
+        { label: t('mute.8hours') || '8 Hours', action: () => { if (onSilence) onSilence(postId, 480); onClose(); } },
+        { label: t('mute.24hours') || '24 Hours', action: () => { if (onSilence) onSilence(postId, 1440); onClose(); } },
+        { label: t('mute.forever') || 'Forever', action: () => { if (onSilence) onSilence(postId, -1); onClose(); } },
+      ] : undefined
+    }] : []),
     {
       label: isHidden ? (t('contextMenu.unhidePost') || 'Unhide Post') : (t('contextMenu.hidePost') || 'Hide Post'),
       action: () => {
@@ -76,14 +116,38 @@ const PostContextMenu: React.FC<PostContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-        </svg>
-      ),
+      icon: isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />,
       disabled: !onHide,
     },
   ];
+
+  // User Actions (Report User, Block User)
+  if (authorId && (onReportUser || onBlockUser)) {
+    // Optional: Add separator logic in ContextMenu if supported, for now just append
+    if (onReportUser) {
+      items.push({
+        label: t('contextMenu.reportUser') || 'Report User',
+        action: () => {
+          onReportUser(authorId);
+          onClose();
+        },
+        icon: <Flag className="w-4 h-4" />, // Reusing Flag or use UserX maybe?
+        disabled: false,
+      });
+    }
+    if (onBlockUser) {
+      items.push({
+        label: t('userBanner.block') || 'Block User',
+        action: () => {
+          onBlockUser(authorId);
+          onClose();
+        },
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-ban w-4 h-4"><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></svg>,
+        disabled: false
+      })
+    }
+  }
+
 
   // Add delete option for owners
   if (isOwner && onDelete) {
@@ -95,11 +159,7 @@ const PostContextMenu: React.FC<PostContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      ),
+      icon: <Trash2 className="w-4 h-4" />,
       disabled: !onDelete,
     });
   }

@@ -19,10 +19,10 @@ interface ContextMenuProps {
 const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuOpen, setSubmenuOpen] = useState<number | null>(null);
-  const [submenuPosition, setSubmenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [submenuPosition, setSubmenuPosition] = useState<{ x: number; y: number; alignX?: 'left' | 'right'; alignY?: 'top' | 'bottom' } | null>(null);
   const [position, setPosition] = useState({ x, y });
 
-  // Handle smart positioning
+  // Handle smart positioning for Main Menu
   React.useLayoutEffect(() => {
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
@@ -32,49 +32,67 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
       let newX = x;
       let newY = y;
 
-      // Check right edge
+      // Check horizontals
       if (x + rect.width > viewportWidth) {
-        newX = x - rect.width;
+        newX = x - rect.width; // Flip to left
+      }
+      // Ensure strictly within bounds (clamping)
+      if (newX + rect.width > viewportWidth) {
+        newX = viewportWidth - rect.width - 10;
+      }
+      if (newX < 0) {
+        newX = 10;
       }
 
-      // Check bottom edge
+      // Check verticals
       if (y + rect.height > viewportHeight) {
-        newY = y - rect.height;
+        newY = y - rect.height; // Flip to up
+      }
+      // Ensure strictly within bounds
+      if (newY + rect.height > viewportHeight) {
+        newY = viewportHeight - rect.height - 10;
+      }
+      if (newY < 0) {
+        newY = 10;
       }
 
       setPosition({ x: newX, y: newY });
     }
   }, [x, y]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [onClose]);
-
+  // Handle submenu positioning
   const handleItemClick = (item: ContextMenuItem, index: number, event: React.MouseEvent) => {
     if (item.disabled) return;
 
     if (item.submenu && item.submenu.length > 0) {
-      // Open submenu
+      // Open submenu with smart positioning
       const rect = event.currentTarget.getBoundingClientRect();
-      setSubmenuPosition({ x: rect.right, y: rect.top });
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Default: Open to the right, aligned top
+      let alignX: 'left' | 'right' = 'right';
+      let alignY: 'top' | 'bottom' = 'top';
+
+      // Check horizontal space (assume submenu ~200px)
+      if (rect.right + 200 > viewportWidth) {
+        alignX = 'left';
+      }
+
+      // Check vertical space (assume submenu based on item count, roughly 40px per item)
+      const estimatedHeight = item.submenu.length * 40;
+      if (rect.top + estimatedHeight > viewportHeight) {
+        alignY = 'bottom';
+      }
+
+      const newPos = {
+        x: alignX === 'right' ? rect.right : rect.left,
+        y: alignY === 'top' ? rect.top : rect.bottom,
+        alignX,
+        alignY
+      };
+
+      setSubmenuPosition(newPos);
       setSubmenuOpen(index);
     } else {
       item.action();
@@ -105,8 +123,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
               onClick={(e) => handleItemClick(item, index, e)}
               disabled={item.disabled}
               className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${item.danger
-                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : 'theme-text-primary hover:theme-bg-tertiary'
+                ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                : 'theme-text-primary hover:theme-bg-tertiary'
                 } ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {item.icon && <span className="w-4 h-4">{item.icon}</span>}
@@ -121,8 +139,15 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
               <div
                 className="fixed z-50 theme-bg-secondary border theme-border rounded-lg shadow-xl py-1 min-w-[180px]"
                 style={{
-                  left: `${submenuPosition.x}px`,
-                  top: `${submenuPosition.y}px`,
+                  // Horizontal: if align right (default), set left=x. If align left, set right=(width-x).
+                  ...(submenuPosition.alignX === 'right'
+                    ? { left: `${submenuPosition.x}px` }
+                    : { right: `${window.innerWidth - submenuPosition.x}px`, left: 'auto' }),
+
+                  // Vertical: if align top (default), set top=y. If align bottom, set bottom=(height-y).
+                  ...(submenuPosition.alignY === 'top'
+                    ? { top: `${submenuPosition.y}px` }
+                    : { bottom: `${window.innerHeight - submenuPosition.y}px`, top: 'auto' }),
                 }}
                 onMouseLeave={() => setSubmenuOpen(null)}
               >
@@ -132,8 +157,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
                     onClick={() => handleSubmenuItemClick(subItem)}
                     disabled={subItem.disabled}
                     className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 transition-colors ${subItem.danger
-                        ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                        : 'theme-text-primary hover:theme-bg-tertiary'
+                      ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      : 'theme-text-primary hover:theme-bg-tertiary'
                       } ${subItem.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     {subItem.icon && <span className="w-4 h-4">{subItem.icon}</span>}

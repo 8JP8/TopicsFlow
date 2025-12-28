@@ -25,6 +25,7 @@ interface Post {
   gif_url?: string;
   tags?: string[];
   is_followed?: boolean;
+  is_silenced?: boolean;
 }
 
 interface PostListProps {

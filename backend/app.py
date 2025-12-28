@@ -333,6 +333,7 @@ def create_app(config_name=None):
     from routes.attachments import attachments_bp
     from routes.notification_settings import notification_settings_bp
     from routes.notifications import notifications_bp
+    from routes.short_links import short_links_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(topics_bp, url_prefix='/api/topics')
@@ -350,6 +351,7 @@ def create_app(config_name=None):
     app.register_blueprint(attachments_bp, url_prefix='/api/attachments')
     app.register_blueprint(notification_settings_bp, url_prefix='/api/notification-settings')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+    app.register_blueprint(short_links_bp) # Mount at root for /s/<code>
 
     # Health check endpoint (register before static routes)
     @app.route('/health')
@@ -625,11 +627,46 @@ def create_db_indexes(app):
         db.tickets.create_index("created_at")
         db.tickets.create_index("reviewed_by")
 
-        # Conversation settings collection indexes
-        db.conversation_settings.create_index([("user_id", 1), ("other_user_id", 1)], unique=True)
-        db.conversation_settings.create_index([("user_id", 1), ("topic_id", 1), ("type", 1)], unique=True, sparse=True)
-        db.conversation_settings.create_index([("user_id", 1), ("chat_room_id", 1), ("type", 1)], unique=True, sparse=True)
+        # Conversation settings collection indexes (Upgrade to partial indexes)
+        db.conversation_settings.create_index(
+            [("user_id", 1), ("other_user_id", 1)], 
+            unique=True, 
+            partialFilterExpression={"other_user_id": {"$exists": True}}
+        )
+        db.conversation_settings.create_index(
+            [("user_id", 1), ("topic_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"topic_id": {"$exists": True}}
+        )
+        db.conversation_settings.create_index(
+            [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"chat_room_id": {"$exists": True}}
+        )
         db.conversation_settings.create_index("type")
+
+        # Notification settings collection indexes
+        db.notification_settings.create_index(
+            [("user_id", 1), ("post_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"type": "post"}
+        )
+        db.notification_settings.create_index(
+            [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"type": "chat_room"}
+        )
+        db.notification_settings.create_index(
+            [("user_id", 1), ("topic_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"type": "topic"}
+        )
+        db.notification_settings.create_index(
+            [("user_id", 1), ("other_user_id", 1), ("type", 1)], 
+            unique=True, 
+            partialFilterExpression={"type": "private_message"}
+        )
+        db.notification_settings.create_index("type")
 
         # Private messages collection indexes
         db.private_messages.create_index([("from_user_id", 1), ("to_user_id", 1)])
@@ -654,6 +691,10 @@ def create_db_indexes(app):
             db.comments.create_index([("post_id", 1), ("created_at", -1), ("upvote_count", -1)])
         except Exception as e:
             logger.warning(f"Failed to create some comments indexes (may already exist): {e}")
+
+        # Short Links collection
+        db.short_links.create_index("code", unique=True)
+        db.short_links.create_index("created_at")
 
         logger.info("Database indexes created successfully")
 

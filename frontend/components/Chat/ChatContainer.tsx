@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '@/contexts/SocketContext';
+import MessageInput from '@/components/UI/MessageInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
@@ -8,6 +9,7 @@ import MentionList from '@/components/UI/MentionList';
 import UserTooltip from '@/components/UI/UserTooltip';
 import UserContextMenu from '@/components/UI/UserContextMenu';
 import MessageContextMenu from '@/components/UI/MessageContextMenu';
+import TopicContextMenu from '@/components/UI/TopicContextMenu';  // Added import
 import UserBanner from '@/components/UI/UserBanner';
 import Avatar from '@/components/UI/Avatar';
 import UserBadges from '@/components/UI/UserBadges';
@@ -17,6 +19,7 @@ import toast from 'react-hot-toast';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useRouter } from 'next/router';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName, saveLastAnonymousName } from '@/utils/anonymousStorage';
+import { MoreVertical } from 'lucide-react'; // Added import
 
 interface Message {
   id: string;
@@ -97,6 +100,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [showUserBanner, setShowUserBanner] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ userId: string, username: string, isAnonymous?: boolean, x?: number, y?: number } | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [topicContextMenu, setTopicContextMenu] = useState<{ topicId: string, topicTitle: string, x: number, y: number } | null>(null);
+  const [isSilenced, setIsSilenced] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [topicToReport, setTopicToReport] = useState<string | null>(null);
   const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
   const tooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
@@ -108,6 +115,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [mentionSearch, setMentionSearch] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
+
+  // Audio Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const audioChunksRef = React.useRef<Blob[]>([]);
+  const recordingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Debounced global search for mentions
   useEffect(() => {
@@ -620,14 +636,77 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       }
     };
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loadingMore, loadOlderMessages]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream); // Set stream for visualization
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+
+        // Don't stop tracks here immediately if we want to preview? 
+        // No, stop tracks to release mic. Visualization stops.
+        // If we want visualization during playback, we use Audio element.
+        setAudioStream(null);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast.error(t('chat.micError') || 'Could not access microphone');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+    setAudioBlob(null);
+    setAudioStream(null);
+    setRecordingDuration(0);
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!messageInput.trim() && !selectedGifUrl) {
+    if (!messageInput.trim() && !selectedGifUrl && !audioBlob) {
       return;
     }
 
@@ -671,7 +750,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
     // Determine message type and content
     // If there's both text and GIF, use 'gif' type but include the text content
-    const messageType = selectedGifUrl ? 'gif' : 'text';
+    let messageType = selectedGifUrl ? 'gif' : 'text';
+    if (audioBlob) {
+      messageType = 'audio';
+    }
     const gifUrl: string | undefined = selectedGifUrl || undefined;
 
     // Clear selected GIF after using it
@@ -703,6 +785,27 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
       if (gifUrl) {
         payload.gif_url = gifUrl;
+      }
+
+      if (audioBlob) {
+        const audioDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(audioBlob);
+        });
+
+        payload.attachments = [{
+          type: 'audio',
+          data: audioDataUrl,
+          filename: 'voice_message.webm',
+          size: audioBlob.size,
+          mime_type: 'audio/webm'
+        }];
+
+        // Voice message default text if empty
+        if (!messageContent) {
+          payload.content = `[${t('chat.audioMessage') || 'Voice Message'}]`;
+        }
       }
 
       console.log('[ChatContainer] Sending message via REST API:', {
@@ -740,6 +843,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         console.log('[ChatContainer] Message sent successfully via REST API:', newMessage);
         setMessageInput('');
         setIsTyping(false);
+        setAudioBlob(null);
+        setRecordingDuration(0);
+        setAudioStream(null);
       } else {
         throw new Error(response.data.errors?.[0] || 'Failed to send message');
       }
@@ -1051,11 +1157,26 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
           )}
 
           {/* Connection status */}
-          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${connected ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-            }`}>
+          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${connected ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'}`}>
             <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-yellow-500'}`} />
             <span>{connected ? t('chat.online') : t('chat.reconnecting')}</span>
           </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTopicContextMenu({
+                topicId: topic.id || (topic as any)._id,
+                topicTitle: topic.title,
+                x: rect.right,
+                y: rect.bottom
+              });
+            }}
+            className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+          >
+            <MoreVertical className="w-5 h-5 theme-text-primary" />
+          </button>
         </div>
       </div>
 
@@ -1089,6 +1210,103 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Messages */}
+      {/* ... */}
+
+      {/* Topic Context Menu */}
+      {topicContextMenu && (
+        <TopicContextMenu
+          topicId={topicContextMenu.topicId}
+          topicTitle={topicContextMenu.topicTitle}
+          x={topicContextMenu.x}
+          y={topicContextMenu.y}
+          onClose={() => setTopicContextMenu(null)}
+          isSilenced={isSilenced}
+          isHidden={isHidden}
+          isFollowed={topic.user_permission_level >= 1}
+          isOwner={topic.owner.id === user?.id}
+          isPrivate={topic.settings.require_approval}
+
+          onSilence={async (topicId, minutes) => {
+            try {
+              const endpoint = minutes === 0
+                ? API_ENDPOINTS.TOPICS.UNSILENCE(topicId)
+                : API_ENDPOINTS.TOPICS.SILENCE(topicId);
+
+              const payload = minutes && minutes > 0 ? { minutes } : {};
+
+              if (minutes === 0) {
+                await api.post(endpoint, payload); // Unsilence might not need payload but silence does
+                setIsSilenced(false);
+                toast.success(t('mute.unsilenced') || 'Unsilenced');
+              } else {
+                await api.post(endpoint, payload);
+                setIsSilenced(true);
+
+                // Map minutes to translation key
+                const durationMap: Record<number, string> = {
+                  15: '15minutes',
+                  60: '1hour',
+                  480: '8hours',
+                  1440: '24hours',
+                  [-1]: 'forever'
+                };
+                const durationKey = (minutes && durationMap[minutes]) || 'forever';
+                const durationText = t(`mute.${durationKey}`) || ((minutes === -1 || !minutes) ? 'Forever' : `${minutes}m`);
+
+                toast.success(t('mute.success', { name: topic.title, duration: durationText }) || `${topic.title} silenced for ${durationText}`);
+              }
+            } catch (error) {
+              toast.error(t('errors.generic'));
+            }
+          }}
+          onHide={async (topicId) => {
+            try {
+              await api.post(API_ENDPOINTS.TOPICS.HIDE(topicId));
+              setIsHidden(true);
+              if (onBackToTopics) onBackToTopics();
+              toast.success(t('success.hidden'));
+            } catch (error) {
+              toast.error(t('errors.generic'));
+            }
+          }}
+          onFollow={async (topicId) => {
+            try {
+              const isFollowed = topic.user_permission_level >= 1;
+              if (isFollowed) {
+                if (confirm(t('topics.confirmLeave') || `Leave ${topic.title}?`)) {
+                  await api.post(API_ENDPOINTS.TOPICS.LEAVE(topicId));
+                  toast.success(t('success.unfollowed'));
+                  // Update local topic permissions or reload
+                  // Optimistically update permissions not easy here without prop update
+                  // Ideally we callback to parent or force refresh
+                }
+              } else {
+                await api.post(API_ENDPOINTS.TOPICS.JOIN(topicId));
+                toast.success(t('success.followed'));
+              }
+            } catch (error) {
+              toast.error(t('errors.generic'));
+            }
+          }}
+          onReport={(topicId) => {
+            setTopicToReport(topicId);
+            setShowReportDialog(true);
+          }}
+          onDelete={topic.owner.id === user?.id ? async (topicId) => {
+            if (confirm(t('topics.confirmDelete'))) {
+              try {
+                await api.delete(API_ENDPOINTS.TOPICS.DELETE(topicId));
+                toast.success(t('success.deleted'));
+                onBackToTopics();
+              } catch (error) {
+                toast.error(t('errors.generic'));
+              }
+            }
+          } : undefined}
+        />
       )}
 
       {/* Messages */}
@@ -1441,10 +1659,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       </div>
 
       {/* Message Input */}
-      <div className="border-t theme-border p-4">
-        <form 
-          onSubmit={handleSendMessage} 
-          className="flex items-center space-x-3"
+      <div className="border-t theme-border p-2 bg-white dark:theme-bg-secondary">
+        <form
+          onSubmit={handleSendMessage}
+          className="w-full"
           onKeyDown={(e) => {
             // Handle Enter key even when buttons are focused
             if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
@@ -1457,243 +1675,219 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             }
           }}
         >
-          <div className="flex-1 relative">
-            <input
-              type="text"
+          <div id="message-input-fixed-bottom" className="sticky bottom-0 left-0 right-0 z-10 w-full px-4 pb-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t theme-border">
+            <MessageInput
               value={messageInput}
-              onChange={handleMessageInputChange}
-              onKeyDown={handleMentionKeyDown}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
-                  handleSendMessage(e);
-                }
+              onChange={setMessageInput}
+              onSend={(e) => handleSendMessage(e as any)}
+              isLoading={loading}
+              placeholder={t('chat.typeMessage') || 'Type a message...'}
+              selectedGifUrl={selectedGifUrl}
+              onRemoveGif={() => setSelectedGifUrl(null)}
+              onGifClick={() => setShowGifPicker(!showGifPicker)}
+              showGifPicker={showGifPicker}
+              isRecording={isRecording}
+              recordingDuration={recordingDuration}
+              audioBlob={audioBlob}
+              audioStream={audioStream}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+              onCancelRecording={cancelRecording}
+              onRemoveAudio={() => {
+                setAudioBlob(null);
+                setRecordingDuration(0);
               }}
-              placeholder={t('chat.messageAs', { name: useAnonymous && anonymousName ? anonymousName : user?.username || '' })}
-              className="w-full px-4 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
-              autoComplete="off"
-            />
-
-            {/* Mention Autocomplete Dropdown */}
-            {showMentionDropdown && mentionUsers.length > 0 && (
-              <div className="absolute bottom-full left-0 mb-2 z-50">
-                <MentionList
-                  users={mentionUsers.filter(u => u.username.toLowerCase().includes(mentionSearch.toLowerCase()))}
-                  selectedIndex={selectedMentionIndex}
-                  onSelect={handleSelectMention}
-                />
-              </div>
-            )}
-
-            {selectedGifUrl && (
-              <div className="absolute top-1 right-1">
-                <img src={selectedGifUrl} alt="Selected GIF" className="w-8 h-8 rounded object-cover" />
-              </div>
-            )}
+            >
+              {showGifPicker && (
+                <div className="absolute bottom-full right-0 mb-4 z-50 max-md:-right-12 min-w-[300px]">
+                  <GifPicker
+                    onSelectGif={handleGifSelect}
+                    onClose={() => setShowGifPicker(false)}
+                    position="right"
+                  />
+                </div>
+              )}
+            </MessageInput>
           </div>
-
-          {/* GIF Button */}
-          <button
-            type="button"
-            onClick={() => setShowGifPicker(!showGifPicker)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (messageInput.trim() || selectedGifUrl) {
-                  handleSendMessage(e as any);
-                }
-              }
-            }}
-            className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
-            title={t('privateMessages.addGif')}
-          >
-            <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            {showGifPicker && (
-              <div className="absolute bottom-full right-0 mb-2">
-                <GifPicker
-                  onSelectGif={handleGifSelect}
-                  onClose={() => setShowGifPicker(false)}
-                />
-              </div>
-            )}
-          </button>
-
-          <button
-            type="submit"
-            disabled={(!messageInput.trim() && !selectedGifUrl)}
-            className="px-4 py-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t('chat.send')}
-          </button>
         </form>
       </div>
 
+
       {/* User Tooltip */}
-      {tooltip && (
-        <UserTooltip
-          username={tooltip.username}
-          x={tooltip.x}
-          y={tooltip.y}
-          onClose={() => {
-            // Clear timeout when closing
-            if (tooltipTimeoutRef.current) {
-              clearTimeout(tooltipTimeoutRef.current);
-              tooltipTimeoutRef.current = null;
-            }
-            setTooltip(null);
-          }}
-        />
-      )}
+      {
+        tooltip && (
+          <UserTooltip
+            username={tooltip.username}
+            x={tooltip.x}
+            y={tooltip.y}
+            onClose={() => {
+              // Clear timeout when closing
+              if (tooltipTimeoutRef.current) {
+                clearTimeout(tooltipTimeoutRef.current);
+                tooltipTimeoutRef.current = null;
+              }
+              setTooltip(null);
+            }}
+          />
+        )
+      }
 
       {/* User Context Menu */}
-      {contextMenu && (
-        <UserContextMenu
-          userId={contextMenu.userId}
-          username={contextMenu.username}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onSendMessage={async (userId, username) => {
-            // Navigate to private messages with this user (works for self too)
-            console.log('Send message to:', userId, username);
-            setContextMenu(null);
-            // Emit custom event or use router to navigate
-            window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
-          }}
-          onAddFriend={async (userId, username) => {
-            try {
-              const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
-                to_user_id: userId
-              });
-              if (response.data.success) {
-                toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
-              } else {
-                toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+      {
+        contextMenu && (
+          <UserContextMenu
+            userId={contextMenu.userId}
+            username={contextMenu.username}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            onSendMessage={async (userId, username) => {
+              // Navigate to private messages with this user (works for self too)
+              console.log('Send message to:', userId, username);
+              setContextMenu(null);
+              // Emit custom event or use router to navigate
+              window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
+            }}
+            onAddFriend={async (userId, username) => {
+              try {
+                const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
+                  to_user_id: userId
+                });
+                if (response.data.success) {
+                  toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
+                } else {
+                  toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+                }
+                setContextMenu(null);
+              } catch (error: any) {
+                console.error('Failed to send friend request:', error);
+                toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
               }
+            }}
+            onReportUser={async (userId, username) => {
               setContextMenu(null);
-            } catch (error: any) {
-              console.error('Failed to send friend request:', error);
-              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
-            }
-          }}
-          onReportUser={async (userId, username) => {
-            setContextMenu(null);
-            setUserToReport({ userId, username });
-            setShowReportDialog(true);
-          }}
-          onBlockUser={async (userId, username) => {
-            try {
-              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
-              toast.success(t('chat.blockedUser', { username }));
-              setContextMenu(null);
-            } catch (error: any) {
-              console.error('Failed to block user:', error);
-              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
-            }
-          }}
-        />
-      )}
+              setUserToReport({ userId, username });
+              setShowReportDialog(true);
+            }}
+            onBlockUser={async (userId, username) => {
+              try {
+                await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+                toast.success(t('chat.blockedUser', { username }));
+                setContextMenu(null);
+              } catch (error: any) {
+                console.error('Failed to block user:', error);
+                toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
+              }
+            }}
+          />
+        )
+      }
 
       {/* Message Context Menu */}
-      {messageContextMenu && (
-        <MessageContextMenu
-          messageId={messageContextMenu.messageId}
-          userId={messageContextMenu.userId}
-          username={messageContextMenu.username}
-          x={messageContextMenu.x}
-          y={messageContextMenu.y}
-          onClose={() => setMessageContextMenu(null)}
-          onReportMessage={async (messageId, userId, username) => {
-            try {
-              await api.post(API_ENDPOINTS.MESSAGES.REPORT(messageId), {
-                reason: 'Inappropriate content',
-                content_type: 'message'
-              });
-              toast.success(t('chat.messageReported') || 'Message reported successfully');
-              setMessageContextMenu(null);
-            } catch (error: any) {
-              console.error('Failed to report message:', error);
-              toast.error(error.response?.data?.errors?.[0] || t('chat.failedToReportMessage') || 'Failed to report message');
-            }
-          }}
-          onHide={async (messageId) => {
-            try {
-              await api.post(`/api/content-settings/chat-messages/${messageId}/hide`);
-              setLocalMessages(prev => prev.filter(m => m.id !== messageId));
-              toast.success(t('settings.itemHidden') || 'Message hidden');
-              setMessageContextMenu(null);
-            } catch (error: any) {
-              console.error('Failed to hide message:', error);
-              toast.error(error.response?.data?.errors?.[0] || 'Failed to hide message');
-            }
-          }}
-          onDeleteMessage={async (messageId) => {
-            if (window.confirm(t('chat.confirmDeleteMessage') || 'Are you sure you want to delete this message?')) {
+      {
+        messageContextMenu && (
+          <MessageContextMenu
+            messageId={messageContextMenu.messageId}
+            userId={messageContextMenu.userId}
+            username={messageContextMenu.username}
+            x={messageContextMenu.x}
+            y={messageContextMenu.y}
+            onClose={() => setMessageContextMenu(null)}
+            onReportMessage={async (messageId, userId, username) => {
               try {
-                await api.delete(API_ENDPOINTS.MESSAGES.DELETE(messageId));
-                setLocalMessages(prev => prev.filter(m => m.id !== messageId));
-                toast.success(t('chat.messageDeleted') || 'Message deleted');
+                await api.post(API_ENDPOINTS.MESSAGES.REPORT(messageId), {
+                  reason: 'Inappropriate content',
+                  content_type: 'message'
+                });
+                toast.success(t('chat.messageReported') || 'Message reported successfully');
                 setMessageContextMenu(null);
               } catch (error: any) {
-                console.error('Failed to delete message:', error);
-                toast.error(error.response?.data?.errors?.[0] || 'Failed to delete message');
+                console.error('Failed to report message:', error);
+                toast.error(error.response?.data?.errors?.[0] || t('chat.failedToReportMessage') || 'Failed to report message');
               }
-            }
-          }}
-          canDelete={localMessages.find(m => m.id === messageContextMenu.messageId)?.user_id === user?.id || user?.is_admin}
-        />
-      )}
+            }}
+            onHide={async (messageId) => {
+              try {
+                await api.post(`/api/content-settings/chat-messages/${messageId}/hide`);
+                setLocalMessages(prev => prev.filter(m => m.id !== messageId));
+                toast.success(t('settings.itemHidden') || 'Message hidden');
+                setMessageContextMenu(null);
+              } catch (error: any) {
+                console.error('Failed to hide message:', error);
+                toast.error(error.response?.data?.errors?.[0] || 'Failed to hide message');
+              }
+            }}
+            onDeleteMessage={async (messageId) => {
+              if (window.confirm(t('chat.confirmDeleteMessage') || 'Are you sure you want to delete this message?')) {
+                try {
+                  await api.delete(API_ENDPOINTS.MESSAGES.DELETE(messageId));
+                  setLocalMessages(prev => prev.filter(m => m.id !== messageId));
+                  toast.success(t('chat.messageDeleted') || 'Message deleted');
+                  setMessageContextMenu(null);
+                } catch (error: any) {
+                  console.error('Failed to delete message:', error);
+                  toast.error(error.response?.data?.errors?.[0] || 'Failed to delete message');
+                }
+              }
+            }}
+            canDelete={localMessages.find(m => m.id === messageContextMenu.messageId)?.user_id === user?.id || user?.is_admin}
+          />
+        )
+      }
 
       {/* User Banner */}
-      {showUserBanner && selectedUser && (
-        <UserBanner
-          userId={selectedUser.userId}
-          username={selectedUser.username}
-          isAnonymous={selectedUser.isAnonymous}
-          x={selectedUser.x}
-          y={selectedUser.y}
-          onClose={() => {
-            setShowUserBanner(false);
-            setSelectedUser(null);
-          }}
-          onSendMessage={(userId, username) => {
-            setShowUserBanner(false);
-            setSelectedUser(null);
-            window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
-          }}
-          onReport={(userId, username) => {
-            setShowUserBanner(false);
-            setSelectedUser(null);
-            setUserToReport({ userId, username });
-            setShowReportDialog(true);
-          }}
-          onBlock={async (userId, username) => {
-            try {
-              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
-              toast.success(t('chat.blockedUser', { username }) || `Blocked ${username}`);
+      {
+        showUserBanner && selectedUser && (
+          <UserBanner
+            userId={selectedUser.userId}
+            username={selectedUser.username}
+            isAnonymous={selectedUser.isAnonymous}
+            x={selectedUser.x}
+            y={selectedUser.y}
+            onClose={() => {
               setShowUserBanner(false);
               setSelectedUser(null);
-            } catch (error: any) {
-              console.error('Failed to block user:', error);
-              toast.error(error.response?.data?.errors?.[0] || t('chat.failedToBlockUser') || 'Failed to block user');
-            }
-          }}
-        />
-      )}
+            }}
+            onSendMessage={(userId, username) => {
+              setShowUserBanner(false);
+              setSelectedUser(null);
+              window.dispatchEvent(new CustomEvent('openPrivateMessage', { detail: { userId, username } }));
+            }}
+            onReport={(userId, username) => {
+              setShowUserBanner(false);
+              setSelectedUser(null);
+              setUserToReport({ userId, username });
+              setShowReportDialog(true);
+            }}
+            onBlock={async (userId, username) => {
+              try {
+                await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+                toast.success(t('chat.blockedUser', { username }) || `Blocked ${username}`);
+                setShowUserBanner(false);
+                setSelectedUser(null);
+              } catch (error: any) {
+                console.error('Failed to block user:', error);
+                toast.error(error.response?.data?.errors?.[0] || t('chat.failedToBlockUser') || 'Failed to block user');
+              }
+            }}
+          />
+        )
+      }
 
       {/* Report User Dialog */}
-      {showReportDialog && userToReport && (
-        <ReportUserDialog
-          userId={userToReport.userId}
-          username={userToReport.username}
-          onClose={() => {
-            setShowReportDialog(false);
-            setUserToReport(null);
-          }}
-        />
-      )}
-    </div>
+      {
+        showReportDialog && userToReport && (
+          <ReportUserDialog
+            userId={userToReport.userId}
+            username={userToReport.username}
+            onClose={() => {
+              setShowReportDialog(false);
+              setUserToReport(null);
+            }}
+          />
+        )
+      }
+    </div >
   );
 };
 

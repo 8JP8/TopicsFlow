@@ -29,6 +29,7 @@ interface ChatRoom {
   picture?: string;
   background_picture?: string;
   moderators?: string[];
+  is_muted?: boolean;
 }
 
 interface ChatListProps {
@@ -51,6 +52,30 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
   const [reportChat, setReportChat] = useState<{ chatId: string, reportType: 'chatroom' | 'chatroom_background' | 'chatroom_picture' } | null>(null);
   const [hiddenChats, setHiddenChats] = useState<Set<string>>(new Set());
   const [followedChats, setFollowedChats] = useState<Set<string>>(new Set());
+
+  // Fetch hidden items on mount
+  useEffect(() => {
+    const fetchHiddenItems = async () => {
+      try {
+        const response = await api.get(API_ENDPOINTS.CONTENT_SETTINGS.HIDDEN_ITEMS);
+        if (response.data.success) {
+          const hidden = new Set<string>();
+          const data = response.data.data;
+          // Store chat IDs
+          if (data.chats && Array.isArray(data.chats)) {
+            data.chats.forEach((c: any) => hidden.add(c.id));
+          }
+          // Also checking "conversations" or "private_messages" if structured that way?
+          // HiddenItemsModal uses response.data.data.chats.
+          setHiddenChats(hidden);
+        }
+      } catch (error) {
+        console.error('Failed to load hidden items:', error);
+      }
+    };
+
+    fetchHiddenItems();
+  }, []);
 
   const loadChats = async () => {
     if (!topicId) return;
@@ -162,6 +187,21 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
   const handleChatCreated = (newChat: ChatRoom) => {
     setChats(prev => [newChat, ...prev]);
     setShowCreateChat(false);
+  };
+
+  const handleShareChat = async (chatId: string) => {
+    try {
+      const targetUrl = `${window.location.origin}/chat-room/${chatId}`;
+      const response = await api.post(API_ENDPOINTS.SHORT_LINKS.GENERATE, { url: targetUrl });
+      if (response.data.success) {
+        const shortUrl = response.data.data.short_url;
+        await navigator.clipboard.writeText(shortUrl);
+        toast.success(t('common.linkCopied') || 'Link copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error(t('errors.failedToShare') || 'Failed to share');
+    }
   };
 
   if (loading && chats.length === 0) {
@@ -376,6 +416,25 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
             x={contextMenu.x}
             y={contextMenu.y}
             onClose={() => setContextMenu(null)}
+            onShare={handleShareChat}
+            isMuted={chat?.is_muted}
+            onMute={async (chatId: string, minutes: number) => {
+              try {
+                const response = await api.post(API_ENDPOINTS.MUTE.MUTE_CHAT_ROOM(chatId), { minutes });
+                if (response.data.success) {
+                  const durationLabel = minutes === -1 ? (t('mute.always') || 'forever') : `${minutes} ${t('common.minutes') || 'minutes'}`;
+                  const successMsg = minutes === 0 ? t('mute.unmuted', { name: contextMenu.chatName }) : t('mute.success', { name: contextMenu.chatName, duration: durationLabel });
+                  toast.success(successMsg || (minutes === 0 ? 'Unmuted' : 'Muted'));
+                  // Update local state
+                  setChats(prev => prev.map(c => c.id === chatId ? { ...c, is_muted: minutes !== 0 } : c));
+                } else {
+                  toast.error(response.data.errors?.[0] || t('mute.error'));
+                }
+              } catch (error: any) {
+                toast.error(error.response?.data?.errors?.[0] || t('mute.error'));
+              }
+              setContextMenu(null);
+            }}
             onReport={(chatId, reportType) => {
               if (chat) {
                 setReportChat({ chatId, reportType });

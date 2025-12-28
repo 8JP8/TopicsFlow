@@ -14,6 +14,7 @@ import ReportUserDialog from '../Reports/ReportUserDialog';
 import { useAuth } from '@/contexts/AuthContext';
 // Using simple date formatting instead of date-fns to avoid dependency
 import PostAdminModal from './PostAdminModal';
+import { Share2, Bell, BellOff } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -39,6 +40,7 @@ interface Post {
   status?: 'open' | 'closed';
   closure_reason?: string;
   is_followed?: boolean;
+  is_silenced?: boolean;
 }
 
 interface PostCardProps {
@@ -58,6 +60,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
   const [topicOwner, setTopicOwner] = useState<{ id: string, username: string } | null>(null);
   const [topicModerators, setTopicModerators] = useState<Array<{ id: string, username: string }>>([]);
   const [isFollowed, setIsFollowed] = useState(post.is_followed || false);
+  const [isSilenced, setIsSilenced] = useState(post.is_silenced || false);
 
   // Local state for admin actions
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -98,6 +101,58 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
     e.stopPropagation();
     if (onPostSelect) {
       onPostSelect(post);
+    }
+  };
+
+  const handleSilencePost = async (postId: string, minutes: number = -1) => {
+    try {
+      if (minutes === 0) {
+        await api.post(API_ENDPOINTS.MUTE.UNMUTE_POST(postId));
+        toast.success(t('mute.unsilenced') || 'Unsilenced');
+        setIsSilenced(false);
+      } else {
+        await api.post(API_ENDPOINTS.MUTE.MUTE_POST(postId), { minutes });
+        toast.success(t('mute.silenced') || 'Silenced');
+        setIsSilenced(true);
+      }
+    } catch (error) {
+      toast.error(t('errors.generic'));
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    try {
+      const targetUrl = `${window.location.origin}/post/${post.id}`;
+      const response = await api.post(API_ENDPOINTS.SHORT_LINKS.GENERATE, { url: targetUrl });
+      if (response.data.success) {
+        const shortUrl = response.data.data.short_url;
+        await navigator.clipboard.writeText(shortUrl);
+        toast.success(t('common.linkCopied') || 'Link copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error(t('errors.failedToShare') || 'Failed to share');
+    }
+  };
+
+  const handleFollowToggle = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    try {
+      if (isFollowed) {
+        await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(post.id));
+        setIsFollowed(false);
+        toast.success(t('contextMenu.postUnfollowed') || 'Post unfollowed');
+      } else {
+        await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_POST(post.id));
+        setIsFollowed(true);
+        toast.success(t('contextMenu.postFollowed') || 'Post followed');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
     }
   };
 
@@ -179,6 +234,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
                   </svg>
+                </button>
+                <button
+                  onClick={handleFollowToggle}
+                  className={`p-1 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 ${isFollowed ? 'text-blue-500' : 'text-gray-400 hover:text-blue-500'}`}
+                  title={isFollowed ? (t('contextMenu.unfollowPost') || 'Unfollow') : (t('contextMenu.followPost') || 'Follow')}
+                >
+                  {isFollowed ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -307,6 +369,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
           }}
           isHidden={false}
           isFollowed={isFollowed}
+          isSilenced={isSilenced}
           onFollow={async (postId) => {
             try {
               if (isFollowed) {
@@ -323,6 +386,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVoteChange, onPostSelect, o
             }
             setContextMenu(null);
           }}
+          onShare={handleShare}
+          onSilence={handleSilencePost}
           onHide={async (postId) => {
             try {
               const response = await api.post(API_ENDPOINTS.POSTS.HIDE(postId));

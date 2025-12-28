@@ -79,14 +79,30 @@ def get_topic_conversations(topic_id):
             search=search if search else None
         )
 
-        # Filter hidden chats if user is authenticated
+        # Get mute status for each room if user is authenticated
         if user_id:
+            from models.notification_settings import NotificationSettings
+            ns_model = NotificationSettings(current_app.db)
+            
+            # Filter hidden chats
             from models.user_content_settings import UserContentSettings
             settings_model = UserContentSettings(current_app.db)
             hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, topic_id)
 
-            if hidden_chat_ids:
-                rooms = [room for room in rooms if room['id'] not in hidden_chat_ids]
+            filtered_rooms = []
+            for room in rooms:
+                if hidden_chat_ids and room['id'] in hidden_chat_ids:
+                    continue
+                
+                # Check if muted
+                room['is_muted'] = ns_model.is_chat_room_muted(user_id, room['id'])
+                filtered_rooms.append(room)
+            
+            rooms = filtered_rooms
+        else:
+            # For unauthenticated users, is_muted is always False
+            for room in rooms:
+                room['is_muted'] = False
 
         return jsonify({
             'success': True,
@@ -183,17 +199,26 @@ def get_user_group_chats():
         chat_room_model = ChatRoom(current_app.db)
         rooms = chat_room_model.get_group_chats(user_id)
 
-        # Filter hidden chats
+        # Get mute status and filter hidden chats
+        from models.notification_settings import NotificationSettings
+        ns_model = NotificationSettings(current_app.db)
         from models.user_content_settings import UserContentSettings
         settings_model = UserContentSettings(current_app.db)
+        
         hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, None)
 
-        if hidden_chat_ids:
-            rooms = [room for room in rooms if room['id'] not in hidden_chat_ids]
+        filtered_rooms = []
+        for room in rooms:
+            if hidden_chat_ids and room['id'] in hidden_chat_ids:
+                continue
+            
+            # Check if muted
+            room['is_muted'] = ns_model.is_chat_room_muted(user_id, room['id'])
+            filtered_rooms.append(room)
 
         return jsonify({
             'success': True,
-            'data': rooms
+            'data': filtered_rooms
         }), 200
 
     except Exception as e:
@@ -805,6 +830,11 @@ def create_chat_room_message(room_id):
                 # Check if topic is muted FIRST (topic silencing overrides everything)
                 if topic_id and notification_settings.is_topic_muted(member_id, topic_id):
                     logger.info(f"Skipping notification for member {member_id} - topic {topic_id} is muted")
+                    continue
+                
+                # Check if chat room itself is muted
+                if notification_settings.is_chat_room_muted(member_id, room_id):
+                    logger.info(f"Skipping notification for member {member_id} - chatroom {room_id} is muted")
                     continue
                 
                 # Check if user is following the chatroom
@@ -1563,11 +1593,25 @@ def update_chat_picture(room_id):
                 if updated_room and updated_room.get('topic_id'):
                      current_app.config['CACHE_INVALIDATOR'].invalidate_pattern(f"chat_rooms:list:topic_{updated_room.get('topic_id')}:*")
 
+            # Emit socket event for real-time update
+            try:
+                socketio = current_app.extensions.get('socketio')
+                if socketio:
+                    # Emit to room's channel
+                    socketio.emit('chat_room_updated', {
+                        'room_id': room_id,
+                        'picture': processed_picture,
+                        'type': 'picture_update'
+                    }, room=f"chat_room_{room_id}")
+            except Exception as e:
+                logger.warning(f"Failed to emit socket event for picture update: {str(e)}")
+
             return jsonify({
                 'success': True,
                 'message': 'Picture updated successfully',
                 'data': updated_room
             }), 200
+
         else:
             return jsonify({'success': False, 'errors': ['Failed to update picture']}), 500
 

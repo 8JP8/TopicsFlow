@@ -4,6 +4,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import toast from 'react-hot-toast';
 import ContextMenu from './ContextMenu';
+import {
+  Check,
+  MessageSquare,
+  UserPlus,
+  UserMinus,
+  Flag,
+  Ban,
+  ShieldCheck,
+  UserX,
+  Volume2,
+  VolumeX
+} from 'lucide-react';
 
 interface UserContextMenuProps {
   userId: string;
@@ -62,11 +74,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       action: () => {
         onMarkAsRead(userId);
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ),
+      icon: <Check className="w-4 h-4" />,
       disabled: false,
     });
   }
@@ -89,21 +97,17 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
     };
 
     items.push({
-      label: t('contextMenu.silenceChat') || 'Silence Chat',
+      label: t('mute.mute') || 'Mute',
       action: () => { }, // Parent item doesn't do anything; submenu handles it
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-        </svg>
-      ),
+      icon: <VolumeX className="w-4 h-4" />,
       disabled: false,
       submenu: [
-        { label: t('mute.15minutes') || '15 minutes', action: () => handleMute(15) },
-        { label: t('mute.1hour') || '1 hour', action: () => handleMute(60) },
-        { label: t('mute.8hours') || '8 hours', action: () => handleMute(480) },
-        { label: t('mute.24hours') || '24 hours', action: () => handleMute(1440) },
-        { label: t('mute.forever') || 'Until I unmute', action: () => handleMute(-1) },
+        { label: t('mute.unmute') || 'Unmute', action: () => handleMute(0) },
+        { label: t('mute.15m') || '15 minutes', action: () => handleMute(15) },
+        { label: t('mute.1h') || '1 hour', action: () => handleMute(60) },
+        { label: t('mute.8h') || '8 hours', action: () => handleMute(480) },
+        { label: t('mute.24h') || '24 hours', action: () => handleMute(1440) },
+        { label: t('mute.always') || 'Until I unmute', action: () => handleMute(-1) },
       ],
     });
   }
@@ -116,11 +120,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         onSendMessage(userId, username);
       }
     },
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ),
+    icon: <MessageSquare className="w-4 h-4" />,
     disabled: !onSendMessage,
   });
 
@@ -133,11 +133,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         action: () => {
           onAddFriend(userId, username);
         },
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-        ),
+        icon: <UserPlus className="w-4 h-4" />,
         disabled: false,
       });
     } else if (areFriends && onRemoveFriend) {
@@ -146,11 +142,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         action: () => {
           onRemoveFriend(userId, username);
         },
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-        ),
+        icon: <UserMinus className="w-4 h-4" />,
         disabled: false,
       });
     }
@@ -162,11 +154,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           onReportUser(userId, username);
         }
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      ),
+      icon: <Flag className="w-4 h-4" />,
       disabled: !onReportUser,
     });
 
@@ -177,11 +165,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           onBlockUser(userId, username);
         }
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-        </svg>
-      ),
+      icon: <Ban className="w-4 h-4" />,
       disabled: !onBlockUser,
     });
   }
@@ -196,11 +180,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
             onPromoteToModerator(userId, username);
           }
         },
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-        ),
+        icon: <ShieldCheck className="w-4 h-4" />,
         disabled: !onPromoteToModerator,
       });
     } else {
@@ -211,11 +191,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
             onPromoteToModerator(userId, username);
           }
         },
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-        ),
+        icon: <ShieldCheck className="w-4 h-4" />,
         disabled: !onPromoteToModerator,
       });
     }
@@ -226,11 +202,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           onKickUser(userId, username);
         }
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-        </svg>
-      ),
+      icon: <UserX className="w-4 h-4" />,
       disabled: !onKickUser,
     });
   }

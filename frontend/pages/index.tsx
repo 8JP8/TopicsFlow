@@ -491,7 +491,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/about');
       return;
     }
 
@@ -593,6 +593,11 @@ export default function Home() {
 
   const { isDocked, activeCall, setIsDocked } = useVoip();
 
+  // Swipe Handlers for Navigation
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center theme-bg-primary">
@@ -605,8 +610,45 @@ export default function Home() {
     return null; // Will redirect to login
   }
 
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      // Swipe Left (Move Right in flow): Sidebar -> Content -> Profile
+      if (mobileView === 'sidebar') {
+        setMobileView('content');
+      } else if (mobileView === 'content') {
+        router.push('/profile');
+      }
+    }
+
+    if (isRightSwipe) {
+      // Swipe Right (Move Left in flow): Profile (handled in profile.tsx) -> Content -> Sidebar
+      if (mobileView === 'content') {
+        setMobileView('sidebar');
+      }
+    }
+  };
+
   return (
-    <>
+    <div
+      className="h-full"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       <Layout>
         <div className="flex flex-col h-full overflow-hidden">
           {/* Main Dashboard Area */}
@@ -1020,6 +1062,6 @@ export default function Home() {
           />
         )
       }
-    </>
+    </div>
   );
 }

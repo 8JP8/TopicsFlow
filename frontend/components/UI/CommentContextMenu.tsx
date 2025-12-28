@@ -9,6 +9,10 @@ interface CommentContextMenuProps {
   onClose: () => void;
   onReport?: (commentId: string) => void;
   onHide?: (commentId: string) => void;
+  onReportUser?: (userId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  authorId?: string;
+  authorUsername?: string;
 }
 
 const CommentContextMenu: React.FC<CommentContextMenuProps> = ({
@@ -18,6 +22,10 @@ const CommentContextMenu: React.FC<CommentContextMenuProps> = ({
   onClose,
   onReport,
   onHide,
+  onReportUser,
+  onBlockUser,
+  authorId,
+  authorUsername,
 }) => {
   const { t } = useLanguage();
   const items = [
@@ -52,6 +60,34 @@ const CommentContextMenu: React.FC<CommentContextMenuProps> = ({
       disabled: !onHide,
     },
   ];
+
+  // User Actions (Report User, Block User)
+  if (authorId && (onReportUser || onBlockUser)) {
+    if (onReportUser) {
+      items.push({
+        label: t('contextMenu.reportUser') || 'Report User',
+        action: () => {
+          onReportUser(authorId);
+          onClose();
+        },
+        icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" /></svg>
+        ),
+        disabled: false
+      });
+    }
+    if (onBlockUser) {
+      items.push({
+        label: t('userBanner.block') || 'Block User',
+        action: () => {
+          onBlockUser(authorId);
+          onClose();
+        },
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-ban w-4 h-4"><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></svg>,
+        disabled: false,
+      });
+    }
+  }
 
   return <ContextMenu items={items} onClose={onClose} x={x} y={y} />;
 };

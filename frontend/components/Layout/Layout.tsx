@@ -63,6 +63,12 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
+    // Edge Swipe Logic: Only allow swipe starting from the right edge (last 40px)
+    // to prevent conflicts with carousel or other horizontal swipes
+    if (e.targetTouches[0].clientX < window.innerWidth - 40) {
+      touchStart.current = null;
+      return;
+    }
     touchEnd.current = null;
     touchStart.current = e.targetTouches[0].clientX;
   };
@@ -77,17 +83,12 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
-    // Swipe Left (Open Menu) - assuming menu is on the right?
-    // Wait, the menu is: `right-2`. So it's on the right.
-    // If menu is closed: Swipe Left (from right edge?) or just Swipe Left anywhere to open?
-    // User said: "swipe between menu and o conteúdo" - "mechanic of swipe between menu and content".
-    // Usually means: Swipe Left to open menu (if it's on right), Swipe Right to close it.
+    // Swipe Left (Open Menu) - DISABLED to prevent conflicts with content swipes (e.g. Carousel)
+    // if (isLeftSwipe && !mobileMenuOpen) {
+    //   setMobileMenuOpen(true);
+    // }
 
-    if (isLeftSwipe && !mobileMenuOpen) {
-      // Optional: limit to right edge for opening? For now, let's allow "swipe left" to open menu
-      setMobileMenuOpen(true);
-    }
-
+    // Swipe Right (Close Menu) - Only if menu is open
     if (isRightSwipe && mobileMenuOpen) {
       setMobileMenuOpen(false);
     }
@@ -184,9 +185,6 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
       className={`min-h-screen theme-bg-primary ${theme}`}
       data-theme={theme}
       suppressHydrationWarning
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
     >
       {/* Header */}
       <header className={`h-16 flex items-center justify-between px-3 md:px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
@@ -321,10 +319,12 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
       />
 
       {/* My Tickets Modal (for Mobile usage mostly) */}
-      {showMyTickets && (
-        <MyTicketsModal onClose={() => setShowMyTickets(false)} />
-      )}
-    </div>
+      {
+        showMyTickets && (
+          <MyTicketsModal onClose={() => setShowMyTickets(false)} />
+        )
+      }
+    </div >
   );
 };
 

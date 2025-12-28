@@ -26,7 +26,7 @@ import { toast } from 'react-hot-toast';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName } from '@/utils/anonymousStorage';
 import { analyzeImageBrightness, getTextColorClass } from '@/utils/imageBrightness';
 import AudioPlayer from '@/components/UI/AudioPlayer';
-import { Mic, Square, Send, X, Trash2 } from 'lucide-react';
+import { Mic, Square, Send, X, Trash2, Image, Paperclip, Share2, Bell, BellOff } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -93,8 +93,84 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
+  // Audio Visualization State
+  const [audioData, setAudioData] = useState<number[]>(new Array(20).fill(10));
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number>();
+
+  useEffect(() => {
+    if (isRecording && audioStream) {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.5;
+      analyserRef.current = analyser;
+
+      try {
+        const source = ctx.createMediaStreamSource(audioStream);
+        source.connect(analyser);
+        sourceRef.current = source;
+      } catch (err) {
+        console.error("Error creating media stream source:", err);
+        return;
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const updateWaveform = () => {
+        if (!isRecording) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        const bars = 20;
+        const step = Math.floor(bufferLength / bars);
+        const newData = [];
+
+        for (let i = 0; i < bars; i++) {
+          let sum = 0;
+          for (let j = 0; j < step; j++) {
+            sum += dataArray[i * step + j];
+          }
+          const avg = sum / step;
+          newData.push(Math.max(10, (avg / 255) * 100));
+        }
+
+        setAudioData(newData);
+        animationFrameRef.current = requestAnimationFrame(updateWaveform);
+      };
+
+      updateWaveform();
+
+      return () => {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        if (sourceRef.current) {
+          sourceRef.current.disconnect();
+          sourceRef.current = null;
+        }
+      };
+    } else {
+      setAudioData(new Array(20).fill(10));
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    }
+  }, [isRecording, audioStream]);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gifSearchRef = useRef<HTMLDivElement>(null);
 
   // Mention autocomplete state
   const [roomMembers, setRoomMembers] = useState<Array<{ id: string, username: string }>>([]); // Store base room members
@@ -153,9 +229,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   }, [mentionSearch, roomMembers, room.is_public]);
 
   // Audio Recording State
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [recordingDuration, setRecordingDuration] = useState(0);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,6 +245,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -185,6 +260,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setAudioBlob(audioBlob);
         stream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
       };
 
       mediaRecorder.start();
@@ -311,8 +387,48 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const [showReportUserDialog, setShowReportUserDialog] = useState(false);
   const [userToReportFromMessage, setUserToReportFromMessage] = useState<{ userId: string, username: string, messageId: string } | null>(null);
   const [isFollowing, setIsFollowing] = useState<boolean>(true); // Default to true
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const isOwner = user?.id === room.owner_id;
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const handleShareChat = async (chatId?: string) => {
+    // chatId arg is optional because we can call this from header (uses room.id) or context menu (passes chatId)
+    const targetId = chatId || room.id;
+    try {
+      const targetUrl = `${window.location.origin}/chat-room/${targetId}`;
+      const response = await api.post(API_ENDPOINTS.SHORT_LINKS.GENERATE, { url: targetUrl });
+      if (response.data.success) {
+        const shortUrl = response.data.data.short_url;
+        await navigator.clipboard.writeText(shortUrl);
+        toast.success(t('common.linkCopied') || 'Link copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error(t('errors.failedToShare') || 'Failed to share');
+    }
+  };
+
+  const handleFollowChat = async (chatId?: string) => {
+    // Toggle logic
+    const targetId = chatId || room.id;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_CHATROOM(targetId));
+        setIsFollowing(false);
+        toast.success(t('success.unfollowed') || 'Unfollowed chatroom');
+      } else {
+        await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_CHATROOM(targetId));
+        setIsFollowing(true);
+        toast.success(t('success.followed') || 'Followed chatroom');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   // Load follow status
   useEffect(() => {
@@ -321,6 +437,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
         .then(response => {
           if (response.data.success) {
             setIsFollowing(response.data.data?.following !== false);
+            setIsMuted(response.data.data?.muted || response.data.data?.is_muted || false);
           }
         })
         .catch(() => {
@@ -528,7 +645,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
     }
   }, [room.topic_id, useAnonymous]);
 
-  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart || 0;
     setMessageInput(value);
@@ -563,7 +680,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
     setMentionSearch('');
 
     setTimeout(() => {
-      const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+      const input = textareaRef.current;
       if (input) {
         input.focus();
         const newCursorPos = before.length + username.length + 2;
@@ -572,7 +689,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
     }, 0);
   };
 
-  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const filteredUsers = mentionUsers.filter(u =>
       u.username.toLowerCase().includes(mentionSearch.toLowerCase())
     );
@@ -872,6 +989,25 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
 
               {/* Action Buttons */}
               <div className="flex flex-row items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                <button
+                  onClick={() => handleShareChat(room.id)}
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                  title={t('common.share') || 'Share'}
+                >
+                  <Share2 size={20} />
+                </button>
+                <button
+                  onClick={() => handleFollowChat(room.id)}
+                  disabled={followLoading}
+                  className={`p-2 rounded-full transition-colors ${isFollowing
+                    ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                    : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  title={isFollowing ? (t('chat.unfollow') || 'Unfollow') : (t('chat.follow') || 'Follow')}
+                >
+                  {isFollowing ? <BellOff size={20} /> : <Bell size={20} />}
+                </button>
+
                 {/* VOIP Button */}
                 {!room.is_public && (
                   <div className="flex-1 sm:flex-none">
@@ -1099,7 +1235,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                                 );
                               }
                             })}
-                            {message.content && message.content !== '[Attachment]' && (
+                            {message.content && message.content !== '[Attachment]' && message.content !== '[chat.audioMessage]' && message.content !== 'chat.audioMessage' && (
                               <div className={`whitespace-pre-wrap ${isBackgroundDark !== null
                                 ? getTextColorClass(isBackgroundDark, theme === 'light')
                                 : 'text-gray-700 dark:text-gray-300'
@@ -1199,8 +1335,9 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               </div>
             )}
 
+            {/* Audio Recording Preview - Moved above input */}
             {audioBlob && (
-              <div className="mb-2 flex items-center gap-2 px-2 border border-blue-200 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/10 p-1">
+              <div className="mb-2 flex items-center gap-2 px-2 border border-blue-200 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/10 p-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <AudioPlayer src={URL.createObjectURL(audioBlob)} className="flex-1 bg-transparent" />
                 <button
                   type="button"
@@ -1214,13 +1351,11 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
 
             <form
               onSubmit={handleSendMessage}
-              className="flex gap-2"
+              className="flex items-end gap-2"
               onKeyDown={(e) => {
-                // Handle Enter key even when buttons are focused
                 if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
                   const target = e.target as HTMLElement;
-                  // Only prevent default if not in a button (buttons should handle their own clicks)
-                  if (target.tagName !== 'BUTTON' && (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0)) {
+                  if (target.tagName !== 'BUTTON' && (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0 || audioBlob)) {
                     e.preventDefault();
                     handleSendMessage(e as any);
                   }
@@ -1231,20 +1366,13 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowGifPicker(!showGifPicker)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
-                        handleSendMessage(e as any);
-                      }
-                    }
-                  }}
-                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all active:scale-95 ${showGifPicker
+                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
                   title={t('chat.addGif')}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                  <Image size={20} />
                 </button>
 
                 {showGifPicker && (
@@ -1270,43 +1398,57 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
-                        handleSendMessage(e as any);
-                      }
-                    }
-                  }}
-                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="h-[42px] w-[42px] flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-95"
                   title={t('chat.attachFile') || 'Attach file'}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
+                  <Paperclip size={20} />
                 </button>
               </div>
 
               {isRecording ? (
-                <div className="flex-1 flex items-center gap-3 px-4 py-2 border border-red-300 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/20 h-[42px]">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="font-mono text-red-600 dark:text-red-400 font-medium">
-                    {formatTime(recordingDuration)}
+                <div className="flex-1 flex items-center justify-between gap-3 px-4 py-2 border border-red-300 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/20 h-[42px] animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                    <span className="font-mono text-red-600 dark:text-red-400 font-medium whitespace-nowrap tabular-nums text-base">
+                      {formatTime(recordingDuration)}
+                    </span>
+                  </div>
+
+                  {/* Flexible Waveform */}
+                  <div className="flex items-center gap-0.5 h-8 mx-2 flex-1 w-full min-w-0 justify-center">
+                    {audioData.map((height, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 max-w-[6px] bg-red-500 rounded-full transition-all duration-75 ease-linear"
+                        style={{
+                          height: `${height}%`,
+                          opacity: isRecording ? 1 : 0.5,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <span className="text-sm text-gray-500 dark:text-gray-400 font-medium hidden md:inline-block whitespace-nowrap">
+                    {t('chat.recording') || 'Recording...'}
                   </span>
-                  <div className="flex-1" />
                 </div>
               ) : (
                 <div className="flex-1 relative">
-                  <input
-                    type="text"
+                  <textarea
+                    ref={textareaRef}
                     value={messageInput}
-                    onChange={handleMessageInputChange}
+                    onChange={(e) => {
+                      handleMessageInputChange(e);
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
+                    }}
                     onKeyDown={handleMentionKeyDown}
                     placeholder={t('chat.sendMessage')}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[42px]"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 theme-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all min-h-[42px] max-h-32 resize-none overflow-y-auto"
+                    rows={1}
                   />
 
-                  {/* Mention Dropdown */}
                   {showMentionDropdown && mentionUsers.length > 0 && (
                     <div className="absolute bottom-full left-0 mb-1 z-50">
                       <MentionList
@@ -1319,54 +1461,36 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 </div>
               )}
 
-              <button
-                type="button" // Controlled manually
-                onClick={(e) => {
-                  if (isRecording) {
-                    stopRecording();
-                    // Wait for blob to set, then send? stopRecording is async in effect.
-                    // Actually stopRecording sets state. We can't send immediately.
-                    // User flow: Click Mic -> Record -> Click Stop -> Preview -> Click Send.
-                    // OR Click Stop & Send?
-                    // If button is Send Icon during recording, implying Stop & Send?
-                    // The request says "replaces send button...".
-                    // If I click it, it stops. And likely stays as 'audioBlob' state so user can preview or send.
-                    // Let's make it Stop, then user presses Send again to confirm?
-                    // OR separate buttons.
-                    // If I click the button while recording, it should STOP. 
-                    // Then the button becomes SEND (because audioBlob exists).
-                    // So 1 click stops. 2nd click sends.
-                  } else if (audioBlob || messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
-                    handleSendMessage(e as any);
-                  } else {
-                    startRecording();
-                  }
-                }}
-                disabled={uploadingFiles}
-                className={`px-4 py-2 rounded-lg text-white flex items-center gap-1 transition-colors ${isRecording
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : (messageInput.trim() || audioBlob || selectedGifUrl || selectedFiles.length > 0)
-                    ? 'bg-blue-500 hover:bg-blue-600'
-                    : 'bg-gray-400 hover:bg-gray-500' // Mic button style
-                  } ${uploadingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={isRecording ? 'Stop Recording' : (messageInput.trim() ? t('chat.send') : 'Record Audio')}
-              >
-                {uploadingFiles ? (
-                  <>
+              {messageInput.trim() || audioBlob || selectedGifUrl || selectedFiles.length > 0 ? (
+                <button
+                  type="submit"
+                  disabled={uploadingFiles}
+                  className={`px-4 py-2 rounded-lg text-white flex items-center gap-1 transition-all bg-blue-500 hover:bg-blue-600 active:scale-95 shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:scale-100 ${uploadingFiles ? 'cursor-not-allowed' : ''}`}
+                  title={t('chat.send')}
+                >
+                  {uploadingFiles ? (
                     <LoadingSpinner size="sm" />
-                    <span className="hidden sm:inline">{t('common.uploading')}</span>
-                  </>
-                ) : isRecording ? (
-                  // While recording, button acts as Stop
-                  <Square size={20} fill="currentColor" />
-                ) : (messageInput.trim() || audioBlob || selectedGifUrl || selectedFiles.length > 0) ? (
-                  // Send Airline Icon
-                  <Send size={20} />
-                ) : (
-                  // Mic Icon
-                  <Mic size={20} />
-                )}
-              </button>
+                  ) : (
+                    <Send size={20} />
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all ${isRecording
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                    }`}
+                  title={isRecording ? t('chat.stopRecording') || 'Stop' : t('chat.holdToRecord') || 'Click to record'}
+                >
+                  {isRecording ? (
+                    <div className="w-3 h-3 rounded-sm bg-current" />
+                  ) : (
+                    <Mic size={20} />
+                  )}
+                </button>
+              )}
             </form>
           </div>
         </div >
@@ -1593,6 +1717,30 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             x={chatContextMenu.x}
             y={chatContextMenu.y}
             onClose={() => setChatContextMenu(null)}
+            isMuted={isMuted}
+            onFollow={() => handleFollowChat(room.id)}
+            onUnfollow={() => handleFollowChat(room.id)}
+            onShare={() => handleShareChat(room.id)}
+            onMute={async (chatId, minutes) => {
+              try {
+                if (minutes === 0) {
+                  await api.post(API_ENDPOINTS.MUTE.UNMUTE_CHAT_ROOM(chatId));
+                  setIsMuted(false);
+                  toast.success(t('mute.unmuted') || 'Unmuted');
+                } else {
+                  await api.post(API_ENDPOINTS.MUTE.MUTE_CHAT_ROOM(chatId), { minutes });
+                  const duration = minutes === -1
+                    ? (t('mute.always') || 'forever')
+                    : `${minutes} ${t('common.minutes') || 'minutes'}`;
+                  toast.success(t('mute.success', { name: room.name, duration }) || `${room.name} muted for ${duration}`);
+                  setIsMuted(true);
+                }
+              } catch (error: any) {
+                console.error('Failed to mute chat:', error);
+                toast.error(t('mute.error') || 'Failed to mute');
+              }
+              setChatContextMenu(null);
+            }}
             onReport={(chatId, reportType) => {
               setReportType(reportType);
               setShowReportDialog(true);
@@ -1621,31 +1769,28 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             hasPicture={!!roomData?.picture}
             isOwner={isOwner}
             isFollowing={isFollowing}
-            onFollow={async (chatId) => {
+            onHide={async (chatId) => {
+              if (onBack) onBack();
+              setChatContextMenu(null);
+
               try {
-                const response = await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_CHATROOM(chatId));
-                if (response.data.success) {
-                  setIsFollowing(true);
-                  toast.success(t('mute.followed', { name: room.name }) || `Following ${room.name}`);
-                } else {
-                  toast.error(response.data.errors?.[0] || t('errors.generic'));
-                }
+                await api.post(API_ENDPOINTS.CONTENT_SETTINGS.HIDE_CHAT(chatId));
+                toast.success(t('chat.chatHidden') || 'Chat hidden');
               } catch (error: any) {
                 toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
               }
             }}
-            onUnfollow={async (chatId) => {
-              try {
-                const response = await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_CHATROOM(chatId));
-                if (response.data.success) {
-                  setIsFollowing(false);
-                  toast.success(t('mute.unfollowed', { name: room.name }) || `Unfollowed ${room.name}`);
-                } else {
-                  toast.error(response.data.errors?.[0] || t('errors.generic'));
+            onLeave={room.topic_id ? undefined : async (chatId) => {
+              if (window.confirm(t('chat.confirmLeave', { name: room.name }) || `Are you sure you want to leave "${room.name}"?`)) {
+                try {
+                  await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(chatId));
+                  toast.success(t('chat.leftChatroom') || 'Left chat room');
+                  if (onBack) onBack();
+                } catch (error: any) {
+                  toast.error(t('chat.failedToLeave') || 'Failed to leave chat room');
                 }
-              } catch (error: any) {
-                toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
               }
+              setChatContextMenu(null);
             }}
           />
         )

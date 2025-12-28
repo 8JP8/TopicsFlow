@@ -86,6 +86,10 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
             cached_value = cache.get(cache_key)
             if cached_value is not None:
                 logger.debug(f"Cache hit: {cache_key}")
+                # If cached value is dict/list, re-wrap in jsonify for consistent Response object
+                if isinstance(cached_value, (dict, list)):
+                    from flask import jsonify
+                    return jsonify(cached_value)
                 return cached_value
             
             # Cache miss, execute function
@@ -95,7 +99,19 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
             # Store in cache (silently fail if Redis unavailable)
             if result is not None:
                 try:
-                    cache.set(cache_key, result, ttl)
+                    # If result is a Flask Response object (from jsonify), invoke get_json() to extract data
+                    cache_data = result
+                    if hasattr(result, 'get_json') and callable(result.get_json):
+                        # Attempt to get JSON data. If it fails (e.g. not json), skip caching or cache raw?
+                        # Usually our API returns JSON.
+                        try:
+                            json_data = result.get_json()
+                            if json_data is not None:
+                                cache_data = json_data
+                        except Exception:
+                            pass # Keep original result if extraction fails
+                    
+                    cache.set(cache_key, cache_data, ttl)
                 except Exception as e:
                     logger.warning(f"Failed to cache result for {cache_key}: {e}")
             

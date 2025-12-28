@@ -7,9 +7,12 @@ import Avatar from '@/components/UI/Avatar';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import UserContextMenu from '@/components/UI/UserContextMenu';
 import FriendsDialog from '@/components/UI/FriendsDialog';
+import ChatRoomContextMenu from '@/components/UI/ChatRoomContextMenu';
 import ContextMenu from '@/components/UI/ContextMenu';
 import UserTooltip from '@/components/UI/UserTooltip';
 import UserBanner from '@/components/UI/UserBanner';
+
+import MessageInput from '@/components/UI/MessageInput';
 import GifPicker from '@/components/Chat/GifPicker';
 import FriendRequestsButton from '@/components/UI/FriendRequestsButton';
 import { getUserProfilePicture } from '@/hooks/useUserProfile';
@@ -20,6 +23,8 @@ import VideoPlayer from '@/components/UI/VideoPlayer';
 import toast from 'react-hot-toast';
 import GroupChatCreateModal from '@/components/Chat/GroupChatCreateModal';
 import { VoipButton } from '@/components/Voip';
+import { Mic, Square, Trash2, Send, Image, Paperclip, Users, Plus, Volume2, VolumeX } from 'lucide-react';
+import AudioPlayer from '@/components/UI/AudioPlayer';
 
 interface Conversation {
   id: string;
@@ -32,6 +37,7 @@ interface Conversation {
     is_from_me: boolean;
   };
   unread_count: number;
+  is_muted?: boolean;
 }
 
 interface Message {
@@ -70,6 +76,7 @@ interface GroupChat {
   last_activity?: string;
   unread_count?: number;
   owner_id?: string; // Owner of the group chat
+  is_muted?: boolean;
 }
 
 const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
@@ -98,13 +105,24 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // Audio Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const [viewingImage, setViewingImage] = useState<{ url: string, filename: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, userId: string, username: string, isMuted: boolean } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{ userId: string, username: string, x: number, y: number } | null>(null);
-  const [messageContextMenu, setMessageContextMenu] = useState<{ x: number, y: number, messageId: string, content: string, userId: string, username: string, isFromMe: boolean } | null>(null);
-  const [groupChatContextMenu, setGroupChatContextMenu] = useState<{ x: number, y: number, groupId: string, groupName: string } | null>(null);
+  const [messageContextMenu, setMessageContextMenu] = useState<{ x: number, y: number, messageId: string, content: string, userId: string, username: string, isFromMe: boolean, isMuted?: boolean } | null>(null);
+  const [groupChatContextMenu, setGroupChatContextMenu] = useState<{ x: number, y: number, groupId: string, groupName: string, isMuted: boolean } | null>(null);
 
   const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
@@ -112,6 +130,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showGroupChatCreate, setShowGroupChatCreate] = useState(false);
   const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
+  const [hiddenChats, setHiddenChats] = useState<Set<string>>(new Set());
 
   const [userToReport, setUserToReport] = useState<{ userId: string, username: string } | null>(null);
 
@@ -203,7 +222,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [onlineUsersList, setOnlineUsersList] = useState<Set<string>>(new Set());
   const [conversationStatuses, setConversationStatuses] = useState<Map<string, { isOnline: boolean, lastLogin: string | null, areFriends: boolean }>>(new Map());
 
-  // Divider drag handlers
+  // Divider drag handlers - Optimized for smoothness
+  const requestRef = useRef<number>();
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const handleDividerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDraggingDivider(true);
@@ -211,39 +233,90 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     document.body.style.userSelect = 'none';
   };
 
+  const handleDividerTouchStart = (e: React.TouchEvent) => {
+    // Prevent default to avoid scrolling/other actions when starting drag
+    setIsDraggingDivider(true);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const updatePosition = (clientY: number) => {
+    const container = document.getElementById('messages-container');
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const y = clientY - rect.top;
+    const percentage = (y / rect.height) * 100;
+
+    // Constrain between 20% and 80%
+    const newPosition = Math.max(20, Math.min(80, percentage));
+    setDividerPosition(newPosition);
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingDivider) return;
 
-      const container = document.getElementById('messages-container');
-      if (!container) return;
+      if (requestRef.current) return; // Skip if a frame is already pending
 
-      const rect = container.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const percentage = (y / rect.height) * 100;
-
-      // Constrain between 20% and 80%
-      const newPosition = Math.max(20, Math.min(80, percentage));
-      setDividerPosition(newPosition);
-      localStorage.setItem('messagesDividerPosition', String(newPosition));
+      requestRef.current = requestAnimationFrame(() => {
+        updatePosition(e.clientY);
+        requestRef.current = undefined;
+      });
     };
 
     const handleMouseUp = () => {
       setIsDraggingDivider(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+      localStorage.setItem('messagesDividerPosition', String(dividerPosition));
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingDivider) return;
+      if (e.cancelable) e.preventDefault();
+
+      if (requestRef.current) return;
+
+      const touch = e.touches[0];
+      requestRef.current = requestAnimationFrame(() => {
+        updatePosition(touch.clientY);
+        requestRef.current = undefined;
+      });
+    };
+
+    const handleTouchEnd = () => {
+      setIsDraggingDivider(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+      localStorage.setItem('messagesDividerPosition', String(dividerPosition));
     };
 
     if (isDraggingDivider) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
 
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+        if (requestRef.current) {
+          cancelAnimationFrame(requestRef.current);
+        }
       };
     }
-  }, [isDraggingDivider]);
+  }, [isDraggingDivider, dividerPosition]);
 
   // Close context menus when clicking outside
   useEffect(() => {
@@ -276,8 +349,26 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         loadConversations();
         loadGroupChats();
       });
+      loadHiddenItems();
     }
   }, [user]);
+
+  const loadHiddenItems = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.CONTENT_SETTINGS.HIDDEN_ITEMS);
+      if (response.data.success) {
+        const hidden = new Set<string>();
+        const data = response.data.data;
+        // Store chat IDs
+        if (data.chats && Array.isArray(data.chats)) {
+          data.chats.forEach((c: any) => hidden.add(c.id));
+        }
+        setHiddenChats(hidden);
+      }
+    } catch (error) {
+      console.error('Failed to load hidden items:', error);
+    }
+  };
 
 
   useEffect(() => {
@@ -673,12 +764,43 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
   const handleHideGroupChat = async (groupId: string) => {
     try {
-      await api.post(`/api/content-settings/chats/${groupId}/hide`);
+      await api.post(API_ENDPOINTS.CONTENT_SETTINGS.HIDE_CHAT(groupId));
       setGroupChats(prev => prev.filter(g => g.id !== groupId));
       toast.success(t('settings.itemHidden') || 'Chat hidden');
     } catch (error: any) {
       console.error('Failed to hide group chat:', error);
       toast.error(error.response?.data?.errors?.[0] || 'Failed to hide chat');
+    }
+    setGroupChatContextMenu(null);
+  };
+
+  const handleLeaveChat = async (groupId: string, groupName: string) => {
+    if (window.confirm(t('chat.confirmLeave', { name: groupName }) || `Are you sure you want to leave "${groupName}"?`)) {
+      try {
+        await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(groupId));
+        toast.success(t('chat.leftChatroom') || 'Left chat room');
+        setGroupChats(prev => prev.filter(g => g.id !== groupId));
+      } catch (error: any) {
+        toast.error(t('chat.failedToLeave') || 'Failed to leave chat room');
+      }
+    }
+    setGroupChatContextMenu(null);
+  };
+
+  const handleReportChat = async (groupId: string) => {
+    const reason = window.prompt(t('reports.enterReason') || 'Please enter a reason for reporting this chat room:');
+    if (!reason) return;
+
+    try {
+      await api.post(API_ENDPOINTS.REPORTS.CREATE, {
+        reported_id: groupId,
+        report_type: 'chatroom',
+        reason: reason
+      });
+      toast.success(t('reports.reportSubmitted') || 'Report submitted successfully');
+    } catch (error: any) {
+      console.error('Failed to report chat:', error);
+      toast.error(error.response?.data?.errors?.[0] || t('reports.reportFailed') || 'Failed to submit report');
     }
     setGroupChatContextMenu(null);
   };
@@ -938,6 +1060,81 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files]);
     }
+  }
+
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        setAudioStream(null);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast.error(t('chat.micError') || 'Could not access microphone');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+    setAudioBlob(null);
+    setAudioStream(null);
+    setRecordingDuration(0);
+  };
+
+  // Cleanup recording timer on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const uploadFiles = async (files: File[]): Promise<Array<{ type: string, data: string, filename: string, size: number, mime_type: string }>> => {
@@ -964,7 +1161,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if ((!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || !selectedConversation || sendingMessage) {
+    if ((!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0 && !audioBlob) || !selectedConversation || sendingMessage) {
       return;
     }
 
@@ -978,6 +1175,23 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         attachments = await uploadFiles(selectedFiles);
       }
 
+      // Upload audio if present
+      if (audioBlob) {
+        const audioDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(audioBlob);
+        });
+
+        attachments.push({
+          type: 'audio',
+          data: audioDataUrl,
+          filename: 'voice_message.webm',
+          size: audioBlob.size,
+          mime_type: 'audio/webm'
+        });
+      }
+
       // Determine message type
       let messageType = 'text';
       let gifUrl: string | undefined = undefined;
@@ -986,6 +1200,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (selectedGifUrl) {
         messageType = 'gif';
         gifUrl = selectedGifUrl;
+      } else if (audioBlob) {
+        messageType = 'audio';
       } else if (attachments.length > 0) {
         if (attachments.some(a => a.type === 'image')) {
           messageType = 'image';
@@ -997,9 +1213,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       }
 
       const attachmentPlaceholder = `[${t('privateMessages.attachment')}]`;
+      const audioPlaceholder = `[${t('chat.audioMessage') || 'Voice Message'}]`;
+
+      const finalContent = content || (messageType === 'gif' ? '[GIF]' : '') || (messageType === 'audio' ? audioPlaceholder : '') || (attachments.length > 0 ? attachmentPlaceholder : '');
+
       const response = await api.post(API_ENDPOINTS.MESSAGES.SEND_PRIVATE, {
         to_user_id: selectedConversation,
-        content: content || (messageType === 'gif' ? '[GIF]' : '') || (attachments.length > 0 ? attachmentPlaceholder : ''),
+        content: finalContent,
         message_type: messageType,
         gif_url: gifUrl,
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -1009,7 +1229,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         // Add message to local state
         const newMessage: Message = {
           id: response.data.data.id || response.data.data._id,
-          content: content || (messageType === 'gif' ? '[GIF]' : '') || (attachments.length > 0 ? attachmentPlaceholder : ''),
+          content: finalContent,
           message_type: messageType,
           created_at: response.data.data.created_at || new Date().toISOString(),
           is_from_me: true,
@@ -1028,6 +1248,9 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         setMessageInput('');
         setSelectedGifUrl(null);
         setSelectedFiles([]);
+        setAudioBlob(null);
+        setRecordingDuration(0);
+
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -1225,6 +1448,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   };
 
+
   const handleDeleteConversation = async (userId: string) => {
     if (!confirm(t('privateMessages.deleteConversationConfirm'))) {
       return;
@@ -1245,6 +1469,20 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       console.error('Failed to delete conversation:', error);
     }
   };
+
+  // Calculate conversation statuses outside of JSX to avoid hook calls inside map (if any were hidden there)
+  // Actually, the main issue might be stable object references or conditionally calling components.
+  // We'll move the map logic to a prepared list.
+
+  const preparedConversations = conversations.map(conversation => {
+    const status = conversationStatuses.get(conversation.user_id);
+    return {
+      ...conversation,
+      isOnline: status?.isOnline || false,
+      lastLogin: status?.lastLogin || null,
+      areFriends: status?.areFriends || false,
+    };
+  });
 
   if (loading) {
     return (
@@ -1471,7 +1709,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             content: message.content,
                             userId: message.user_id || selectedUser?.id || '',
                             username: message.sender_username,
-                            isFromMe: message.is_from_me
+                            isFromMe: message.is_from_me,
+                            isMuted: conversations.find(c => c.user_id === (message.user_id || selectedUser?.id))?.is_muted || false
                           });
                         }}
                       >
@@ -1507,6 +1746,16 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                                     filename={attachment.filename}
                                     className="w-full max-w-full"
                                   />
+                                );
+                              } else if (attachment.type === 'audio') {
+                                return (
+                                  <div key={attachmentKey} className="w-full max-w-full min-w-[160px]">
+                                    <AudioPlayer
+                                      src={attachment.url}
+                                      className="bg-transparent"
+                                      filename={attachment.filename}
+                                    />
+                                  </div>
                                 );
                               } else {
                                 return (
@@ -1591,128 +1840,38 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           </div>
 
           {/* Message Input */}
-          <div className="border-t theme-border p-4">
-            <form 
-              onSubmit={handleSendMessage} 
-              className="flex items-center space-x-3"
-              onKeyDown={(e) => {
-                // Handle Enter key even when buttons are focused
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  const target = e.target as HTMLElement;
-                  // Only prevent default if not in a button (buttons should handle their own clicks)
-                  if (target.tagName !== 'BUTTON' && (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0)) {
-                    e.preventDefault();
-                    handleSendMessage(e as any);
-                  }
-                }
-              }}
-            >
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  id="message-input-area"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}
-                  placeholder={t('privateMessages.typeMessage')}
-                  className="w-full px-4 py-2 theme-bg-secondary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
-                  disabled={sendingMessage}
+          <MessageInput
+            value={messageInput}
+            onChange={setMessageInput}
+            onSend={(e) => handleSendMessage(e as any)}
+            isLoading={sendingMessage}
+            placeholder={t('privateMessages.typeMessage')}
+            selectedGifUrl={selectedGifUrl}
+            onRemoveGif={() => setSelectedGifUrl(null)}
+            selectedFiles={selectedFiles}
+            onFileSelect={handleFileSelect}
+            onRemoveFile={(idx) => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+            isRecording={isRecording}
+            recordingDuration={recordingDuration}
+            audioBlob={audioBlob}
+            audioStream={audioStream}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            onCancelRecording={cancelRecording}
+            onRemoveAudio={() => { setAudioBlob(null); setRecordingDuration(0); }}
+            onGifClick={() => setShowGifPicker(!showGifPicker)}
+            showGifPicker={showGifPicker}
+          >
+            {showGifPicker && (
+              <div className="absolute bottom-full right-0 mb-2 z-50 max-md:-right-12 min-w-[300px]">
+                <GifPicker
+                  onSelectGif={handleGifSelect}
+                  onClose={() => setShowGifPicker(false)}
+                  position="right"
                 />
-                {selectedGifUrl && (
-                  <div className="absolute top-1 right-1">
-                    <img src={selectedGifUrl} alt={t('privateMessages.selectedGif')} className="w-8 h-8 rounded object-cover" />
-                  </div>
-                )}
-                {selectedFiles.length > 0 && (
-                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 theme-bg-secondary rounded-lg border theme-border max-h-32 overflow-y-auto">
-                    <div className="flex flex-wrap gap-2">
-                      {selectedFiles.map((file, idx) => (
-                        <div key={`file-${file.name}-${file.size}-${idx}`} className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded text-xs">
-                          <span className="truncate max-w-[100px]">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-
-              {/* File Upload Button */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                multiple
-                className="hidden"
-                accept="image/*,video/*,*/*"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
-                      handleSendMessage(e as any);
-                    }
-                  }
-                }}
-                className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
-                title={t('common.attachFile') || 'Attach file'}
-              >
-                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                </svg>
-              </button>
-
-              {/* GIF Button */}
-              <button
-                type="button"
-                onClick={() => setShowGifPicker(!showGifPicker)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (messageInput.trim() || selectedGifUrl || selectedFiles.length > 0) {
-                      handleSendMessage(e as any);
-                    }
-                  }
-                }}
-                className="relative p-2 theme-bg-secondary rounded-lg hover:theme-bg-tertiary transition-colors"
-                title={t('privateMessages.addGif')}
-              >
-                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {showGifPicker && (
-                  <div className="absolute bottom-full right-0 mb-2">
-                    <GifPicker
-                      onSelectGif={handleGifSelect}
-                      onClose={() => setShowGifPicker(false)}
-                      position="right"
-                    />
-                  </div>
-                )}
-              </button>
-
-              <button
-                type="submit"
-                id="send-message-btn"
-                disabled={(!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0) || sendingMessage || uploadingFiles}
-                className="px-4 py-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {uploadingFiles || sendingMessage ? <LoadingSpinner size="sm" /> : t('chat.send')}
-              </button>
-            </form>
-          </div>
+            )}
+          </MessageInput>
         </>
       ) : (
         /* Conversations List View */
@@ -1731,9 +1890,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                   className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
                   title={t('privateMessages.friends')}
                 >
-                  <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
+                  <Users className="w-5 h-5 theme-text-primary" />
                 </button>
               </div>
             </div>
@@ -1802,6 +1959,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             userId: conversation.user_id,
                             username: conversation.username,
                           });
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            userId: conversation.user_id,
+                            username: conversation.username,
+                            isMuted: conversation.is_muted || false,
+                          });
                         }}
                         className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
                       >
@@ -1865,12 +2029,20 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             </div>
 
             {/* Resizable Divider */}
-            <div
-              className={`h-1 border-t theme-border cursor-row-resize hover:bg-blue-500 hover:border-transparent transition-colors ${isDraggingDivider ? 'bg-blue-500 border-transparent' : ''
-                }`}
-              onMouseDown={handleDividerMouseDown}
-              style={{ userSelect: 'none' }}
-            />
+            <div className="relative z-10">
+              {/* Invisible Hit Area for easier grabbing */}
+              <div
+                className="absolute inset-x-0 -top-2 -bottom-2 cursor-row-resize z-20"
+                onMouseDown={handleDividerMouseDown}
+                onTouchStart={handleDividerTouchStart}
+                style={{ touchAction: 'none' }}
+              />
+              {/* Visible Divider Line */}
+              <div
+                className={`h-1 border-t theme-border transition-colors ${isDraggingDivider ? 'bg-blue-500 border-transparent' : 'hover:bg-blue-500 hover:border-transparent'}`}
+                style={{ touchAction: 'none' }}
+              />
+            </div>
 
             {/* Group Chats Section */}
             <div
@@ -1896,7 +2068,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               <div className="flex-1 overflow-y-auto">
                 {groupChats.length > 0 ? (
                   <div>
-                    {groupChats.map(group => (
+                    {groupChats.filter(group => !hiddenChats.has(group.id)).map(group => (
                       <div
                         key={group.id}
                         onClick={() => handleGroupChatClick(group)}
@@ -1907,6 +2079,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             y: e.clientY,
                             groupId: group.id,
                             groupName: group.name,
+                            isMuted: group.is_muted || false,
                           });
                         }}
                         className="w-full px-4 py-3 flex items-center space-x-3 hover:theme-bg-tertiary transition-colors cursor-pointer"
@@ -1926,10 +2099,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                               <h4 className="text-sm font-semibold theme-text-primary truncate">{group.name}</h4>
 
                               {/* Consolidated Unread Count Bubble */}
-                              {group.unread_count && group.unread_count > 0 && (
+                              {(group.unread_count || 0) > 0 && (
                                 <div className="relative flex items-center justify-center">
                                   <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-bounce-in flex-shrink-0 min-w-[18px] text-center shadow-sm">
-                                    {group.unread_count > 99 ? '99+' : group.unread_count}
+                                    {(group.unread_count || 0) > 99 ? '99+' : group.unread_count}
                                   </span>
                                 </div>
                               )}
@@ -1978,211 +2151,222 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       {/* User Select Modal */}
-      {showUserSelect && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="theme-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6 max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold theme-text-primary">{t('privateMessages.yourConversations')}</h3>
-              <button
-                onClick={() => setShowUserSelect(false)}
-                className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
-              >
-                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {conversations.map((conversation) => (
-                <div
-                  key={conversation.user_id}
-                  onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setContextMenu({
-                      x: e.clientX,
-                      y: e.clientY,
-                      userId: conversation.user_id,
-                      username: conversation.username,
-                    });
-                  }}
-                  className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
+      {
+        showUserSelect && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="theme-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6 max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold theme-text-primary">{t('privateMessages.yourConversations')}</h3>
+                <button
+                  onClick={() => setShowUserSelect(false)}
+                  className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
                 >
-                  <div className="flex items-center space-x-3">
-                    <Avatar
-                      userId={conversation.user_id}
-                      username={conversation.username}
-                      size="md"
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-medium theme-text-primary">{conversation.username}</h4>
-                      <p className="text-sm theme-text-secondary truncate">
-                        {conversation.last_message.is_from_me ? `${t('common.you')}: ` : ''}
-                        {conversation.last_message.content}
-                      </p>
+                  <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {preparedConversations.map((conversation) => (
+                  <div
+                    key={conversation.user_id}
+                    onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        userId: conversation.user_id,
+                        username: conversation.username,
+                        isMuted: conversation.is_muted || false,
+                      });
+                    }}
+                    className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar
+                        userId={conversation.user_id}
+                        username={conversation.username}
+                        size="md"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium theme-text-primary">{conversation.username}</h4>
+                          {conversation.isOnline && (
+                            <span className="w-2 h-2 bg-green-500 rounded-full" title={t('privateMessages.online')}></span>
+                          )}
+                        </div>
+                        <p className="text-sm theme-text-secondary truncate">
+                          {conversation.last_message.is_from_me ? `${t('common.you')}: ` : ''}
+                          {conversation.last_message.content}
+                        </p>
+                      </div>
                     </div>
+                    {conversation.unread_count > 0 && (
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full">
+                        {conversation.unread_count}
+                      </span>
+                    )}
                   </div>
-                  {conversation.unread_count > 0 && (
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs rounded-full">
-                      {conversation.unread_count}
-                    </span>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Add Friend Modal */}
-      {showAddFriendModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="theme-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold theme-text-primary">{t('privateMessages.startNewConversation')}</h3>
-              <button
-                onClick={() => {
-                  setShowAddFriendModal(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
-                }}
-                className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
-              >
-                <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Search Box */}
-            <div className="flex space-x-2 mb-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value.trim().length >= 2) {
-                    handleSearch();
-                  } else {
+      {
+        showAddFriendModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="theme-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold theme-text-primary">{t('privateMessages.startNewConversation')}</h3>
+                <button
+                  onClick={() => {
+                    setShowAddFriendModal(false);
+                    setSearchQuery('');
                     setSearchResults([]);
-                  }
-                }}
-                onKeyPress={(e) => e.key === 'Enter' && searchQuery.length >= 2 && handleSearch()}
-                placeholder={t('privateMessages.searchUsers')}
-                className="flex-1 px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
-                autoFocus
-              />
-            </div>
+                  }}
+                  className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
+                >
+                  <svg className="w-5 h-5 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-            {/* Content: Friends when search is empty, Search Results when typing */}
-            <div className="max-h-96 overflow-y-auto">
-              {searchQuery.trim().length === 0 ? (
-                /* Show Friends when search is empty */
-                friends.length > 0 ? (
-                  <div>
-                    <h4 className="text-sm font-medium theme-text-primary mb-2">{t('privateMessages.myFriends')}</h4>
+              {/* Search Box */}
+              <div className="flex space-x-2 mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value.trim().length >= 2) {
+                      handleSearch();
+                    } else {
+                      setSearchResults([]);
+                    }
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && searchQuery.length >= 2 && handleSearch()}
+                  placeholder={t('privateMessages.searchUsers')}
+                  className="flex-1 px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary placeholder-theme-text-muted"
+                  autoFocus
+                />
+              </div>
+
+              {/* Content: Friends when search is empty, Search Results when typing */}
+              <div className="max-h-96 overflow-y-auto">
+                {searchQuery.trim().length === 0 ? (
+                  /* Show Friends when search is empty */
+                  friends.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-medium theme-text-primary mb-2">{t('privateMessages.myFriends')}</h4>
+                      <div className="space-y-2">
+                        {friends.map((friend) => (
+                          <div
+                            key={friend.id}
+                            onClick={() => handleStartConversation(friend.id, friend.username)}
+                            className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center">
+                                <span className="text-white font-semibold">
+                                  {friend.username.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="font-medium theme-text-primary">{friend.username}</h4>
+                                <p className="text-xs theme-text-secondary">{friend.email}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartConversation(friend.id, friend.username);
+                              }}
+                              className="px-3 py-1 btn btn-primary text-sm"
+                            >
+                              {t('privateMessages.message')}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <svg className="w-12 h-12 theme-text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <p className="theme-text-secondary text-sm">{t('privateMessages.noFriends')}</p>
+                    </div>
+                  )
+                ) : (
+                  /* Show Search Results when typing */
+                  searching ? (
+                    <div className="flex items-center justify-center py-8">
+                      <LoadingSpinner size="sm" />
+                    </div>
+                  ) : searchResults.length > 0 ? (
                     <div className="space-y-2">
-                      {friends.map((friend) => (
+                      {searchResults.map((searchUser) => (
                         <div
-                          key={friend.id}
-                          onClick={() => handleStartConversation(friend.id, friend.username)}
-                          className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
+                          key={searchUser.id}
+                          className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 transition-opacity"
                         >
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center">
                               <span className="text-white font-semibold">
-                                {friend.username.charAt(0).toUpperCase()}
+                                {searchUser.username.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <div>
-                              <h4 className="font-medium theme-text-primary">{friend.username}</h4>
-                              <p className="text-xs theme-text-secondary">{friend.email}</p>
+                              <h4 className="font-medium theme-text-primary">{searchUser.username}</h4>
+                              <p className="text-xs theme-text-secondary">{searchUser.email}</p>
                             </div>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartConversation(friend.id, friend.username);
-                            }}
-                            className="px-3 py-1 btn btn-primary text-sm"
-                          >
-                            {t('privateMessages.message')}
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            {user && searchUser.id !== user.id && (
+                              <button
+                                onClick={() => handleSendFriendRequest(searchUser.id, searchUser.username)}
+                                className="px-2 py-1 text-xs btn btn-secondary"
+                                title={t('privateMessages.sendFriendRequest')}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleStartConversation(searchUser.id, searchUser.username)}
+                              className="px-3 py-1 btn btn-primary text-sm"
+                            >
+                              {t('privateMessages.message')}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <svg className="w-12 h-12 theme-text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p className="theme-text-secondary text-sm">{t('privateMessages.noFriends')}</p>
-                  </div>
-                )
-              ) : (
-                /* Show Search Results when typing */
-                searching ? (
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner size="sm" />
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <div className="space-y-2">
-                    {searchResults.map((searchUser) => (
-                      <div
-                        key={searchUser.id}
-                        className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 transition-opacity"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full theme-blue-primary flex items-center justify-center">
-                            <span className="text-white font-semibold">
-                              {searchUser.username.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <h4 className="font-medium theme-text-primary">{searchUser.username}</h4>
-                            <p className="text-xs theme-text-secondary">{searchUser.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {user && searchUser.id !== user.id && (
-                            <button
-                              onClick={() => handleSendFriendRequest(searchUser.id, searchUser.username)}
-                              className="px-2 py-1 text-xs btn btn-secondary"
-                              title={t('privateMessages.sendFriendRequest')}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                              </svg>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleStartConversation(searchUser.id, searchUser.username)}
-                            className="px-3 py-1 btn btn-primary text-sm"
-                          >
-                            {t('privateMessages.message')}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <svg className="w-12 h-12 theme-text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <p className="theme-text-secondary">{t('privateMessages.noUsersFound')}</p>
-                  </div>
-                )
-              )}
+                  ) : (
+                    <div className="text-center py-8">
+                      <svg className="w-12 h-12 theme-text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <p className="theme-text-secondary">{t('privateMessages.noUsersFound')}</p>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Friends Dialog */}
       <FriendsDialog
@@ -2192,102 +2376,116 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       />
 
       {/* Context Menu */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          items={[
-            {
-              label: t('privateMessages.muteConversation'),
-              icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                </svg>
-              ),
-              action: () => { }, // No action needed when submenu exists
-              submenu: [
-                {
-                  label: t('privateMessages.for15Minutes'),
-                  action: () => handleMuteConversation(contextMenu.userId, 15),
-                },
-                {
-                  label: t('privateMessages.for1Hour'),
-                  action: () => handleMuteConversation(contextMenu.userId, 60),
-                },
-                {
-                  label: t('privateMessages.for8Hours'),
-                  action: () => handleMuteConversation(contextMenu.userId, 480),
-                },
-                {
-                  label: t('privateMessages.for24Hours'),
-                  action: () => handleMuteConversation(contextMenu.userId, 1440),
-                },
-                {
-                  label: t('privateMessages.forever'),
-                  action: () => handleMuteConversation(contextMenu.userId, -1),
-                },
-              ],
-            },
-            {
-              label: t('privateMessages.blockUser'),
-              icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              ),
-              danger: true,
-              action: () => handleBlockUser(contextMenu.userId),
-            },
-            {
-              label: t('privateMessages.deleteConversation'),
-              icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              ),
-              danger: true,
-              action: () => handleDeleteConversation(contextMenu.userId),
-            },
-          ]}
-        />
-      )}
+      {
+        contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            items={[
+              {
+                label: t('privateMessages.markAsRead'),
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ),
+                action: () => handleMarkConversationAsRead(contextMenu.userId),
+              },
+              contextMenu.isMuted ? {
+                label: t('mute.unmute') || 'Unmute',
+                icon: <Volume2 className="w-4 h-4" />,
+                action: () => handleMuteConversation(contextMenu.userId, 0),
+              } : {
+                label: t('privateMessages.muteConversation'),
+                icon: <VolumeX className="w-4 h-4" />,
+                action: () => { },
+                submenu: [
+                  {
+                    label: t('mute.15m') || '15 Minutes',
+                    action: () => handleMuteConversation(contextMenu.userId, 15),
+                  },
+                  {
+                    label: t('mute.1h') || '1 Hour',
+                    action: () => handleMuteConversation(contextMenu.userId, 60),
+                  },
+                  {
+                    label: t('mute.8h') || '8 Hours',
+                    action: () => handleMuteConversation(contextMenu.userId, 480),
+                  },
+                  {
+                    label: t('mute.24h') || '24 Hours',
+                    action: () => handleMuteConversation(contextMenu.userId, 1440),
+                  },
+                  {
+                    label: t('mute.always') || 'Until I turn it back on',
+                    action: () => handleMuteConversation(contextMenu.userId, -1),
+                  },
+                ],
+              },
+              {
+                label: t('privateMessages.blockUser'),
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                ),
+                danger: true,
+                action: () => handleBlockUser(contextMenu.userId),
+              },
+              {
+                label: t('privateMessages.deleteConversation'),
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                ),
+                danger: true,
+                action: () => handleDeleteConversation(contextMenu.userId),
+              },
+            ]}
+          />
+        )
+      }
 
       {/* User Hover Card / Tooltip */}
-      {tooltipState && (
-        <React.Fragment>
-          {/* Wrapper to Capture Mouse Enter for Tooltip Persistence is pointless if UserTooltip stops propagation. 
+      {
+        tooltipState && (
+          <React.Fragment>
+            {/* Wrapper to Capture Mouse Enter for Tooltip Persistence is pointless if UserTooltip stops propagation. 
                 However, I can pass a custom onClose to UserTooltip that checks timing? 
                 Actually, UserTooltip.tsx has onMouseLeave => onClose. 
                 If I modify UserTooltip to accept onMouseEnter, I can cancel the timer.
                 For now, let's assume I will modify UserTooltip.tsx next. 
             */}
-          <UserTooltip
-            username={tooltipState.username}
-            x={tooltipState.x}
-            y={tooltipState.y}
-            onClose={() => setTooltipState(null)}
-          />
-        </React.Fragment>
-      )}
+            <UserTooltip
+              username={tooltipState.username}
+              x={tooltipState.x}
+              y={tooltipState.y}
+              onClose={() => setTooltipState(null)}
+            />
+          </React.Fragment>
+        )
+      }
 
       {/* User Banner (Click) */}
-      {bannerState && (
-        <UserBanner
-          userId={bannerState.userId}
-          username={bannerState.username}
-          x={bannerState.x}
-          y={bannerState.y}
-          onClose={handleBannerClose}
-          onSendMessage={(userId, username) => {
-            window.dispatchEvent(new CustomEvent('openPrivateMessage', {
-              detail: { userId, username }
-            }));
-            setBannerState(null);
-          }}
-        />
-      )}
+      {
+        bannerState && (
+          <UserBanner
+            userId={bannerState.userId}
+            username={bannerState.username}
+            x={bannerState.x - 40}
+            y={bannerState.y}
+            onClose={handleBannerClose}
+            onSendMessage={(userId, username) => {
+              window.dispatchEvent(new CustomEvent('openPrivateMessage', {
+                detail: { userId, username }
+              }));
+              setBannerState(null);
+            }}
+          />
+        )
+      }
 
       {/* Message Context Menu */}
       {messageContextMenu && (
@@ -2315,236 +2513,223 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
               ),
               action: () => handleDeleteMessage(messageContextMenu.messageId, 'soft'),
             },
-            ...(!messageContextMenu.isFromMe ? [{
-              label: t('privateMessages.reportMessage') || 'Report Message',
-              icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              ),
-              danger: true,
-              action: () => handleReportMessage(messageContextMenu.messageId),
-            }] : []),
+            ...(!messageContextMenu.isFromMe ? [
+              messageContextMenu.isMuted ? {
+                label: t('mute.unmute') || 'Unmute',
+                icon: <Volume2 className="w-4 h-4" />,
+                action: () => handleMuteConversation(messageContextMenu.userId, 0),
+              } : {
+                label: t('privateMessages.muteConversation') || 'Mute User',
+                icon: <VolumeX className="w-4 h-4" />,
+                action: () => { },
+                submenu: [
+                  {
+                    label: t('mute.15m') || '15 Minutes',
+                    action: () => handleMuteConversation(messageContextMenu.userId, 15),
+                  },
+                  {
+                    label: t('mute.1h') || '1 Hour',
+                    action: () => handleMuteConversation(messageContextMenu.userId, 60),
+                  },
+                  {
+                    label: t('mute.8h') || '8 Hours',
+                    action: () => handleMuteConversation(messageContextMenu.userId, 480),
+                  },
+                  {
+                    label: t('mute.24h') || '24 Hours',
+                    action: () => handleMuteConversation(messageContextMenu.userId, 1440),
+                  },
+                  {
+                    label: t('mute.always') || 'Until I turn it back on',
+                    action: () => handleMuteConversation(messageContextMenu.userId, -1),
+                  },
+                ],
+              },
+              {
+                label: t('privateMessages.reportMessage') || 'Report Message',
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ),
+                danger: true,
+                action: () => handleReportMessage(messageContextMenu.messageId),
+              }
+            ] : []),
           ]}
         />
       )}
 
       {/* User Context Menu */}
-      {userContextMenu && (
-        <UserContextMenu
-          userId={userContextMenu.userId}
-          username={userContextMenu.username}
-          x={userContextMenu.x}
-          y={userContextMenu.y}
-          areFriends={areFriends}
-          onClose={() => setUserContextMenu(null)}
-          onMarkAsRead={(userId) => {
-            handleMarkConversationAsRead(userId);
-            setUserContextMenu(null);
-          }}
-          onSendMessage={(userId, username) => {
-            window.dispatchEvent(new CustomEvent('openPrivateMessage', {
-              detail: { userId, username }
-            }));
-            setUserContextMenu(null);
-          }}
-          onAddFriend={async (userId, username) => {
-            try {
-              const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
-                to_user_id: userId
-              });
-              if (response.data.success) {
-                toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
-                // Reload friends list to update status
-                await loadFriends();
-              } else {
-                toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+      {
+        userContextMenu && (
+          <UserContextMenu
+            userId={userContextMenu.userId}
+            username={userContextMenu.username}
+            x={userContextMenu.x}
+            y={userContextMenu.y}
+            areFriends={areFriends}
+            onClose={() => setUserContextMenu(null)}
+            onMarkAsRead={(userId) => {
+              handleMarkConversationAsRead(userId);
+              setUserContextMenu(null);
+            }}
+            onSendMessage={(userId, username) => {
+              window.dispatchEvent(new CustomEvent('openPrivateMessage', {
+                detail: { userId, username }
+              }));
+              setUserContextMenu(null);
+            }}
+            onAddFriend={async (userId, username) => {
+              try {
+                const response = await api.post(API_ENDPOINTS.USERS.SEND_FRIEND_REQUEST, {
+                  to_user_id: userId
+                });
+                if (response.data.success) {
+                  toast.success(t('privateMessages.friendRequestSent') || `Friend request sent to ${username}`);
+                  // Reload friends list to update status
+                  await loadFriends();
+                } else {
+                  toast.error(response.data.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
+                }
+                setUserContextMenu(null);
+              } catch (error: any) {
+                console.error('Failed to send friend request:', error);
+                toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
               }
+            }}
+            onRemoveFriend={async (userId, username) => {
+              await handleRemoveFriend(userId, username);
               setUserContextMenu(null);
-            } catch (error: any) {
-              console.error('Failed to send friend request:', error);
-              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.failedToSendFriendRequest') || 'Failed to send friend request');
-            }
-          }}
-          onRemoveFriend={async (userId, username) => {
-            await handleRemoveFriend(userId, username);
-            setUserContextMenu(null);
-          }}
-          onReportUser={async (userId, username) => {
-            setUserContextMenu(null);
-            setUserToReport({ userId, username });
-            setShowReportDialog(true);
-          }}
-          onBlockUser={async (userId, username) => {
-            try {
-              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
-              toast.success(t('chat.blockedUser', { username }));
+            }}
+            onReportUser={async (userId, username) => {
               setUserContextMenu(null);
-            } catch (error: any) {
-              toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
-            }
-          }}
-          onSilence={() => {
-            // Submenu in UserContextMenu handles mute API calls directly
-          }}
-        />
-      )}
+              setUserToReport({ userId, username });
+              setShowReportDialog(true);
+            }}
+            onBlockUser={async (userId, username) => {
+              try {
+                await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+                toast.success(t('chat.blockedUser', { username }));
+                setUserContextMenu(null);
+              } catch (error: any) {
+                toast.error(error.response?.data?.errors?.[0] || t('privateMessages.blockUser'));
+              }
+            }}
+            onSilence={() => {
+              // Submenu in UserContextMenu handles mute API calls directly
+            }}
+          />
+        )
+      }
 
       {/* Report User Dialog */}
-      {showReportDialog && userToReport && (
-        <ReportUserDialog
-          userId={userToReport.userId}
-          username={userToReport.username}
-          onClose={() => {
-            setShowReportDialog(false);
-            setUserToReport(null);
-          }}
-          includeMessageHistory={true}
-        />
-      )}
+      {
+        showReportDialog && userToReport && (
+          <ReportUserDialog
+            userId={userToReport.userId}
+            username={userToReport.username}
+            onClose={() => {
+              setShowReportDialog(false);
+              setUserToReport(null);
+            }}
+            includeMessageHistory={true}
+          />
+        )
+      }
 
-      {showGroupChatCreate && (
-        <GroupChatCreateModal
-          onClose={() => setShowGroupChatCreate(false)}
-          onGroupCreated={handleGroupCreated}
-        />
-      )}
+      {
+        showGroupChatCreate && (
+          <GroupChatCreateModal
+            onClose={() => setShowGroupChatCreate(false)}
+            onGroupCreated={handleGroupCreated}
+          />
+        )
+      }
 
       {/* Image Viewer Modal */}
-      {viewingImage && (
-        <ImageViewerModal
-          imageUrl={viewingImage.url}
-          filename={viewingImage.filename}
-          onClose={() => setViewingImage(null)}
-        />
-      )}
+      {
+        viewingImage && (
+          <ImageViewerModal
+            imageUrl={viewingImage.url}
+            filename={viewingImage.filename}
+            onClose={() => setViewingImage(null)}
+          />
+        )
+      }
 
-      {/* Group Chat Context Menu */}
-      {groupChatContextMenu && (
-        <div
-          className="fixed z-50 theme-bg-secondary rounded-lg shadow-xl border theme-border py-1 min-w-[180px]"
-          style={{ top: groupChatContextMenu.y, left: groupChatContextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Mark as Read */}
-          <button
-            onClick={() => handleMarkGroupChatAsRead(groupChatContextMenu.groupId)}
-            className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            {t('contextMenu.markAsRead') || 'Mark as Read'}
-          </button>
-
-          {/* Silence/Mute with inline submenu */}
-          <div className="relative group/silence">
-            <button
-              className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary flex items-center gap-2 justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                </svg>
-                {t('contextMenu.silenceChat') || 'Silence Chat'}
-              </div>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            {/* Submenu */}
-            <div className="absolute left-full top-0 hidden group-hover/silence:block theme-bg-secondary border theme-border rounded-lg shadow-xl py-1 min-w-[150px] z-50">
-              {[
-                { label: t('mute.15minutes') || '15 minutes', minutes: 15 },
-                { label: t('mute.1hour') || '1 hour', minutes: 60 },
-                { label: t('mute.8hours') || '8 hours', minutes: 480 },
-                { label: t('mute.24hours') || '24 hours', minutes: 1440 },
-                { label: t('mute.forever') || 'Until I unmute', minutes: -1 },
-              ].map((option) => (
-                <button
-                  key={option.minutes}
-                  onClick={async () => {
-                    try {
-                      await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_CHATROOM(groupChatContextMenu.groupId), { minutes: option.minutes });
-                      const duration = option.minutes === -1 ? (t('mute.forever') || 'forever') : option.label;
-                      toast.success(t('mute.success', { name: groupChatContextMenu.groupName, duration }) || `${groupChatContextMenu.groupName} muted for ${duration}`);
-                    } catch (error) {
-                      toast.error(t('mute.error') || 'Failed to mute');
-                    }
-                    setGroupChatContextMenu(null);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Hide Chat */}
-          <button
-            onClick={() => handleHideGroupChat(groupChatContextMenu.groupId)}
-            className="w-full px-4 py-2 text-left text-sm theme-text-primary hover:theme-bg-tertiary flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-            </svg>
-            {t('settings.hideForMe') || 'Hide for Me'}
-          </button>
-
-          {/* Divider */}
-          <div className="border-t theme-border my-1" />
-
-          {/* Leave Group (for non-owners) or Delete Group (for owners) */}
-          {groupChats.find(g => g.id === groupChatContextMenu.groupId)?.owner_id === user?.id ? (
-            <button
-              onClick={async () => {
-                if (window.confirm(t('chats.confirmDeleteChatroom', { name: groupChatContextMenu.groupName }) || `Are you sure you want to delete "${groupChatContextMenu.groupName}"?`)) {
-                  try {
-                    await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(groupChatContextMenu.groupId));
-                    toast.success(t('chat.chatRoomDeleted') || 'Chat room deleted');
-                    setGroupChats(prev => prev.filter(g => g.id !== groupChatContextMenu.groupId));
-                  } catch (error) {
-                    toast.error(t('chat.failedToDelete') || 'Failed to delete chat room');
-                  }
+      {
+        groupChatContextMenu && (
+          <ChatRoomContextMenu
+            chatId={groupChatContextMenu.groupId}
+            chatName={groupChatContextMenu.groupName}
+            x={groupChatContextMenu.x}
+            y={groupChatContextMenu.y}
+            isMuted={groupChatContextMenu.isMuted}
+            onClose={() => setGroupChatContextMenu(null)}
+            onHide={() => handleHideGroupChat(groupChatContextMenu.groupId)}
+            onMute={async (chatId: string, minutes: number) => {
+              try {
+                if (minutes === 0) {
+                  await api.post(API_ENDPOINTS.MUTE.UNMUTE_CHAT_ROOM(chatId));
+                  toast.success(t('mute.unmuted') || 'Unmuted');
+                } else {
+                  await api.post(API_ENDPOINTS.MUTE.MUTE_CHAT_ROOM(chatId), { minutes });
+                  const duration = minutes === -1 ? (t('mute.forever') || 'forever') : `${minutes} ${t('common.minutes') || 'minutes'}`;
+                  toast.success(t('mute.success', { name: groupChatContextMenu.groupName, duration }) || `${groupChatContextMenu.groupName} muted for ${duration}`);
                 }
-                setGroupChatContextMenu(null);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:theme-bg-tertiary flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              {t('contextMenu.deleteChatroom') || 'Delete Chat Room'}
-            </button>
-          ) : (
-            <button
-              onClick={async () => {
-                if (window.confirm(t('chat.confirmLeave', { name: groupChatContextMenu.groupName }) || `Are you sure you want to leave "${groupChatContextMenu.groupName}"?`)) {
-                  try {
-                    await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(groupChatContextMenu.groupId));
-                    toast.success(t('chat.leftChatroom') || 'Left chat room');
-                    setGroupChats(prev => prev.filter(g => g.id !== groupChatContextMenu.groupId));
-                  } catch (error) {
-                    toast.error(t('chat.failedToLeave') || 'Failed to leave chat room');
-                  }
+              } catch (error) {
+                console.error('Failed to mute chat:', error);
+                toast.error(t('mute.error') || 'Failed to mute');
+              }
+              setGroupChatContextMenu(null);
+            }}
+            onFollow={async (chatId: string) => {
+              try {
+                await api.post(API_ENDPOINTS.CHAT_ROOMS.JOIN(chatId));
+                toast.success(t('chat.joinedChatroom') || 'Joined chat room');
+                // Optmistically update or reload group chats? 
+                // For now, reload to get correct state
+                loadGroupChats();
+              } catch (error) {
+                toast.error(t('chat.failedToJoin') || 'Failed to join chat room');
+              }
+              setGroupChatContextMenu(null);
+            }}
+            onUnfollow={async (chatId: string) => {
+              // Unfollow is same as Leave for chat rooms in this UI
+              if (window.confirm(t('chat.confirmLeave', { name: groupChatContextMenu.groupName }) || `Are you sure you want to leave "${groupChatContextMenu.groupName}"?`)) {
+                try {
+                  await api.post(API_ENDPOINTS.CHAT_ROOMS.LEAVE(chatId));
+                  toast.success(t('chat.leftChatroom') || 'Left chat room');
+                  setGroupChats(prev => prev.filter(g => g.id !== chatId));
+                } catch (error) {
+                  toast.error(t('chat.failedToLeave') || 'Failed to leave chat room');
                 }
-                setGroupChatContextMenu(null);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:theme-bg-tertiary flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              {t('chats.leaveGroup') || 'Leave Group'}
-            </button>
-          )}
-        </div>
-      )}
+              }
+              setGroupChatContextMenu(null);
+            }}
+            onDelete={groupChats.find(g => g.id === groupChatContextMenu.groupId)?.owner_id === user?.id ? async (chatId: string) => {
+              if (window.confirm(t('chats.confirmDeleteChatroom', { name: groupChatContextMenu.groupName }) || `Are you sure you want to delete "${groupChatContextMenu.groupName}"?`)) {
+                try {
+                  await api.delete(API_ENDPOINTS.CHAT_ROOMS.DELETE(chatId));
+                  toast.success(t('chat.chatRoomDeleted') || 'Chat room deleted');
+                  setGroupChats(prev => prev.filter(g => g.id !== chatId));
+                } catch (error) {
+                  toast.error(t('chat.failedToDelete') || 'Failed to delete chat room');
+                }
+              }
+              setGroupChatContextMenu(null);
+            } : undefined}
+            isOwner={groupChats.find(g => g.id === groupChatContextMenu.groupId)?.owner_id === user?.id}
+            onReport={() => handleReportChat(groupChatContextMenu.groupId)}
+            onLeave={() => handleLeaveChat(groupChatContextMenu.groupId, groupChatContextMenu.groupName)}
+          />
+        )
+      }
 
       {/* VOIP Control Bar is now rendered globally in _app.tsx */}
-    </div>
+    </div >
   );
 };
 

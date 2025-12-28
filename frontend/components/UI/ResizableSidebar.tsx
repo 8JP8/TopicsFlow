@@ -84,6 +84,18 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [defaultWidth, onWidthChange]);
 
+  // Divider drag handlers - Optimized for smoothness
+  const requestRef = useRef<number>();
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setIsResizing(true);
+    startXRef.current = e.touches[0].clientX;
+    startWidthRef.current = width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.body.style.touchAction = 'none';
+  }, [width]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -93,36 +105,59 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     document.body.style.userSelect = 'none';
   }, [width]);
 
+  const updateWidth = useCallback((clientX: number) => {
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+
+    requestRef.current = requestAnimationFrame(() => {
+      const diff = clientX - startXRef.current;
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidthRef.current + diff));
+
+      setWidth(newWidth);
+      localStorage.setItem('sidebar-width', newWidth.toString());
+      if (onWidthChange) {
+        onWidthChange(newWidth);
+      }
+    });
+  }, [minWidth, maxWidth, onWidthChange]);
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
+    updateWidth(e.clientX);
+  }, [isResizing, updateWidth]);
 
-    // Inverted: dragging right increases width, dragging left decreases width
-    const diff = e.clientX - startXRef.current;
-    const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidthRef.current + diff));
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isResizing) return;
+    updateWidth(e.touches[0].clientX);
+  }, [isResizing, updateWidth]);
 
-    setWidth(newWidth);
-    localStorage.setItem('sidebar-width', newWidth.toString());
-    if (onWidthChange) {
-      onWidthChange(newWidth);
-    }
-  }, [isResizing, minWidth, maxWidth, onWidthChange]);
-
-  const handleMouseUp = useCallback(() => {
+  const handleDragEnd = useCallback(() => {
     setIsResizing(false);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    document.body.style.touchAction = '';
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
   }, []);
 
   useEffect(() => {
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mouseup', handleDragEnd);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleDragEnd);
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mouseup', handleDragEnd);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleDragEnd);
       };
     }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
+  }, [isResizing, handleMouseMove, handleTouchMove, handleDragEnd]);
+
+  useEffect(() => {
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
 
   return (
     <div
@@ -132,12 +167,20 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       style={{ width: isMobile ? '100%' : `${width}px` }}
     >
       {children}
-      <div
-        onMouseDown={handleMouseDown}
-        className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors ${isResizing ? 'bg-blue-500' : 'bg-transparent'
-          }`}
-        style={{ zIndex: 10 }}
-      />
+      <div className="absolute right-0 top-0 bottom-0 w-1 theme-border border-r z-20">
+        {/* Invisible Hit Area for easier grabbing */}
+        <div
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          className="absolute inset-y-0 -left-2 -right-2 cursor-col-resize z-30"
+          style={{ touchAction: 'none' }}
+        />
+        {/* Visible Divider Line */}
+        <div
+          className={`absolute inset-0 transition-colors ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500 bg-transparent'
+            }`}
+        />
+      </div>
     </div>
   );
 };

@@ -360,12 +360,6 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={markAllAsRead}
-                className="px-3 py-1 text-sm theme-bg-tertiary theme-text-primary rounded-lg hover:theme-bg-hover transition-colors"
-              >
-                {t('notifications.markAllRead') || 'Mark all read'}
-              </button>
-              <button
                 onClick={onClose}
                 className="p-1 rounded-lg hover:theme-bg-tertiary transition-colors"
               >
@@ -395,6 +389,16 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                 }`}
             >
               {t('notifications.unread') || 'Unread'}
+            </button>
+          </div>
+
+          {/* Actions Line */}
+          <div className="px-6 py-2 border-b theme-border flex justify-end">
+            <button
+              onClick={markAllAsRead}
+              className="px-3 py-1 text-sm theme-bg-tertiary theme-text-primary rounded-lg hover:theme-bg-hover transition-colors whitespace-nowrap"
+            >
+              {t('notifications.markAllRead') || 'Mark all read'}
             </button>
           </div>
 

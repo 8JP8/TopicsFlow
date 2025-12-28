@@ -14,13 +14,13 @@ class ApiClient {
     // On the server (SSR/scripts), use BACKEND_IP or NEXT_PUBLIC_API_URL for absolute calls.
     const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
     let baseURL: string;
-    
+
     if (typeof window !== 'undefined') {
       // Browser: Check if we're in production (Azure)
-      const isProduction = window.location.hostname === 'topicsflow.me' || 
-                           window.location.hostname === 'www.topicsflow.me' ||
-                           window.location.hostname.includes('azurestaticapps.net');
-      
+      const isProduction = window.location.hostname === 'topicsflow.me' ||
+        window.location.hostname === 'www.topicsflow.me' ||
+        window.location.hostname.includes('azurestaticapps.net');
+
       if (isProduction && backendUrl) {
         // Production (Azure): Use backend URL directly (api.topicsflow.me)
         baseURL = backendUrl;
@@ -45,7 +45,7 @@ class ApiClient {
       },
       withCredentials: true, // Required for session cookies
     });
-    
+
     // Debug: Log the baseURL in development
     if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       console.log('[ApiClient] Initialized with baseURL:', baseURL || '(empty - using relative paths, Next.js will proxy)');
@@ -428,6 +428,11 @@ export const API_ENDPOINTS = {
     DELETE: (notificationId: string) => `/api/notifications/${notificationId}`,
     AGGREGATED: '/api/notifications/aggregated',
   },
+
+  // Short Links
+  SHORT_LINKS: {
+    GENERATE: '/api/short-links/generate',
+  },
 } as const;
 
 // Type definitions for API responses
@@ -523,14 +528,14 @@ export const getApiBaseUrl = (): string => {
     // Server-side: use environment variable
     return process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
   }
-  
+
   // Browser: Check if we're in production (Azure)
-  const isProduction = window.location.hostname === 'topicsflow.me' || 
-                       window.location.hostname === 'www.topicsflow.me' ||
-                       window.location.hostname.includes('azurestaticapps.net');
-  
+  const isProduction = window.location.hostname === 'topicsflow.me' ||
+    window.location.hostname === 'www.topicsflow.me' ||
+    window.location.hostname.includes('azurestaticapps.net');
+
   const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
-  
+
   if (isProduction && backendUrl) {
     // Production: Use backend URL directly (api.topicsflow.me)
     return backendUrl;

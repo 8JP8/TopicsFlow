@@ -142,9 +142,34 @@ def notify_mentioned_users(db, content_id: str, content_type: str,
                 context_id = context.get('topic_id')
                 context_type = 'topic'
         
+        from models.notification_settings import NotificationSettings
+        notification_settings = NotificationSettings(db)
+
         # Create notification for each mentioned user
         for mentioned_user_id in mentioned_user_ids:
             mentioned_user_id_str = str(mentioned_user_id)
+            
+            # Skip if sender is the mentioned user
+            if mentioned_user_id_str == sender_id:
+                continue
+            
+            # Check for mutes based on context
+            if context:
+                # 1. Topic mute (overrides everything)
+                topic_id = context.get('topic_id')
+                if topic_id and notification_settings.is_topic_muted(mentioned_user_id_str, topic_id):
+                    logger.info(f"Skipping mention for user {mentioned_user_id_str} - topic {topic_id} is muted")
+                    continue
+                
+                # 2. Context-specific mutes
+                if context_type == 'chat_room':
+                    if notification_settings.is_chat_room_muted(mentioned_user_id_str, context_id):
+                        logger.info(f"Skipping mention for user {mentioned_user_id_str} - chatroom {context_id} is muted")
+                        continue
+                elif context_type == 'post':
+                    if notification_settings.is_post_muted(mentioned_user_id_str, context_id):
+                        logger.info(f"Skipping mention for user {mentioned_user_id_str} - post {context_id} is muted")
+                        continue
             
             # Build notification message
             if context_name:

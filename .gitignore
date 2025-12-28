@@ -290,6 +290,11 @@ backend/dmypy.json
 *.sublime-project
 *.sublime-workspace
 
+# AI assistant folders
+.agent/
+.claude/
+.gemini/
+
 # OS specific
 .DS_Store
 .DS_Store?

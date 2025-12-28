@@ -10,7 +10,7 @@ interface ReportUserDialogProps {
   userId?: string;
   username?: string;
   contentId?: string;
-  contentType?: 'message' | 'post' | 'comment' | 'chatroom' | 'chatroom_background' | 'chatroom_picture' | 'user';
+  contentType?: 'message' | 'post' | 'comment' | 'chatroom' | 'chatroom_background' | 'chatroom_picture' | 'user' | 'topic';
   onClose: () => void;
   includeMessageHistory?: boolean;
   currentMessageId?: string;
@@ -83,7 +83,16 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
   const getContextReasons = (): Array<{ value: ReportReason; label: string }> => {
     const allReasons = getReportReasons();
 
-    if (contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture') {
+    if (contentType === 'topic') {
+      return [
+        { value: 'hate_speech', label: t('reports.reason_hate_speech') || 'Hate Speech' },
+        { value: 'inappropriate_content', label: t('reports.reason_inappropriate_content') || 'Inappropriate Content' },
+        { value: 'spam', label: t('reports.reason_spam') || 'Spam' },
+        { value: 'misinformation', label: t('reports.reason_misinformation') || 'Misinformation' },
+        { value: 'violence', label: t('reports.reason_violence') || 'Violence' },
+        { value: 'other', label: t('reports.reason_other') || 'Other' },
+      ];
+    } else if (contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture') {
       // Chatroom-specific reasons
       return [
         { value: 'hate_speech', label: t('reports.reason_hate_speech') || 'Hate Speech / Racial Content' },
@@ -92,14 +101,24 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
         { value: 'spam', label: t('reports.reason_spam') || 'Spam' },
         { value: 'other', label: t('reports.reason_other') || 'Other' },
       ];
-    } else if (contentType === 'post' || contentType === 'comment') {
-      // Content-specific reasons
+    } else if (contentType === 'post') {
+      // Post-specific reasons
       return [
         { value: 'hate_speech', label: t('reports.reason_hate_speech') || 'Hate Speech / Racial Slurs' },
         { value: 'inappropriate_content', label: t('reports.reason_inappropriate_content') || 'Content Violation' },
         { value: 'misinformation', label: t('reports.reason_misinformation') || 'Misinformation' },
         { value: 'spam', label: t('reports.reason_spam') || 'Spam' },
         { value: 'violence', label: t('reports.reason_violence') || 'Violence' },
+        { value: 'sexual_content', label: t('reports.reason_sexual_content') || 'Sexual Content' },
+        { value: 'other', label: t('reports.reason_other') || 'Other' },
+      ];
+    } else if (contentType === 'comment') {
+      // Comment-specific reasons
+      return [
+        { value: 'harassment', label: t('reports.reason_harassment') || 'Harassment' },
+        { value: 'hate_speech', label: t('reports.reason_hate_speech') || 'Hate Speech' },
+        { value: 'spam', label: t('reports.reason_spam') || 'Spam' },
+        { value: 'inappropriate_content', label: t('reports.reason_inappropriate_content') || 'Inappropriate Content' },
         { value: 'other', label: t('reports.reason_other') || 'Other' },
       ];
     } else if (contentType === 'user') {
@@ -109,6 +128,7 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
         { value: 'hate_speech', label: t('reports.reason_hate_speech') || 'Hate Speech' },
         { value: 'spam', label: t('reports.reason_spam') || 'Spam' },
         { value: 'inappropriate_content', label: t('reports.reason_inappropriate_content') || 'Inappropriate Behavior' },
+        { value: 'impersonation', label: t('reports.reason_impersonation') || 'Impersonation' },
         { value: 'other', label: t('reports.reason_other') || 'Other' },
       ];
     }
@@ -231,9 +251,13 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
             <h2 className="text-xl font-semibold theme-text-primary">
               {contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture'
                 ? (t('reports.reportChatroom') || 'Report Chatroom')
-                : contentType === 'post' || contentType === 'comment'
-                  ? (t('reports.reportContent') || 'Report Content')
-                  : (t('reports.reportUser') || 'Report User')}
+                : contentType === 'topic'
+                  ? (t('reports.reportTopic') || 'Report Topic')
+                  : contentType === 'post'
+                    ? (t('reports.reportPost') || 'Report Post')
+                    : contentType === 'comment'
+                      ? (t('reports.reportComment') || 'Report Comment')
+                      : (t('reports.reportUser') || 'Report User')}
             </h2>
             <button
               onClick={onClose}
@@ -247,14 +271,17 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
           </div>
 
           {/* Info */}
-          {contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture' ? (
+          {/* Info */}
+          {(contentType === 'chatroom' || contentType === 'chatroom_background' || contentType === 'chatroom_picture' || contentType === 'topic') ? (
             <div className="mb-4 p-3 theme-bg-tertiary rounded-lg space-y-2">
               <p className="text-sm font-semibold theme-text-primary">
                 {contentType === 'chatroom'
                   ? (t('reports.reportChatroom') || 'Report Chatroom')
                   : contentType === 'chatroom_background'
                     ? (t('reports.reportBackground') || 'Report Background Image')
-                    : (t('reports.reportPicture') || 'Report Group Image')}
+                    : contentType === 'chatroom_picture'
+                      ? (t('reports.reportPicture') || 'Report Group Image')
+                      : (t('reports.reportTopic') || 'Report Topic')}
               </p>
               {ownerUsername && (
                 <p className="text-sm theme-text-muted">
@@ -264,6 +291,19 @@ const ReportUserDialog: React.FC<ReportUserDialogProps> = ({
               {moderators && moderators.length > 0 && (
                 <p className="text-sm theme-text-muted">
                   {t('admin.moderators') || 'Moderators'}: <span className="font-semibold theme-text-primary">{moderators.map(m => m.username).join(', ')}</span>
+                </p>
+              )}
+            </div>
+          ) : (contentType === 'post' || contentType === 'comment') ? (
+            <div className="mb-4 p-3 theme-bg-tertiary rounded-lg space-y-2">
+              <p className="text-sm font-semibold theme-text-primary">
+                {contentType === 'post'
+                  ? (t('reports.reportPost') || 'Report Post')
+                  : (t('reports.reportComment') || 'Report Comment')}
+              </p>
+              {username && (
+                <p className="text-sm theme-text-muted">
+                  {t('posts.author') || (t('admin.owner') || 'Author')}: <span className="font-semibold theme-text-primary">{username}</span>
                 </p>
               )}
             </div>

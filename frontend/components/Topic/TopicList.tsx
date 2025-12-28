@@ -3,9 +3,12 @@ import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import TopicContextMenu from '@/components/UI/TopicContextMenu';
+import UserContextMenu from '@/components/UI/UserContextMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import TopicInviteModal from './TopicInviteModal';
+import ReportUserDialog from '@/components/Reports/ReportUserDialog';
+import { MoreHorizontal, Bell, BellOff } from 'lucide-react';
 
 interface Topic {
   id: string;
@@ -23,12 +26,14 @@ interface Topic {
     allow_anonymous: boolean;
     require_approval: boolean;
   };
+  is_silenced?: boolean;
 }
 
 interface TopicListProps {
   topics: Topic[];
   loading: boolean;
   onTopicSelect: (topic: Topic) => void;
+  onSilence?: (topicId: string, minutes?: number) => void;
   onRefresh: () => void;
   selectedTopicId?: string;
   unreadCounts?: { [topicId: string]: number };
@@ -48,16 +53,41 @@ const TopicList: React.FC<TopicListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ topicId: string, topicTitle: string, x: number, y: number } | null>(null);
+  const [userContextMenu, setUserContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
   const [silencedTopics, setSilencedTopics] = useState<Set<string>>(new Set());
   const [hiddenTopics, setHiddenTopics] = useState<Set<string>>(new Set());
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedTopicForInvite, setSelectedTopicForInvite] = useState<Topic | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [topicToReport, setTopicToReport] = useState<Topic | null>(null);
 
   // Indicator State
   const [indicatorStyle, setIndicatorStyle] = useState<{ top: number, height: number, opacity: number }>({ top: 0, height: 0, opacity: 0 });
   const listRef = React.useRef<HTMLDivElement>(null);
 
 
+
+  // Fetch hidden items on mount
+  React.useEffect(() => {
+    const fetchHiddenItems = async () => {
+      try {
+        const response = await api.get(API_ENDPOINTS.CONTENT_SETTINGS.HIDDEN_ITEMS);
+        if (response.data.success) {
+          const hidden = new Set<string>();
+          const data = response.data.data;
+          // Store just IDs
+          if (data.topics && Array.isArray(data.topics)) {
+            data.topics.forEach((t: any) => hidden.add(t.id));
+          }
+          setHiddenTopics(hidden);
+        }
+      } catch (error) {
+        console.error('Failed to load hidden items:', error);
+      }
+    };
+
+    fetchHiddenItems();
+  }, []);
 
   // Get unique tags from topics
   const allTags = React.useMemo(() =>
@@ -117,15 +147,27 @@ const TopicList: React.FC<TopicListProps> = ({
     );
   };
 
-  const handleSilenceTopic = async (topicId: string) => {
+  const handleSilenceTopic = async (topicId: string, minutes: number = -1) => {
     try {
-      const response = await api.post(API_ENDPOINTS.TOPICS.SILENCE(topicId));
-      if (response.data.success) {
-        setSilencedTopics(prev => new Set(prev).add(topicId));
-        toast.success(t('contextMenu.topicSilenced') || 'Topic silenced');
-      } else {
-        toast.error(response.data.errors?.[0] || t('errors.generic'));
-      }
+      await api.post(API_ENDPOINTS.TOPICS.SILENCE(topicId), { minutes });
+
+      setSilencedTopics(prev => new Set(prev).add(topicId));
+
+      // Map minutes to translation key
+      const durationMap: Record<number, string> = {
+        15: '15minutes',
+        60: '1hour',
+        480: '8hours',
+        1440: '24hours',
+        [-1]: 'forever'
+      };
+      const durationKey = durationMap[minutes] || 'forever';
+      const durationText = t(`mute.${durationKey}`) || (minutes === -1 ? 'Forever' : `${minutes}m`);
+
+      // Get topic title if possible, or generic
+      const topicTitle = topics.find(t => t.id === topicId)?.title || 'Topic';
+
+      toast.success(t('mute.success', { name: topicTitle, duration: durationText }) || `${topicTitle} silenced for ${durationText}`);
     } catch (error: any) {
       toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
     }
@@ -154,7 +196,7 @@ const TopicList: React.FC<TopicListProps> = ({
       const response = await api.post(API_ENDPOINTS.TOPICS.HIDE(topicId));
       if (response.data.success) {
         setHiddenTopics(prev => new Set(prev).add(topicId));
-        toast.success(t('contextMenu.topicHidden') || 'Topic hidden');
+        toast.success(t('success.topicHidden') || 'Topic hidden');
       } else {
         toast.error(response.data.errors?.[0] || t('errors.generic'));
       }
@@ -327,8 +369,27 @@ const TopicList: React.FC<TopicListProps> = ({
                   className={`relative p-4 cursor-pointer hover:theme-bg-tertiary transition-colors ${selectedTopicId === topic.id ? 'theme-bg-tertiary' : ''
                     } ${silencedTopics.has(topic.id) ? 'opacity-60' : ''}`}
                 >
+                  {/* Ellipsis Menu Button - Top Right */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setContextMenu({
+                        topicId: topic.id,
+                        topicTitle: topic.title,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+                  >
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+
+
+
                   {/* Title and Member Count */}
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-2 pr-8">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <h3 className="font-medium theme-text-primary truncate">
                         {topic.title}
@@ -404,7 +465,33 @@ const TopicList: React.FC<TopicListProps> = ({
 
                   {/* Footer */}
                   <div className="flex items-center justify-between text-xs theme-text-muted">
-                    <span>{t('home.by')} {topic.owner?.username || 'Unknown'}</span>
+                    <span>
+                      {t('home.by')}
+                      <span
+                        className="font-medium hover:underline cursor-pointer ml-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (topic.owner?.id) {
+                            // Can trigger banner or context menu. Request asked for context menu on right click or click and hold.
+                            // But usually click might open profile. Let's add context menu on right click on the author as well:
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (topic.owner?.id) {
+                            setUserContextMenu({
+                              userId: topic.owner.id,
+                              username: topic.owner.username,
+                              x: e.clientX,
+                              y: e.clientY
+                            });
+                          }
+                        }}
+                      >
+                        {topic.owner?.username || 'Unknown'}
+                      </span>
+                    </span>
                     <span>{formatLastActivity(topic.last_activity)}</span>
                   </div>
 
@@ -419,74 +506,146 @@ const TopicList: React.FC<TopicListProps> = ({
                 </div>
               ))}
           </div>
-        )}
-      </div>
+        )
+        }
+      </div >
 
 
       {/* Topic Context Menu */}
-      {contextMenu && (
-        <TopicContextMenu
-          topicId={contextMenu.topicId}
-          topicTitle={contextMenu.topicTitle}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onSilence={(topicId) => {
-            if (silencedTopics.has(topicId)) {
-              handleUnsilenceTopic(topicId);
-            } else {
-              handleSilenceTopic(topicId);
-            }
-          }}
-          onHide={(topicId) => {
-            if (hiddenTopics.has(topicId)) {
-              handleUnhideTopic(topicId);
-            } else {
-              handleHideTopic(topicId);
-            }
-          }}
-          onDelete={async (topicId) => {
-            const topic = topics.find(t => t.id === topicId);
-            if (!topic) return;
-
-            if (!confirm(t('topics.confirmDelete') || `Are you sure you want to delete "${topic.title}"? This will request deletion and the topic will be permanently deleted in 7 days pending admin approval.`)) {
-              return;
-            }
-
-            try {
-              const response = await api.delete(API_ENDPOINTS.TOPICS.DELETE(topicId));
-              if (response.data.success) {
-                toast.success(response.data.message || t('topics.deletionRequested') || 'Topic deletion requested. It will be permanently deleted in 7 days pending admin approval.');
-                onRefresh();
+      {
+        contextMenu && (
+          <TopicContextMenu
+            topicId={contextMenu.topicId}
+            topicTitle={contextMenu.topicTitle}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            onSilence={(topicId, minutes) => {
+              // 0 minutes means unsilence
+              if (minutes === 0) {
+                handleUnsilenceTopic(topicId);
               } else {
-                toast.error(response.data.errors?.[0] || t('errors.generic'));
+                // If minutes is undefined/null but we called silence, default to -1 (forever) or handle simple toggle
+                // But TopicContextMenu now explicitly passes minutes for non-toggle actions.
+                // If logic was simple toggle before, we now support duration.
+                // If simple toggle is clicked (e.g. from hotkey if existed), default to forever?
+                // The context menu handles the specific duration calls.
+                handleSilenceTopic(topicId, minutes || -1);
               }
-            } catch (error: any) {
-              toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
-            }
-          }}
-          isSilenced={silencedTopics.has(contextMenu.topicId)}
-          isHidden={hiddenTopics.has(contextMenu.topicId)}
-          isOwner={topics.find(t => t.id === contextMenu.topicId)?.user_permission_level === 3}
-        />
-      )}
+            }}
+            onHide={(topicId) => {
+              if (hiddenTopics.has(topicId)) {
+                handleUnhideTopic(topicId);
+              } else {
+                handleHideTopic(topicId);
+              }
+            }}
+            onDelete={async (topicId) => {
+              const topic = topics.find(t => t.id === topicId);
+              if (!topic) return;
+
+              if (!confirm(t('topics.confirmDelete') || `Are you sure you want to delete "${topic.title}"? This will request deletion and the topic will be permanently deleted in 7 days pending admin approval.`)) {
+                return;
+              }
+
+              try {
+                const response = await api.delete(API_ENDPOINTS.TOPICS.DELETE(topicId));
+                if (response.data.success) {
+                  toast.success(response.data.message || t('topics.deletionRequested') || 'Topic deletion requested. It will be permanently deleted in 7 days pending admin approval.');
+                  onRefresh();
+                } else {
+                  toast.error(response.data.errors?.[0] || t('errors.generic'));
+                }
+              } catch (error: any) {
+                toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+              }
+            }}
+            isSilenced={silencedTopics.has(contextMenu.topicId) || !!topics.find(t => t.id === contextMenu.topicId)?.is_silenced}
+            isHidden={hiddenTopics.has(contextMenu.topicId)}
+            isOwner={topics.find(t => t.id === contextMenu.topicId)?.user_permission_level === 3}
+            isFollowed={topics.find(t => t.id === contextMenu.topicId)?.user_permission_level! >= 1}
+            isPrivate={topics.find(t => t.id === contextMenu.topicId)?.settings.require_approval}
+
+            onFollow={async (topicId) => {
+              const topic = topics.find(t => t.id === topicId);
+              if (!topic) return;
+              const isFollowed = topic.user_permission_level >= 1;
+
+              try {
+                if (isFollowed) {
+                  if (confirm(t('topics.confirmLeave') || `Are you sure you want to leave ${topic.title}?`)) {
+                    await api.post(API_ENDPOINTS.TOPICS.LEAVE(topicId));
+                    toast.success(t('success.unfollowed') || 'Left topic');
+                    onRefresh();
+                  }
+                } else {
+                  await api.post(API_ENDPOINTS.TOPICS.JOIN(topicId));
+                  toast.success(t('success.followed') || 'Joined topic');
+                  onRefresh();
+                }
+              } catch (error: any) {
+                toast.error(error.response?.data?.errors?.[0] || t('errors.generic'));
+              }
+            }}
+            onReport={(topicId) => {
+              const topic = topics.find(t => t.id === topicId);
+              if (topic) {
+                setTopicToReport(topic);
+                setShowReportDialog(true);
+              }
+            }}
+          />
+        )
+      }
+
+      {/* User Context Menu for Author */}
+      {
+        userContextMenu && (
+          <UserContextMenu
+            x={userContextMenu.x}
+            y={userContextMenu.y}
+            userId={userContextMenu.userId}
+            username={userContextMenu.username}
+            onClose={() => setUserContextMenu(null)}
+          />
+        )
+      }
 
       {/* Invite Modal */}
-      {showInviteModal && selectedTopicForInvite && (
-        <TopicInviteModal
-          isOpen={showInviteModal}
-          onClose={() => {
-            setShowInviteModal(false);
-            setSelectedTopicForInvite(null);
-          }}
-          topicId={selectedTopicForInvite.id}
-          topicTitle={selectedTopicForInvite.title}
-          onInviteSent={() => {
-            onRefresh();
-          }}
-        />
-      )}
-    </div>
+      {
+        showInviteModal && selectedTopicForInvite && (
+          <TopicInviteModal
+            isOpen={showInviteModal}
+            onClose={() => {
+              setShowInviteModal(false);
+              setSelectedTopicForInvite(null);
+            }}
+            topicId={selectedTopicForInvite.id}
+            topicTitle={selectedTopicForInvite.title}
+            onInviteSent={() => {
+              onRefresh();
+            }}
+          />
+        )
+      }
+
+      {/* Report Dialog */}
+      {
+        showReportDialog && topicToReport && (
+          <ReportUserDialog
+            userId={topicToReport.owner.id} // Reporting the topic usually goes to mods/admin, can set owner as fallback
+            username={topicToReport.owner.username}
+            contentId={topicToReport.id}
+            contentType="topic" // Reporting the topic itself
+            topicId={topicToReport.id}
+            onClose={() => {
+              setShowReportDialog(false);
+              setTopicToReport(null);
+            }}
+          />
+        )
+      }
+    </div >
   );
 };
 

@@ -194,249 +194,276 @@ const Profile: React.FC = () => {
     return null;
   }
 
+  // Swipe Handlers for Navigation
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
+    // Swipe Right (Move Left in flow): Profile -> Content
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isRightSwipe) {
+      router.push('/');
+    }
+  };
+
   return (
-    <Layout>
-      <Head>
-        <title>{t('profile.title') || 'Edit Profile'} | TopicsFlow</title>
-      </Head>
+    <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="min-h-screen">
+      <Layout>
+        <Head>
+          <title>{t('profile.title') || 'Edit Profile'} | TopicsFlow</title>
+        </Head>
 
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold theme-text-primary mb-6">{t('profile.title') || 'Edit Profile'}</h1>
+        <div className="max-w-2xl mx-auto py-8 px-4">
+          <h1 className="text-2xl font-bold theme-text-primary mb-6">{t('profile.title') || 'Edit Profile'}</h1>
 
-        <div className="theme-bg-secondary rounded-lg shadow-sm p-6 space-y-6">
-          {/* Avatar Section */}
-          <div>
-            <label className="block text-sm font-medium theme-text-primary mb-3">
-              {t('profile.profilePicture') || 'Profile Picture'}
-            </label>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                {previewAvatar ? (
+          <div className="theme-bg-secondary rounded-lg shadow-sm p-6 space-y-6">
+            {/* Avatar Section */}
+            <div>
+              <label className="block text-sm font-medium theme-text-primary mb-3">
+                {t('profile.profilePicture') || 'Profile Picture'}
+              </label>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  {previewAvatar ? (
+                    <img
+                      src={previewAvatar}
+                      alt="Avatar preview"
+                      className="w-24 h-24 rounded-full object-cover border-4 theme-border"
+                    />
+                  ) : (
+                    <div className={`w-24 h-24 rounded-full ${getUserColorClass(username)} flex items-center justify-center border-4 theme-border`}>
+                      <span className="text-3xl text-white font-semibold">
+                        {username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    {t('profile.uploadPhoto') || 'Upload Photo'}
+                  </button>
+                  {previewAvatar && (
+                    <button
+                      onClick={handleRemoveAvatar}
+                      className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      {t('profile.remove') || 'Remove'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Banner Section */}
+            <div>
+              <label className="block text-sm font-medium theme-text-primary mb-3">
+                {t('profile.banner') || 'Profile Banner'}
+              </label>
+              <div className="w-full h-32 rounded-lg overflow-hidden border theme-border mb-3">
+                {previewBanner ? (
                   <img
-                    src={previewAvatar}
-                    alt="Avatar preview"
-                    className="w-24 h-24 rounded-full object-cover border-4 theme-border"
+                    src={previewBanner}
+                    alt="Banner preview"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className={`w-24 h-24 rounded-full ${getUserColorClass(username)} flex items-center justify-center border-4 theme-border`}>
-                    <span className="text-3xl text-white font-semibold">
-                      {username.charAt(0).toUpperCase()}
+                  <div className="w-full h-full flex items-center justify-center" style={getUserBannerGradient(user?.id || user?.username)}>
+                    <span className="text-sm text-white opacity-80 font-medium">
+                      {t('profile.noBanner') || 'No banner image'}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="flex flex-col space-y-2">
+              <div className="flex space-x-2">
                 <input
-                  ref={avatarInputRef}
+                  ref={bannerInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleAvatarSelect}
+                  onChange={handleBannerSelect}
                   className="hidden"
                 />
                 <button
-                  onClick={() => avatarInputRef.current?.click()}
+                  onClick={() => bannerInputRef.current?.click()}
                   className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
-                  {t('profile.uploadPhoto') || 'Upload Photo'}
+                  {t('profile.uploadBanner') || 'Upload Banner'}
                 </button>
-                {previewAvatar && (
+                {previewBanner && (
                   <button
-                    onClick={handleRemoveAvatar}
+                    onClick={handleRemoveBanner}
                     className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     {t('profile.remove') || 'Remove'}
                   </button>
                 )}
               </div>
+              <p className="text-xs theme-text-muted mt-1">
+                {t('profile.bannerFormat') || 'Recommended: 1200x300px. Max 10MB.'}
+              </p>
             </div>
-          </div>
 
-          {/* Banner Section */}
-          <div>
-            <label className="block text-sm font-medium theme-text-primary mb-3">
-              {t('profile.banner') || 'Profile Banner'}
-            </label>
-            <div className="w-full h-32 rounded-lg overflow-hidden border theme-border mb-3">
-              {previewBanner ? (
-                <img
-                  src={previewBanner}
-                  alt="Banner preview"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center" style={getUserBannerGradient(user?.id || user?.username)}>
-                  <span className="text-sm text-white opacity-80 font-medium">
-                    {t('profile.noBanner') || 'No banner image'}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="flex space-x-2">
+            {/* Username */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium theme-text-primary mb-1">
+                {t('profile.username') || 'Username'}
+              </label>
               <input
-                ref={bannerInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleBannerSelect}
-                className="hidden"
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary"
+                maxLength={30}
               />
-              <button
-                onClick={() => bannerInputRef.current?.click()}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                {t('profile.uploadBanner') || 'Upload Banner'}
-              </button>
-              {previewBanner && (
-                <button
-                  onClick={handleRemoveBanner}
-                  className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                >
-                  {t('profile.remove') || 'Remove'}
-                </button>
-              )}
             </div>
-            <p className="text-xs theme-text-muted mt-1">
-              {t('profile.bannerFormat') || 'Recommended: 1200x300px. Max 10MB.'}
-            </p>
-          </div>
 
-          {/* Username */}
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium theme-text-primary mb-1">
-              {t('profile.username') || 'Username'}
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary"
-              maxLength={30}
-            />
-          </div>
-
-          {/* Country */}
-          <div>
-            <label htmlFor="country" className="block text-sm font-medium theme-text-primary mb-1">
-              {t('profile.country') || 'Country'}
-            </label>
-            <div className="relative" ref={countryDropdownRef}>
-              <div className="relative flex items-center">
-                {/* Flag indicator */}
-                {countryCode && (
-                  <span className="absolute left-3 pointer-events-none">
-                    <CountryFlag countryCode={countryCode} size="sm" />
-                  </span>
-                )}
-
-                <input
-                  type="text"
-                  id="country"
-                  value={countrySearch}
-                  onChange={(e) => {
-                    setCountrySearch(e.target.value);
-                    setCountryDropdownOpen(true);
-                    // If user clears the field, clear the selection
-                    if (!e.target.value.trim()) {
-                      setCountryCode('');
-                    }
-                  }}
-                  onFocus={() => setCountryDropdownOpen(true)}
-                  placeholder={t('profile.searchCountry') || 'Search country...'}
-                  className={`w-full py-2 pr-10 theme-bg-tertiary theme-border rounded-lg theme-text-primary ${countryCode ? 'pl-11' : 'pl-4'
-                    }`}
-                  autoComplete="off"
-                />
-                <div className="absolute right-3 pointer-events-none">
-                  <svg className="w-5 h-5 theme-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-              {/* Dropdown */}
-              {countryDropdownOpen && (
-                <div className="absolute z-50 w-full mt-1 theme-bg-secondary theme-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {filteredCountries.length === 0 ? (
-                    <div className="px-4 py-2 theme-text-muted text-sm">
-                      {t('profile.noCountriesFound') || 'No countries found'}
-                    </div>
-                  ) : (
-                    filteredCountries.map((country) => {
-                      const lang = language as 'en' | 'pt';
-                      return (
-                        <button
-                          key={country.code}
-                          type="button"
-                          onClick={() => handleCountrySelect(country.code)}
-                          className={`w-full px-4 py-2 text-left hover:theme-bg-hover flex items-center gap-2 transition-colors ${countryCode === country.code ? 'theme-bg-tertiary' : ''}`}
-                        >
-                          <CountryFlag countryCode={country.code} size="sm" />
-                          <span className="theme-text-primary">{country.name[lang]}</span>
-                        </button>
-                      )
-                    })
-
+            {/* Country */}
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium theme-text-primary mb-1">
+                {t('profile.country') || 'Country'}
+              </label>
+              <div className="relative" ref={countryDropdownRef}>
+                <div className="relative flex items-center">
+                  {/* Flag indicator */}
+                  {countryCode && (
+                    <span className="absolute left-3 pointer-events-none">
+                      <CountryFlag countryCode={countryCode} size="sm" />
+                    </span>
                   )}
+
+                  <input
+                    type="text"
+                    id="country"
+                    value={countrySearch}
+                    onChange={(e) => {
+                      setCountrySearch(e.target.value);
+                      setCountryDropdownOpen(true);
+                      // If user clears the field, clear the selection
+                      if (!e.target.value.trim()) {
+                        setCountryCode('');
+                      }
+                    }}
+                    onFocus={() => setCountryDropdownOpen(true)}
+                    placeholder={t('profile.searchCountry') || 'Search country...'}
+                    className={`w-full py-2 pr-10 theme-bg-tertiary theme-border rounded-lg theme-text-primary ${countryCode ? 'pl-11' : 'pl-4'
+                      }`}
+                    autoComplete="off"
+                  />
+                  <div className="absolute right-3 pointer-events-none">
+                    <svg className="w-5 h-5 theme-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
-              )}
+                {/* Dropdown */}
+                {countryDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 theme-bg-secondary theme-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredCountries.length === 0 ? (
+                      <div className="px-4 py-2 theme-text-muted text-sm">
+                        {t('profile.noCountriesFound') || 'No countries found'}
+                      </div>
+                    ) : (
+                      filteredCountries.map((country) => {
+                        const lang = language as 'en' | 'pt';
+                        return (
+                          <button
+                            key={country.code}
+                            type="button"
+                            onClick={() => handleCountrySelect(country.code)}
+                            className={`w-full px-4 py-2 text-left hover:theme-bg-hover flex items-center gap-2 transition-colors ${countryCode === country.code ? 'theme-bg-tertiary' : ''}`}
+                          >
+                            <CountryFlag countryCode={country.code} size="sm" />
+                            <span className="theme-text-primary">{country.name[lang]}</span>
+                          </button>
+                        )
+                      })
+
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Email (read-only) */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium theme-text-primary mb-1">
+                {t('profile.email') || 'Email'}
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={user.email}
+                disabled
+                className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary cursor-not-allowed opacity-60"
+              />
+              <p className="text-xs theme-text-muted mt-1">
+                {t('profile.emailCannotChange') || 'Email cannot be changed'}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4 border-t theme-border">
+              <button
+                onClick={() => router.push('/settings')}
+                disabled={loading}
+                className="px-4 py-2 btn btn-ghost"
+              >
+                {t('profile.cancel') || 'Cancel'}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="px-4 py-2 btn btn-primary"
+              >
+                {loading ? <LoadingSpinner size="sm" /> : t('profile.saveChanges') || 'Save Changes'}
+              </button>
             </div>
           </div>
 
-          {/* Email (read-only) */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium theme-text-primary mb-1">
-              {t('profile.email') || 'Email'}
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={user.email}
-              disabled
-              className="w-full px-4 py-2 theme-bg-tertiary theme-border rounded-lg theme-text-primary cursor-not-allowed opacity-60"
-            />
-            <p className="text-xs theme-text-muted mt-1">
-              {t('profile.emailCannotChange') || 'Email cannot be changed'}
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t theme-border">
-            <button
-              onClick={() => router.push('/settings')}
-              disabled={loading}
-              className="px-4 py-2 btn btn-ghost"
-            >
-              {t('profile.cancel') || 'Cancel'}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-4 py-2 btn btn-primary"
-            >
-              {loading ? <LoadingSpinner size="sm" /> : t('profile.saveChanges') || 'Save Changes'}
-            </button>
+          {/* Account Info */}
+          <div className="mt-6 theme-bg-secondary rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold theme-text-primary mb-4">{t('profile.accountInformation') || 'Account Information'}</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm theme-text-secondary">{t('profile.accountCreated') || 'Account Created'}</span>
+                <span className="text-sm theme-text-primary font-medium">
+                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm theme-text-secondary">{t('profile.twoFactorAuth') || '2FA Status'}</span>
+                <span className={`text-sm font-medium ${user.totp_enabled ? 'text-green-600 dark:text-green-400' : 'theme-text-muted'}`}>
+                  {user.totp_enabled ? t('profile.enabled') || 'Enabled' : t('profile.disabled') || 'Disabled'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Account Info */}
-        <div className="mt-6 theme-bg-secondary rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold theme-text-primary mb-4">{t('profile.accountInformation') || 'Account Information'}</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm theme-text-secondary">{t('profile.accountCreated') || 'Account Created'}</span>
-              <span className="text-sm theme-text-primary font-medium">
-                {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm theme-text-secondary">{t('profile.twoFactorAuth') || '2FA Status'}</span>
-              <span className={`text-sm font-medium ${user.totp_enabled ? 'text-green-600 dark:text-green-400' : 'theme-text-muted'}`}>
-                {user.totp_enabled ? t('profile.enabled') || 'Enabled' : t('profile.disabled') || 'Disabled'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Layout>
+      </Layout>
+    </div>
   );
 };
 

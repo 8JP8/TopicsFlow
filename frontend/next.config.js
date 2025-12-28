@@ -78,6 +78,17 @@ if (!isExport) {
     ];
   };
 
+  // Redirects
+  nextConfig.redirects = async () => {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  };
+
   // Rewrites for API proxy (Azure production only)
   // In local development, frontend connects directly to localhost:5000 (no proxy)
   // In Azure, we need to proxy /api/* to the backend URL
@@ -87,12 +98,12 @@ if (!isExport) {
       console.log('[Next.js] API proxy disabled (DISABLE_API_PROXY=true)');
       return [];
     }
-    
+
     // In local development, frontend connects directly to localhost:5000 (no proxy needed)
     // Only enable proxy for Azure production where we need to redirect /api/* to backend
     const isProduction = process.env.NODE_ENV === 'production';
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_IP;
-    
+
     if (isProduction && backendUrl) {
       // Azure production: Proxy /api/* to backend URL
       console.log(`[Next.js] API proxy enabled for production: /api/* -> ${backendUrl}/api/*`);

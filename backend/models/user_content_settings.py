@@ -158,6 +158,8 @@ class UserContentSettings:
                         'topic_id': ObjectId(topic_id),
                         'silenced': False,
                         'hidden': False,
+                        'silenced': False,
+                        'hidden': False,
                         'silenced_posts': [],
                         'hidden_posts': [],
                         'hidden_chats': [],
@@ -247,23 +249,34 @@ class UserContentSettings:
     def hide_post(self, user_id: str, post_id: str, topic_id: str) -> bool:
         """Hide a specific post."""
         try:
+            # Handle topic_id being None or invalid
+            t_id = None
+            if topic_id and str(topic_id).lower() != 'none':
+                try:
+                    t_id = ObjectId(topic_id)
+                except Exception:
+                    # If conversion fails, it might be a special non-ObjectId string or invalid
+                    # For now, treat as None or log warning?
+                    # If existing logic expects ObjectId, we must use ObjectId or None.
+                    t_id = None
+            
+            # Use update_one with upsert
+            # CRITICAL FIX: Removed duplicate 'silenced_chats' from $setOnInsert
             self.collection.update_one(
                 {
                     'user_id': ObjectId(user_id),
-                    'topic_id': ObjectId(topic_id)
+                    'topic_id': t_id
                 },
                 {
                     '$addToSet': {'hidden_posts': ObjectId(post_id)},
                     '$set': {'updated_at': datetime.utcnow()},
                     '$setOnInsert': {
                         'user_id': ObjectId(user_id),
-                        'topic_id': ObjectId(topic_id),
+                        'topic_id': t_id,
                         'silenced': False,
                         'hidden': False,
                         'silenced_posts': [],
-                        'silenced_chats': [],
-                        'silenced_chats': [],
-                        'hidden_posts': [],
+                        'silenced_chats': [], # Included in $addToSet but good for init empty if new doc
                         'hidden_chats': [],
                         'hidden_comments': [],
                         'hidden_chat_messages': [],
@@ -274,16 +287,23 @@ class UserContentSettings:
             )
             return True
         except Exception as e:
-            logger.error(f"Error hiding post: {str(e)}")
+            logger.error(f"Error hiding post: {str(e)}", exc_info=True)
             return False
 
     def unhide_post(self, user_id: str, post_id: str, topic_id: str) -> bool:
         """Unhide a specific post."""
         try:
+            t_id = None
+            if topic_id and str(topic_id).lower() != 'none':
+                try:
+                    t_id = ObjectId(topic_id)
+                except Exception:
+                    t_id = None
+
             self.collection.update_one(
                 {
                     'user_id': ObjectId(user_id),
-                    'topic_id': ObjectId(topic_id)
+                    'topic_id': t_id
                 },
                 {
                     '$pull': {'hidden_posts': ObjectId(post_id)},
@@ -292,30 +312,36 @@ class UserContentSettings:
             )
             return True
         except Exception as e:
-            logger.error(f"Error unhiding post: {str(e)}")
+            logger.error(f"Error unhiding post: {str(e)}", exc_info=True)
             return False
 
     def hide_chat(self, user_id: str, chat_id: str, topic_id: str) -> bool:
         """Hide a specific chat."""
         try:
+            t_id = None
+            if topic_id and str(topic_id).lower() != 'none':
+                try:
+                    t_id = ObjectId(topic_id)
+                except Exception:
+                    t_id = None
+
+            # CRITICAL FIX: Removed duplicate 'silenced_chats' from $setOnInsert
             self.collection.update_one(
                 {
                     'user_id': ObjectId(user_id),
-                    'topic_id': ObjectId(topic_id)
+                    'topic_id': t_id
                 },
                 {
                     '$addToSet': {'hidden_chats': ObjectId(chat_id)},
                     '$set': {'updated_at': datetime.utcnow()},
                     '$setOnInsert': {
                         'user_id': ObjectId(user_id),
-                        'topic_id': ObjectId(topic_id),
+                        'topic_id': t_id,
                         'silenced': False,
                         'hidden': False,
                         'silenced_posts': [],
                         'silenced_chats': [],
-                        'silenced_chats': [],
                         'hidden_posts': [],
-                        'hidden_chats': [],
                         'hidden_comments': [],
                         'hidden_chat_messages': [],
                         'created_at': datetime.utcnow()
@@ -325,16 +351,23 @@ class UserContentSettings:
             )
             return True
         except Exception as e:
-            logger.error(f"Error hiding chat: {str(e)}")
+            logger.error(f"Error hiding chat: {str(e)}", exc_info=True)
             return False
 
     def unhide_chat(self, user_id: str, chat_id: str, topic_id: str) -> bool:
         """Unhide a specific chat."""
         try:
+            t_id = None
+            if topic_id and str(topic_id).lower() != 'none':
+                try:
+                    t_id = ObjectId(topic_id)
+                except Exception:
+                    t_id = None
+
             self.collection.update_one(
                 {
                     'user_id': ObjectId(user_id),
-                    'topic_id': ObjectId(topic_id)
+                    'topic_id': t_id
                 },
                 {
                     '$pull': {'hidden_chats': ObjectId(chat_id)},
@@ -343,7 +376,7 @@ class UserContentSettings:
             )
             return True
         except Exception as e:
-            logger.error(f"Error unhiding chat: {str(e)}")
+            logger.error(f"Error unhiding chat: {str(e)}", exc_info=True)
             return False
 
     def is_topic_silenced(self, user_id: str, topic_id: str) -> bool:
@@ -619,7 +652,8 @@ class UserContentSettings:
                             'title': post.get('title', 'Untitled Post'),
                             'author_username': post.get('author_username', 'Unknown'),
                             'created_at': post.get('created_at'),
-                            'topic_id': post.get('topic_id')
+                            'topic_id': post.get('topic_id'),
+                            'topic_title': post.get('topic_title', '') # Assuming get_post_by_id might join, or we just leave empty if not avail. Post model usually has topic_title joined.
                         })
 
             # Fetch details for chats (Topic Conversations and Group Chats)
@@ -635,6 +669,7 @@ class UserContentSettings:
                             'name': chat.get('name', 'Unnamed Chat'),
                             'description': chat.get('description', ''),
                             'topic_id': chat.get('topic_id'),
+                            'topic_title': chat.get('topic_title', ''),
                             'is_group_chat': not chat.get('topic_id') or chat.get('topic_id') == 'None',
                             'created_at': chat.get('created_at')
                         })
@@ -674,8 +709,23 @@ class UserContentSettings:
                             'created_at': message.get('created_at'),
                             'type': msg_type,
                             'topic_id': message.get('topic_id'),
+                            'topic_title': message.get('topic_title', ''), # Assuming message aggregation might include it, or we fetch if needed. 
+                            # Message model usually stores topic_id. Fetching topic title might require separate query or join.
+                            # For efficiency, if topic_id is present, we can look it up or rely on frontend to fetch? 
+                            # Frontend listing usually wants it ready.
+                            # Let's do a quick lookup if not present in message object for now, or just leave it if message model doesn't have it.
+                            # Actually, for chat messages in topics, topic_title is important.
+                            # Code improvement: Fetch topic title if missing.
+                            'chat_room_title': message.get('chat_room_title', ''),
                             'chat_room_id': message.get('chat_room_id')
                         })
+                        
+                        # Enrich with topic title if missing and topic_id exists
+                        if hidden_messages[-1]['topic_id'] and not hidden_messages[-1].get('topic_title'):
+                             from models.topic import Topic
+                             t_model = Topic(self.db)
+                             t = t_model.get_topic_by_id(hidden_messages[-1]['topic_id'])
+                             if t: hidden_messages[-1]['topic_title'] = t.get('title')
 
             # Get deleted private messages
             from models.private_message import PrivateMessage
@@ -705,7 +755,7 @@ class UserContentSettings:
             return {'topics': [], 'posts': [], 'chats': [], 'comments': [], 'messages': [], 'private_messages': []}
 
     def get_silenced_items(self, user_id: str) -> Dict[str, Any]:
-        """Get all silenced items for a user."""
+        """Get all silenced items for a user with full details."""
         try:
             settings = list(self.collection.find({
                 'user_id': ObjectId(user_id),
@@ -716,29 +766,111 @@ class UserContentSettings:
                 ]
             }))
 
-            silenced_topics = []
-            silenced_posts = []
-            silenced_chats = []
+            silenced_topics_ids = []
+            silenced_posts_ids = []
+            silenced_chats_ids = []
 
             for setting in settings:
                 topic_id = str(setting.get('topic_id', ''))
                 if setting.get('silenced', False):
-                    silenced_topics.append(topic_id)
+                    silenced_topics_ids.append({'id': topic_id, 'until': setting.get('silenced_until')})
                 
                 if 'silenced_posts' in setting and setting['silenced_posts']:
-                    silenced_posts.extend([str(p) for p in setting['silenced_posts']])
+                    silenced_posts_ids.extend([str(p) for p in setting['silenced_posts']])
                 
                 if 'silenced_chats' in setting and setting['silenced_chats']:
-                    silenced_chats.extend([str(c) for c in setting['silenced_chats']])
+                    silenced_chats_ids.extend([str(c) for c in setting['silenced_chats']])
 
+            # Fetch details for topics
+            silenced_topics = []
+            if silenced_topics_ids:
+                from models.topic import Topic
+                topic_model = Topic(self.db)
+                for item in silenced_topics_ids:
+                    t_id = item['id']
+                    if t_id and t_id != 'None':
+                        topic = topic_model.get_topic_by_id(t_id)
+                        if topic:
+                            silenced_topics.append({
+                                'id': t_id,
+                                'type': 'topic',
+                                'name': topic.get('title', 'Unknown Topic'),
+                                'description': topic.get('description', ''),
+                                'silenced_at': datetime.utcnow(), # Placeholder, ideally from settings
+                                'silenced_until': item['until'],
+                                'remaining_seconds': 0 # helper can calc this
+                            })
+
+            # Fetch details for posts
+            silenced_posts = []
+            if silenced_posts_ids:
+                from models.post import Post
+                post_model = Post(self.db)
+                for p_id in silenced_posts_ids:
+                    post = post_model.get_post_by_id(p_id)
+                    if post:
+                        # Need to get topic title too
+                        topic_title = ''
+                        if post.get('topic_id'):
+                            from models.topic import Topic
+                            topic_model = Topic(self.db) 
+                            t = topic_model.get_topic_by_id(post.get('topic_id'))
+                            if t: topic_title = t.get('title', '')
+
+                        silenced_posts.append({
+                            'id': p_id,
+                            'type': 'post',
+                            'name': post.get('title', 'Untitled Post'),
+                            'description': post.get('content', '')[:50] + '...',
+                            'topic_id': post.get('topic_id'),
+                            'topic_title': topic_title,
+                            'silenced_at': datetime.utcnow(),
+                            'silenced_until': None 
+                        })
+
+            # Fetch details for chats
+            silenced_chats = []
+            if silenced_chats_ids:
+                from models.chat_room import ChatRoom
+                chat_model = ChatRoom(self.db)
+                for c_id in silenced_chats_ids:
+                    chat = chat_model.get_chat_room_by_id(c_id)
+                    if chat:
+                        silenced_chats.append({
+                            'id': c_id,
+                            'type': 'chatroom',
+                            'name': chat.get('name', 'Unnamed Chat'),
+                            'description': chat.get('description', ''),
+                            'topic_id': chat.get('topic_id'),
+                            'topic_title': chat.get('topic_title', ''),
+                            'silenced_at': datetime.utcnow(),
+                            'silenced_until': None
+                        })
+
+            # Combine all into a flat list for the specific endpoint structure if needed, 
+            # OR keep separate. The frontend expects a flat list of items with 'type'.
+            # Current frontend implementation iterates over `silencedItems` array.
+            
+            all_items = silenced_topics + silenced_posts + silenced_chats
+            
+            # If the caller expects specific keys, we should return dictionary, 
+            # but standardizing to a list is better for the "Muted Items" modal.
+            # However, the controller might expect a dict.
+            # Let's check how controller uses this. 
+            # If controller just returns json, we can change structure.
+            # But to be safe, return dict AND let controller merge?
+            # Or just return the flat list if the method signature allows context adjustment.
+            # The signature says Dict[str, Any].
+            
             return {
+                'items': all_items,
                 'topics': silenced_topics,
                 'posts': silenced_posts,
                 'chats': silenced_chats
             }
         except Exception as e:
             logger.error(f"Error getting silenced items: {str(e)}")
-            return {'topics': [], 'posts': [], 'chats': []}
+            return {'items': [], 'topics': [], 'posts': [], 'chats': []}
 
     def get_hidden_chat_ids(self, user_id: str, topic_id: Optional[str]) -> List[str]:
         """Get IDs of hidden chats for a specific topic (or None for group chats)."""

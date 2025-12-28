@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { AlertTriangle, Bell, BellOff, Eye, EyeOff, LogOut, Trash2, Volume2, Share2 } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 
 interface ChatRoomContextMenuProps {
@@ -19,6 +20,9 @@ interface ChatRoomContextMenuProps {
   hasBackground?: boolean;
   hasPicture?: boolean;
   isOwner?: boolean;
+  onMute?: (chatId: string, minutes: number) => void;
+  isMuted?: boolean;
+  onShare?: (chatId: string) => void;
 }
 
 const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
@@ -38,6 +42,9 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   hasBackground = false,
   hasPicture = false,
   isOwner = false,
+  onMute,
+  isMuted = false,
+  onShare,
 }) => {
   const { t } = useLanguage();
 
@@ -50,12 +57,17 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      ),
+      icon: <AlertTriangle className="w-4 h-4" />,
       disabled: !onReport,
+    },
+    {
+      label: t('common.share') || 'Share',
+      action: () => {
+        if (onShare) onShare(chatId);
+        onClose();
+      },
+      icon: <Share2 className="w-4 h-4" />,
+      disabled: !onShare,
     },
     {
       label: isFollowing ? (t('chats.unfollow') || 'Unfollow Chatroom') : (t('contextMenu.followChatroom') || 'Follow Chatroom'),
@@ -67,22 +79,40 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {isFollowing ? (
-            // Unfollow icon (bell with slash)
-            <>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9l-6 6m0-6l6 6" />
-            </>
-          ) : (
-            // Follow icon (bell)
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          )}
-        </svg>
-      ),
+      icon: isFollowing ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />,
       disabled: (!isFollowing && !onFollow) || (isFollowing && !onUnfollow),
     },
+    ...(isFollowing ? [
+      isMuted ? {
+        label: t('mute.unmuteChatroom') || 'Unmute Chatroom',
+        icon: <Volume2 className="w-4 h-4" />,
+        action: () => {
+          if (onMute) onMute(chatId, 0);
+          onClose();
+        },
+        disabled: !onMute,
+      } : {
+        label: t('mute.muteChatroom') || 'Mute Chatroom',
+        icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-volume-off-icon lucide-volume-off w-4 h-4">
+            <path d="M16 9a5 5 0 0 1 .95 2.293" />
+            <path d="M19.364 5.636a9 9 0 0 1 1.889 9.96" />
+            <path d="m2 2 20 20" />
+            <path d="m7 7-.587.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298V11" />
+            <path d="M9.828 4.172A.686.686 0 0 1 11 4.657v.686" />
+          </svg>
+        ),
+        disabled: !onMute,
+        action: () => { }, // Required by interface even if submenu exists
+        submenu: [
+          { label: t('mute.15m') || '15 Minutes', action: () => { onMute?.(chatId, 15); onClose(); } },
+          { label: t('mute.1h'), action: () => { onMute?.(chatId, 60); onClose(); } },
+          { label: t('mute.8h'), action: () => { onMute?.(chatId, 480); onClose(); } },
+          { label: t('mute.24h'), action: () => { onMute?.(chatId, 1440); onClose(); } },
+          { label: t('mute.always'), action: () => { onMute?.(chatId, -1); onClose(); } },
+        ],
+      }
+    ] : []),
     {
       label: isHidden ? (t('contextMenu.unhideChat') || 'Unhide Chat') : (t('contextMenu.hideChat') || 'Hide Chat'),
       action: () => {
@@ -91,11 +121,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-        </svg>
-      ),
+      icon: isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />,
       disabled: !onHide,
     },
   ];
@@ -110,11 +136,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      ),
+      icon: <Trash2 className="w-4 h-4 text-red-500" />,
       disabled: !onDelete,
     });
   }
@@ -122,18 +144,14 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   // Add leave option for members (non-owners)
   if (!isOwner && onLeave) {
     items.push({
-      label: t('chat.leaveChatroom') || 'Leave Chatroom',
+      label: t('contextMenu.leaveChatroom') || 'Leave Chatroom',
       action: () => {
         if (onLeave) {
           onLeave(chatId);
         }
         onClose();
       },
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-      ),
+      icon: <LogOut className="w-4 h-4" />,
       disabled: !onLeave,
     });
   }

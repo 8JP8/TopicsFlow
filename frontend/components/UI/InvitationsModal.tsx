@@ -66,6 +66,9 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
     const [isResizing, setIsResizing] = useState(false);
     const sidebarRef = useRef<HTMLDivElement>(null);
 
+    // Mobile view state
+    const [mobileView, setMobileView] = useState<'sidebar' | 'content'>('sidebar');
+
     // Selection state
     const [selectedChatCategory, setSelectedChatCategory] = useState<string>('groups'); // 'groups' or topic_id
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
@@ -231,6 +234,12 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
         setIsResizing(true);
     };
 
+    const handleTouchStart = (e: React.TouchEvent) => {
+        // Prevent default to avoid scrolling while dragging
+        if (e.cancelable) e.preventDefault();
+        setIsResizing(true);
+    };
+
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!isResizing) return;
@@ -245,9 +254,25 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
             setIsResizing(false);
         };
 
+        const handleTouchMove = (e: TouchEvent) => {
+            if (!isResizing) return;
+            if (e.cancelable) e.preventDefault();
+            const touch = e.touches[0];
+            const newWidth = touch.clientX - (sidebarRef.current?.getBoundingClientRect().left || 0);
+            if (newWidth >= 200 && newWidth <= 500) {
+                setSidebarWidth(newWidth);
+            }
+        };
+
+        const handleTouchEnd = () => {
+            setIsResizing(false);
+        };
+
         if (isResizing) {
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
             document.body.style.cursor = 'ew-resize';
             document.body.style.userSelect = 'none';
         }
@@ -255,6 +280,8 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         };
@@ -286,7 +313,7 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
                         <div
                             ref={sidebarRef}
                             style={{ width: `${sidebarWidth}px` }}
-                            className="border-r theme-border bg-gray-50/50 dark:bg-gray-800/30 flex flex-col relative"
+                            className={`border-r theme-border bg-gray-50/50 dark:bg-gray-800/30 flex-col relative w-full md:w-auto ${mobileView === 'content' ? 'hidden md:flex' : 'flex'}`}
                         >
                             {/* Tabs */}
                             <div className="flex p-2 gap-1 border-b theme-border">
@@ -328,7 +355,10 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
                                     <>
                                         {/* Group Invites Item */}
                                         <button
-                                            onClick={() => setSelectedChatCategory('groups')}
+                                            onClick={() => {
+                                                setSelectedChatCategory('groups');
+                                                setMobileView('content');
+                                            }}
                                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedChatCategory === 'groups'
                                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
@@ -347,7 +377,10 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
                                         {Object.entries(topicChatInvitesByTopic).map(([topicId, { title, invites }]) => (
                                             <button
                                                 key={topicId}
-                                                onClick={() => setSelectedChatCategory(topicId)}
+                                                onClick={() => {
+                                                    setSelectedChatCategory(topicId);
+                                                    setMobileView('content');
+                                                }}
                                                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedChatCategory === topicId
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                                     : 'hover:bg-gray-100 dark:hover:bg-gray-700 theme-text-secondary'
@@ -367,7 +400,10 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
                                             Object.entries(topicInvitationsByTopic).map(([topicId, data]) => (
                                                 <button
                                                     key={topicId}
-                                                    onClick={() => setSelectedTopicFilter(curr => curr === topicId ? null : topicId)}
+                                                    onClick={() => {
+                                                        setSelectedTopicFilter(curr => curr === topicId ? null : topicId);
+                                                        setMobileView('content');
+                                                    }}
                                                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex justify-between items-center ${selectedTopicFilter === topicId
                                                         ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                                         : 'hover:bg-gray-100 dark:hover:bg-gray-700 theme-text-secondary'
@@ -382,17 +418,27 @@ const InvitationsModal: React.FC<InvitationsModalProps> = ({
                                 )}
                             </div>
 
-                            {/* Resize Handle */}
                             <div
                                 onMouseDown={handleMouseDown}
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors group"
-                                style={{ zIndex: 10 }}
+                                onTouchStart={handleTouchStart}
+                                className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors group hidden md:block"
+                                style={{ zIndex: 10, touchAction: 'none' }}
                             >
                             </div>
                         </div>
 
                         {/* Right Column (Content) */}
-                        <div className="flex-1 bg-white dark:bg-gray-800 p-6 overflow-y-auto">
+                        <div className={`flex-1 bg-white dark:bg-gray-800 p-6 overflow-y-auto ${mobileView === 'sidebar' ? 'hidden md:block' : 'block'}`}>
+                            {/* Back Button (Mobile) */}
+                            <button
+                                onClick={() => setMobileView('sidebar')}
+                                className="md:hidden mb-4 flex items-center gap-1 text-sm font-medium theme-text-secondary hover:theme-text-primary"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                                {t('common.back') || 'Back'}
+                            </button>
                             {activeTab === 'chats' ? (
                                 <>
                                     <h3 className="text-lg font-bold theme-text-primary mb-4 flex items-center gap-2">

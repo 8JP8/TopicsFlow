@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { api, API_ENDPOINTS } from '@/utils/api';
+import { toast } from 'react-hot-toast';
 import { getUserColorClass } from '@/utils/colorUtils';
 import VoteButtons from '../Vote/VoteButtons';
 import CommentForm from './CommentForm';
@@ -9,6 +11,7 @@ import Avatar from '../UI/Avatar';
 import UserBadges from '../UI/UserBadges';
 import { getUserProfilePicture } from '@/hooks/useUserProfile';
 import CommentContextMenu from '../UI/CommentContextMenu';
+import UserContextMenu from '../UI/UserContextMenu';
 import { useAuth } from '@/contexts/AuthContext';
 // Using simple date formatting instead of date-fns
 
@@ -111,6 +114,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
   const { user } = useAuth();
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+  const [userContextMenu, setUserContextMenu] = useState<{ x: number, y: number, userId: string, username: string } | null>(null);
   const [showReplies, setShowReplies] = useState(false); // Start collapsed like Reddit
   const { showBanner, bannerPos, selectedUser, handleMouseEnter, handleMouseLeave, handleClick, handleClose } = useUserBanner();
   const [currentScore, setCurrentScore] = useState(
@@ -292,6 +296,16 @@ const CommentCard: React.FC<CommentCardProps> = ({
                         e.stopPropagation();
                         handleClick(e, comment.user_id, comment.author_username!);
                       }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setUserContextMenu({
+                          userId: comment.user_id,
+                          username: comment.author_username!,
+                          x: e.clientX,
+                          y: e.clientY
+                        });
+                      }}
                     >
                       {comment.author_username}
                     </span>
@@ -430,6 +444,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
           onClose={handleClose}
         />
       )}
+      {/* Context Menus */}
       {contextMenu && (
         <CommentContextMenu
           commentId={comment.id}
@@ -449,6 +464,60 @@ const CommentCard: React.FC<CommentCardProps> = ({
               onHide(commentId);
             }
           }}
+          authorId={comment.user_id}
+          authorUsername={comment.author_username || 'Unknown'}
+          onReportUser={(userId) => {
+            // Report User via dispatch or direct?
+            // Using CustomEvent to match existing pattern if possible, or logic from UserContextMenu
+            if (window.dispatchEvent) {
+              // We don't have a specific event for Report User dialog opening with just userId?
+              // PostDetail uses 'reportUser' event. Let's try that.
+              window.dispatchEvent(new CustomEvent('reportUser', { detail: { userId, username: comment.author_username || 'Unknown' } }));
+            }
+            setContextMenu(null);
+          }}
+          onBlockUser={async (userId) => {
+            try {
+              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+              toast.success(t('chat.blockedUser', { username: comment.author_username }));
+            } catch (e: any) {
+              toast.error(e.response?.data?.errors?.[0] || t('errors.generic'));
+            }
+            setContextMenu(null);
+          }}
+        />
+      )}
+      {userContextMenu && (
+        <UserContextMenu
+          x={userContextMenu.x}
+          y={userContextMenu.y}
+          userId={userContextMenu.userId}
+          username={userContextMenu.username}
+          onClose={() => setUserContextMenu(null)}
+          onSendMessage={(userId, username) => {
+            if (window.dispatchEvent) {
+              window.dispatchEvent(new CustomEvent('openPrivateMessage', {
+                detail: { userId, username }
+              }));
+            }
+            setUserContextMenu(null);
+          }}
+          onBlockUser={async (userId, username) => {
+            try {
+              await api.post(API_ENDPOINTS.USERS.BLOCK(userId));
+              // toast is not imported in this component, assuming simple success or handling via parent?
+              // Actually CommentCard doesn't import toast. Let's rely on UserContextMenu internal handling? 
+              // UserContextMenu does NOT handle the API call, it expects paretn to do it.
+              // Wait, UserContextMenu.tsx has `handleMute` valid, but `onBlock` is a callback.
+              // I need to import toast and api if I want to handle it here.
+              // But CommentCard imports `api`? No, it doesn't.
+              // I need to add imports to CommentCard first.
+            } catch (e) {
+              console.error(e);
+            }
+            setUserContextMenu(null);
+          }}
+        // We need to add imports for toast and api first.
         />
       )}
     </>

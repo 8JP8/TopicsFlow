@@ -582,7 +582,17 @@ def register_socketio_handlers(socketio):
                         logger.info(f"[MESSAGE_SEND] Mention '{mention_text}' matched anonymous name")
                     
                     if found_user_id:
-                        mentioned_user_ids.append(str(found_user_id))
+                        mentioned_user_id_str = str(found_user_id)
+                        
+                        # Check if topic is muted for this user
+                        from models.notification_settings import NotificationSettings
+                        notification_settings = NotificationSettings(current_app.db)
+                        if notification_settings.is_topic_muted(mentioned_user_id_str, topic_id):
+                            logger.info(f"[MESSAGE_SEND] Skipping mention notification for user {mentioned_user_id_str} - topic {topic_id} is muted")
+                            mentioned_user_ids.append(mentioned_user_id_str) # Still track the mention
+                            continue
+
+                        mentioned_user_ids.append(mentioned_user_id_str)
                         # Emit mention notification to user's personal room
                         user_room = f"user_{found_user_id}"
                         mention_data = {
