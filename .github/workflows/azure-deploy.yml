@@ -8,11 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-  CONTAINER_APP_NAME: ${{ secrets.AZURE_APP_NAME }}
-  IMAGE_NAME: TopicsFlow-azure
-  AZURE_WEBAPP_NAME: 'TopicsFlow'
+  AZURE_WEBAPP_NAME: 'TopicsFlowRINTE'
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '18'
 
