@@ -29,19 +29,10 @@ class RedisCache:
         """Check if Redis is currently available."""
         if not self.client:
             return False
-        
-        # Test connection if we think it's available
-        if self._available:
-            try:
-                self.client.ping()
-                return True
-            except Exception as e:
-                self._available = False
-                self._last_error = e
-                logger.error("Redis cache operation failed. Querying database directly.")
-                return False
-        
-        return False
+            
+        # Trust the available flag - do not ping on every check
+        # This prevents overwhelming the connection
+        return self._available
     
     def _handle_error(self, operation: str, error: Exception):
         """Handle Redis errors gracefully."""
@@ -52,25 +43,23 @@ class RedisCache:
     def get(self, key: str) -> Optional[Any]:
         """
         Get cached value.
-        
-        Args:
-            key: Cache key
-            
-        Returns:
-            Cached value (deserialized) or None if not found or Redis unavailable
         """
         if not self.is_available():
+            print(f"[REDIS DEBUG] SKIP GET {key} (Redis unavailable)")
             return None
         
         try:
+            print(f"[REDIS DEBUG] GET {key}")
             value = self.client.get(key)
             if value is None:
+                print(f"[REDIS DEBUG] GET {key} -> MISS")
                 return None
             
             # Deserialize JSON
             if isinstance(value, bytes):
                 value = value.decode('utf-8')
             
+            print(f"[REDIS DEBUG] GET {key} -> HIT")
             return json.loads(value)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to deserialize cache value for key {key}: {e}")
@@ -82,19 +71,13 @@ class RedisCache:
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         """
         Set cached value with TTL.
-        
-        Args:
-            key: Cache key
-            value: Value to cache (will be JSON serialized)
-            ttl: Time to live in seconds (default: 5 minutes)
-            
-        Returns:
-            True if successful, False otherwise (silently fails if Redis unavailable)
         """
         if not self.is_available():
+            print(f"[REDIS DEBUG] SKIP SET {key} (Redis unavailable)")
             return False
         
         try:
+            print(f"[REDIS DEBUG] SET {key} TTL={ttl}")
             # Serialize to JSON
             serialized = json.dumps(value, default=str)  # default=str handles datetime, ObjectId, etc.
             self.client.setex(key, ttl, serialized)
@@ -109,17 +92,12 @@ class RedisCache:
     def delete(self, key: str) -> bool:
         """
         Delete single cache key.
-        
-        Args:
-            key: Cache key to delete
-            
-        Returns:
-            True if successful, False otherwise (silently fails if Redis unavailable)
         """
         if not self.is_available():
             return False
         
         try:
+            print(f"[REDIS DEBUG] DELETE {key}")
             self.client.delete(key)
             return True
         except Exception as e:
@@ -129,17 +107,12 @@ class RedisCache:
     def delete_pattern(self, pattern: str) -> int:
         """
         Delete all keys matching pattern.
-        
-        Args:
-            pattern: Redis key pattern (e.g., 'user:*', 'post:list:*')
-            
-        Returns:
-            Number of keys deleted (0 if Redis unavailable)
         """
         if not self.is_available():
             return 0
         
         try:
+            print(f"[REDIS DEBUG] DELETE_PATTERN {pattern}")
             # Use SCAN to find all matching keys (more efficient than KEYS)
             deleted = 0
             cursor = 0
@@ -149,6 +122,7 @@ class RedisCache:
                     deleted += self.client.delete(*keys)
                 if cursor == 0:
                     break
+            print(f"[REDIS DEBUG] DELETE_PATTERN {pattern} -> Deleted {deleted} keys")
             return deleted
         except Exception as e:
             self._handle_error("delete_pattern", e)
@@ -157,17 +131,12 @@ class RedisCache:
     def exists(self, key: str) -> bool:
         """
         Check if key exists in cache.
-        
-        Args:
-            key: Cache key to check
-            
-        Returns:
-            True if key exists, False otherwise (returns False if Redis unavailable)
         """
         if not self.is_available():
             return False
         
         try:
+            print(f"[REDIS DEBUG] EXISTS {key}")
             return bool(self.client.exists(key))
         except Exception as e:
             self._handle_error("exists", e)

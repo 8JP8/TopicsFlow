@@ -265,9 +265,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 )}
 
                 {/* Input Area */}
-                <div className={`flex-1 min-w-0 bg-gray-100 dark:theme-bg-tertiary rounded-3xl flex items-center px-4 py-2 border border-transparent focus-within:border-blue-500/30 transition-all ${isRecording ? 'justify-center' : ''}`}>
+                <div className={`flex-1 min-w-0 rounded-3xl flex items-center px-4 py-2 border transition-all ${isRecording ? 'justify-center bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-gray-100 dark:theme-bg-tertiary border-transparent focus-within:border-blue-500/30'}`}>
                     {isRecording ? (
-                        <div className="flex-1 flex items-center justify-between gap-3 h-[40px]">
+                        <div className="flex-1 flex items-center justify-between gap-3 h-[30px]">
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
                                 <span className="font-mono text-red-500 text-base font-semibold tabular-nums">
@@ -318,7 +318,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                             type="button"
                             onClick={(e) => onSend(e)}
                             disabled={isLoading}
-                            className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-all disabled:opacity-50 hover:scale-105 active:scale-95 flex items-center justify-center"
+                            className="p-3 bg-blue-600 w-[45px] h-[45px] hover:bg-blue-700 text-white rounded-full shadow-md transition-all disabled:opacity-50 hover:scale-105 active:scale-95 flex items-center justify-center"
                             title={t('common.send')}
                         >
                             {isLoading ? <LoadingSpinner size="sm" /> : <Send size={18} className="translate-x-0.2 translate-y-0.5" />}
@@ -327,8 +327,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
                         <button
                             type="button"
                             onClick={isRecording ? onStopRecording : onStartRecording}
-                            className={`p-3 rounded-full shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center ${isRecording
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30'
+                            className={`p-3 rounded-full h-[45px] w-[45px] align-center transition-all hover:scale-105 active:scale-95 flex items-center justify-center ${isRecording
+                                ? 'bg-red-500 hover:bg-red-600 text-white'
                                 : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                                 }`}
                             title={isRecording ? t('chat.stopRecording') || 'Stop' : t('chat.recordAudio') || 'Record Audio'}

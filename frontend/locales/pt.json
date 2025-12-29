@@ -120,7 +120,8 @@
     "chatCreated": "Conversa criada com sucesso",
     "tagEveryone": "Marcar Todos",
     "tagYou": "Marcar Você",
-    "messages": "Mensagens"
+    "messages": "Mensagens",
+    "failedToLoadChats": "Falha ao carregar conversas"
   },
   "auth": {
     "login": "Entrar",
@@ -504,7 +505,8 @@
     "voipEnabled": "Chamadas ativadas",
     "voipDisabled": "Chamadas desativadas",
     "failedToLeave": "Falha ao sair da sala de chat",
-    "audioMessage": "Mensagem de Áudio"
+    "audioMessage": "Mensagem de Áudio",
+    "recordAudio": "Gravar Áudio"
   },
   "gifPicker": {
     "searchPlaceholder": "Pesquisar GIFs...",
@@ -609,6 +611,7 @@
     "comments": "Comentários",
     "publications": "Publicações",
     "posts": "Publicações",
+    "failedToLoadPosts": "Falha ao carregar publicações",
     "chatrooms": "Salas de Chat",
     "groups": "Grupos",
     "private": "Privado",
@@ -697,6 +700,7 @@
     "justNow": "Agora mesmo",
     "minutesAgo": "há {count} min",
     "hoursAgo": "há {count} h",
+    "daysAgo": "há {count} d",
     "someone": "Alguém",
     "chatInvitation": "Convite para Sala de Chat",
     "newCommentOnPost": "Novo comentário na publicação",
@@ -1029,6 +1033,7 @@
     "failedToUpvote": "Falha ao votar",
     "failedToDeletePost": "Falha ao eliminar publicação",
     "failedToLoadPost": "Falha ao carregar publicação",
+    "failedToLoadPosts": "Falha ao carregar publicações",
     "reportPost": "Denunciar Publicação",
     "deletePost": "Eliminar Publicação",
     "confirmDelete": "Tem a certeza de que deseja eliminar esta publicação? Será permanentemente eliminada em 7 dias, pendente de aprovação do administrador.",
@@ -1837,6 +1842,7 @@
           "title": "Tema da Interface",
           "shortDesc": "O seu estilo",
           "longDesc": "Alterne entre os modos Claro e Escuro ou sincronize com as preferências do sistema.",
+          "color": "Temas de Cor",
           "subtitle": "Customização",
           "bullet1": "Modo Claro/Escuro",
           "bullet2": "Sincronização de Sistema"

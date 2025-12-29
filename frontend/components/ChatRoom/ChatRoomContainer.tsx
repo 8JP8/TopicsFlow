@@ -802,7 +802,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
       }
 
       const response = await api.post(API_ENDPOINTS.CHAT_ROOMS.SEND_MESSAGE(room.id), {
-        content: messageInput.trim() || (selectedGifUrl ? '[GIF]' : '') || (audioBlob ? '[Voice Message]' : '') || (attachments.length > 0 ? '[Attachment]' : ''),
+        content: messageInput.trim() || (selectedGifUrl ? '[GIF]' : '') || (audioBlob ? (t('voip.audioMessage') || 'Voice Message') : '') || (attachments.length > 0 ? '[Attachment]' : ''),
         message_type: messageType,
         gif_url: selectedGifUrl,
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -988,14 +988,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-row items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
-                <button
-                  onClick={() => handleShareChat(room.id)}
-                  className="p-2 rounded-lg theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors"
-                  title={t('common.share') || 'Share'}
-                >
-                  <Share2 size={20} />
-                </button>
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
                 <button
                   onClick={() => handleFollowChat(room.id)}
                   disabled={followLoading}
@@ -1021,33 +1014,35 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     />
                   </div>
                 )}
-                {isOwner && (
-                  <button
-                    onClick={() => {
-                      setMembersModalMode('manage');
-                      setShowMembersModal(true);
-                    }}
-                    className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-                    title={t('chat.manageChat') || 'Manage Chat'}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="truncate">{t('chat.manageChat') || 'Manage'}</span>
-                  </button>
-                )}
-                {onBack && (
-                  <button
-                    onClick={onBack}
-                    className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    <span>{t('common.back')}</span>
-                  </button>
-                )}
+                <div className="flex flex-col min-[925px]:flex-row gap-2 flex-1 sm:flex-none">
+                  {isOwner && (
+                    <button
+                      onClick={() => {
+                        setMembersModalMode('manage');
+                        setShowMembersModal(true);
+                      }}
+                      className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
+                      title={t('chat.manageChat') || 'Manage Chat'}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate hidden min-[1050px]:inline">{t('chat.manageChat') || 'Manage'}</span>
+                    </button>
+                  )}
+                  {onBack && (
+                    <button
+                      onClick={onBack}
+                      className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                      </svg>
+                      <span className="hidden min-[1050px]:inline">{t('common.back')}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1366,7 +1361,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowGifPicker(!showGifPicker)}
-                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all active:scale-95 ${showGifPicker
+                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-lg transition-all active:scale-95 ${showGifPicker
                     ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
@@ -1398,7 +1393,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-[42px] w-[42px] flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-95"
+                  className="h-[42px] w-[42px] flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-95"
                   title={t('chat.attachFile') || 'Attach file'}
                 >
                   <Paperclip size={20} />
@@ -1433,7 +1428,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                   </span>
                 </div>
               ) : (
-                <div className="flex-1 relative">
+                <div className="flex-1 relative flex items-end">
                   <textarea
                     ref={textareaRef}
                     value={messageInput}
@@ -1465,20 +1460,20 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   type="submit"
                   disabled={uploadingFiles}
-                  className={`px-4 py-2 rounded-lg text-white flex items-center gap-1 transition-all bg-blue-500 hover:bg-blue-600 active:scale-95 shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:scale-100 ${uploadingFiles ? 'cursor-not-allowed' : ''}`}
+                  className={`h-[42px] px-4 rounded-lg text-white flex items-center justify-center gap-1 transition-all bg-blue-500 hover:bg-blue-600 active:scale-95 disabled:opacity-50 disabled:scale-100 ${uploadingFiles ? 'cursor-not-allowed' : ''}`}
                   title={t('chat.send')}
                 >
                   {uploadingFiles ? (
                     <LoadingSpinner size="sm" />
                   ) : (
-                    <Send size={20} />
+                    <Send size={20} viewBox="0 0 23 24" />
                   )}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all ${isRecording
+                  className={`h-[42px] w-[42px] flex items-center justify-center rounded-lg transition-all ${isRecording
                     ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30'
                     : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
                     }`}

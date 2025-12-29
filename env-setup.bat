@@ -21,6 +21,7 @@ set USE_IMGBB=false
 set IMGBB_API_KEY=
 set IMGBB_EXPIRATION_SECONDS=
 set IMGBB_MAX_BASE64_SIZE_BYTES=2097152
+set /p REDIS_URL=REDIS_URL (default none):
 
 echo.
 choice /C YN /M "Enable ImgBB (Y/N)"
@@ -64,6 +65,7 @@ setx USE_IMGBB "%USE_IMGBB%" >nul 2>&1
 setx IMGBB_API_KEY "%IMGBB_API_KEY%" >nul 2>&1
 setx IMGBB_EXPIRATION_SECONDS "%IMGBB_EXPIRATION_SECONDS%" >nul 2>&1
 setx IMGBB_MAX_BASE64_SIZE_BYTES "%IMGBB_MAX_BASE64_SIZE_BYTES%" >nul 2>&1
+setx REDIS_URL "%REDIS_URL%" >nul 2>&1
 echo [SUCCESS] Permanent env vars set.
 
 :create_env
@@ -90,7 +92,7 @@ echo # CORS Configuration
 echo CORS_ALLOW_ALL=true
 echo.
 echo # Redis Configuration
-echo REDIS_URL=redis://localhost:6379/0
+echo REDIS_URL=%REDIS_URL%
 echo.
 echo # Session Configuration
 echo SESSION_TYPE=filesystem

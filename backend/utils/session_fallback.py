@@ -43,40 +43,34 @@ if RedisSessionInterface and FileSystemSessionInterface:
             self._redis_available = True
             self._redis_client = redis_client
         
-        def _test_redis(self):
-            """Test if Redis is available."""
-            if not self._redis_available:
-                return False
-            try:
-                self._redis_client.ping()
-                return True
-            except Exception as e:
-                logger.warning(f"Redis unavailable, using filesystem fallback: {e}")
-                self._redis_available = False
-                return False
-        
         def open_session(self, app, request):
             """Open session with Redis, fallback to filesystem if Redis fails."""
-            if self._test_redis():
-                try:
-                    return super().open_session(app, request)
-                except Exception as e:
-                    logger.warning(f"Redis session open failed, using filesystem fallback: {e}")
-                    self._redis_available = False
-                    return self.filesystem_interface.open_session(app, request)
-            else:
-                return self.filesystem_interface.open_session(app, request)
+            try:
+                # Try Redis first (without explicit ping to save RTT)
+                session = super().open_session(app, request)
+                if session is not None:
+                    # Success
+                    import sys
+                    print(f"[SESSION DEBUG] Redis open_session success for {request.path}", file=sys.stderr)
+                    return session
+            except Exception as e:
+                import sys
+                print(f"[SESSION DEBUG] Redis open_session failed: {e}", file=sys.stderr)
+                logger.warning(f"Redis session open failed, using filesystem fallback: {e}")
+            
+            # Fallback
+            print(f"[SESSION DEBUG] Using Filesystem fallback for open_session", file=sys.stderr)
+            return self.filesystem_interface.open_session(app, request)
         
         def save_session(self, app, session, response):
             """Save session with Redis, fallback to filesystem if Redis fails."""
-            if self._test_redis():
-                try:
-                    return super().save_session(app, session, response)
-                except Exception as e:
-                    logger.warning(f"Redis session save failed, using filesystem fallback: {e}")
-                    self._redis_available = False
-                    return self.filesystem_interface.save_session(app, session, response)
-            else:
+            try:
+                # Try Redis first
+                return super().save_session(app, session, response)
+            except Exception as e:
+                import sys
+                print(f"[SESSION DEBUG] Redis save_session failed: {e}", file=sys.stderr)
+                logger.warning(f"Redis session save failed, using filesystem fallback: {e}")
                 return self.filesystem_interface.save_session(app, session, response)
 else:
     # FallbackSessionInterface not available if Flask-Session interfaces can't be imported

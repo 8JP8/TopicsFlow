@@ -32,7 +32,17 @@ def get_topic_conversations_key(func_name, args, kwargs):
     except:
         pass
         
-    return f"chat_rooms:list:topic_{topic_id}:{user_suffix}"
+
+
+    # Add query params hash
+    params = [
+        request.args.get('search', ''),
+        ','.join(sorted(request.args.getlist('tags')))
+    ]
+    key_string = '_'.join(str(p) for p in params)
+    key_hash = hashlib.md5(key_string.encode()).hexdigest()
+        
+    return f"chat_rooms:list:topic_{topic_id}:{user_suffix}:{key_hash}"
 
 @chat_rooms_bp.route('/topics/<topic_id>/conversations', methods=['GET'])
 @log_requests

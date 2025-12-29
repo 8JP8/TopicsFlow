@@ -84,10 +84,14 @@ class Config:
     # Local/dev: never require Redis (filesystem sessions are fine and simpler).
     if IS_AZURE and os.getenv('AZURE_REDIS_CONNECTIONSTRING'):
         SESSION_TYPE = os.getenv('SESSION_TYPE', 'redis')
+    elif os.getenv('REDIS_URL'):
+        # Allow local Redis if explicitly configured
+        SESSION_TYPE = os.getenv('SESSION_TYPE', 'redis')
     else:
-        # Force local to non-redis by default; ignore accidental SESSION_TYPE=redis locally
-        requested = os.getenv('SESSION_TYPE', 'filesystem').lower()
-        SESSION_TYPE = 'filesystem' if requested == 'redis' else requested  # filesystem, null
+        # Default to filesystem if no Redis configured
+        SESSION_TYPE = os.getenv('SESSION_TYPE', 'filesystem')
+        if SESSION_TYPE == 'redis': 
+             SESSION_TYPE = 'filesystem' # Fallback if requested but no URL
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = False  # Disabled to avoid bytes-to-string conversion issues with Werkzeug
     SESSION_FILE_DIR = os.path.join(os.path.dirname(__file__), 'flask_session')

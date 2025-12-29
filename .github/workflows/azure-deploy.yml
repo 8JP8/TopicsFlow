@@ -44,20 +44,19 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
-      # - name: Build frontend
-      #   run: |
-      #     cd frontend
-      #     npm ci
-      #     npm run build
-      #   env:
-      #     CI: false
-      #     NEXT_TELEMETRY_DISABLED: 1
-      #     BACKEND_IP: ${{ secrets.BACKEND_IP }}
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+        env:
+          CI: false
+          NEXT_TELEMETRY_DISABLED: 1
 
-      # - name: Copy frontend build to backend
-      #   run: |
-      #     mkdir -p backend/static
-      #     cp -r frontend/out/* backend/static/
+      - name: Copy frontend build to backend
+        run: |
+          mkdir -p backend/static
+          cp -r frontend/out/* backend/static/
 
       - name: Verify deployment package
         run: |
@@ -70,7 +69,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_FA36F8A2BC9449559A1BB157619C09C2 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_96D24F664EF2479F9EA407D6D17464C8 }}
           package: ./backend
 
       - name: Deployment Summary

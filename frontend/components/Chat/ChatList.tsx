@@ -125,10 +125,10 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
           setFollowedChats(new Set(followedIds));
         }
       } else {
-        toast.error(response.data.errors?.[0] || 'Failed to load chats');
+        toast.error(response.data.errors?.[0] || t('chats.failedToLoadChats') || 'Failed to load chats');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.[0] || 'Failed to load chats';
+      const errorMessage = error.response?.data?.errors?.[0] || t('chats.failedToLoadChats') || 'Failed to load chats';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -156,13 +156,13 @@ const ChatList: React.FC<ChatListProps> = ({ topicId, onChatSelect, unreadCounts
     const diff = now.getTime() - date.getTime();
 
     if (diff < 60 * 1000) {
-      return 'Active now';
+      return t('notifications.justNow');
     } else if (diff < 60 * 60 * 1000) {
-      return `${Math.floor(diff / (60 * 1000))}m ago`;
+      return t('notifications.minutesAgo', { count: Math.floor(diff / (60 * 1000)) });
     } else if (diff < 24 * 60 * 60 * 1000) {
-      return `${Math.floor(diff / (60 * 60 * 1000))}h ago`;
+      return t('notifications.hoursAgo', { count: Math.floor(diff / (60 * 60 * 1000)) });
     } else if (diff < 7 * 24 * 60 * 60 * 1000) {
-      return `${Math.floor(diff / (24 * 60 * 60 * 1000))}d ago`;
+      return t('notifications.daysAgo', { count: Math.floor(diff / (24 * 60 * 60 * 1000)) });
     } else {
       return date.toLocaleDateString();
     }

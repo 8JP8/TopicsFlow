@@ -25,6 +25,25 @@ def get_topics_cache_key(func_name, args, kwargs):
         request.args.get('search', ''),
         ','.join(sorted(request.args.getlist('tags')))
     ]
+    
+    # Include user_id in cache key as query results depend on it (hidden/muted topics)
+    from services.auth_service import AuthService
+    from flask import current_app
+    user_suffix = "anon"
+    try:
+        # We need a new auth service instance or use the one from the request context if available
+        # Since we are in a decorator, we might not have easy access to valid DB session if not careful
+        # But here we are inside request context.
+        auth = AuthService(current_app.db)
+        if auth.is_authenticated():
+            res = auth.get_current_user()
+            if res.get('success'):
+                user_suffix = str(res['user']['id'])
+    except:
+        pass
+    
+    params.append(user_suffix)
+
     key_string = '_'.join(str(p) for p in params)
     key_hash = hashlib.md5(key_string.encode()).hexdigest()
     return f"topic:list:{key_hash}"

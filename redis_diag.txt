@@ -1,0 +1,21 @@
+============================================================
+REDIS DIAGNOSTIC TOOL
+============================================================
+REDIS_URL provided: Yes
+Connection string: TopicsFlow.redis.cache.windows.net:6380,password=****,ssl=True,abortConnect=False
+SESSION_TYPE: redis
+------------------------------------------------------------
+Parsing Azure-style connection string...
+Host: TopicsFlow.redis.cache.windows.net, Port: 6380, SSL: True
+Attempting PING...
+SUCCESS: PING response received in 824.88ms
+Attempting SET/GET...
+GET result: b'working'
+SUCCESS: Read/Write verified.
+============================================================
+Checking Config (Simulated)
+IS_AZURE detected: False
+Should use Redis: TopicsFlow.redis.cache.windows.net:6380,password=aUKWOPLxqi5rXhm1UDgpRnTMRyN2XCMDVAzCaPbqwQs=,ssl=True,abortConnect=False
+SESSION_COOKIE_SECURE: False
+SESSION_COOKIE_SAMESITE: Lax
+============================================================

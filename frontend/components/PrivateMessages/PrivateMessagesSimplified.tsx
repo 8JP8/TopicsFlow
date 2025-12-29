@@ -1213,7 +1213,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       }
 
       const attachmentPlaceholder = `[${t('privateMessages.attachment')}]`;
-      const audioPlaceholder = `[${t('chat.audioMessage') || 'Voice Message'}]`;
+      const audioPlaceholder = t('voip.audioMessage') || 'Voice Message';
 
       const finalContent = content || (messageType === 'gif' ? '[GIF]' : '') || (messageType === 'audio' ? audioPlaceholder : '') || (attachments.length > 0 ? attachmentPlaceholder : '');
 

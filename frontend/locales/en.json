@@ -120,7 +120,8 @@
     "tagEveryone": "Tag Everyone",
     "tagYou": "Tag You",
     "members": "Members",
-    "messages": "Messages"
+    "messages": "Messages",
+    "failedToLoadChats": "Failed to load chats"
   },
   "auth": {
     "login": "Login",
@@ -502,7 +503,8 @@
     "disableCallsHint": "Disable calls for this chatroom",
     "settings": "Settings",
     "voipEnabled": "Calls enabled",
-    "voipDisabled": "Calls disabled"
+    "voipDisabled": "Calls disabled",
+    "recordAudio": "Record Audio"
   },
   "gifPicker": {
     "searchPlaceholder": "Search GIFs...",
@@ -609,6 +611,7 @@
     "comments": "Comments",
     "publications": "Publications",
     "posts": "Posts",
+    "failedToLoadPosts": "Failed to load posts",
     "chatrooms": "Chatrooms",
     "groups": "Groups",
     "private": "Private",
@@ -718,6 +721,7 @@
     "justNow": "Just now",
     "minutesAgo": "{count} min ago",
     "hoursAgo": "{count} h ago",
+    "daysAgo": "{count} d ago",
     "someone": "Someone",
     "chatInvitation": "Chat Room Invitation",
     "newCommentOnPost": "New comment on post",
@@ -1024,6 +1028,7 @@
     "failedToUpvote": "Failed to upvote post",
     "failedToDeletePost": "Failed to delete post",
     "failedToLoadPost": "Failed to load post",
+    "failedToLoadPosts": "Failed to load posts",
     "reportPost": "Report Post",
     "deletePost": "Delete Post",
     "post": "Post",
@@ -1918,6 +1923,7 @@
           "title": "Interface Theme",
           "shortDesc": "Your style",
           "longDesc": "Toggle between Light and Dark modes or sync with your system preferences.",
+          "color": "Color Themes",
           "subtitle": "Customization",
           "bullet1": "Light/Dark Mode",
           "bullet2": "System Sync"

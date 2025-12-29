@@ -13,9 +13,35 @@ logger = logging.getLogger(__name__)
 comments_bp = Blueprint('comments', __name__)
 
 
+def get_comments_key(func_name, args, kwargs):
+    """Generate cache key for post comments."""
+    post_id = kwargs.get('post_id')
+    params = [
+        request.args.get('sort_by', 'top'),
+        request.args.get('limit', '100')
+    ]
+    
+    # User ID for personalization (upvoted status)
+    from services.auth_service import AuthService
+    from flask import current_app
+    user_suffix = "anon"
+    try:
+        auth = AuthService(current_app.db)
+        if auth.is_authenticated():
+            res = auth.get_current_user()
+            if res.get('success'):
+                user_suffix = res['user']['id']
+    except:
+        pass
+        
+    key_string = '_'.join(str(p) for p in params)
+    import hashlib
+    key_hash = hashlib.md5(key_string.encode()).hexdigest()
+    return f"comments:post:{post_id}:{user_suffix}:{key_hash}"
+
 @comments_bp.route('/posts/<post_id>/comments', methods=['GET'])
 @log_requests
-@cache_result(ttl=120, key_prefix='comments:post')
+@cache_result(ttl=120, key_func=get_comments_key)
 def get_post_comments(post_id):
     """Get all comments for a post, organized as a tree."""
     try:

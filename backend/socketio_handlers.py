@@ -35,8 +35,13 @@ def register_socketio_handlers(socketio):
         """Handle client connection."""
         try:
             # Get session ID first (may not be available in all contexts)
+            # Get session ID first (may not be available in all contexts)
             try:
                 sid = request.sid
+                logger.info(f"[SOCKET CONNECT] New connection attempt: SID={sid}")
+                
+                # Check cookies/headers
+                logger.info(f"[SOCKET CONNECT] Cookies: {request.cookies.keys()}")
             except (RuntimeError, AttributeError) as sid_error:
                 logger.error(f"Could not get session ID during connect: {sid_error}")
                 return False
@@ -44,11 +49,19 @@ def register_socketio_handlers(socketio):
             # Verify session
             try:
                 auth_service = AuthService(current_app.db)
-                if not auth_service.is_authenticated():
+                is_auth = auth_service.is_authenticated()
+                logger.info(f"[SOCKET CONNECT] Auth Service check: {is_auth}")
+                
+                if not is_auth:
                     logger.warning(f"Unauthenticated connection attempt from {sid}")
+                    # Log session usage for debugging
+                    from flask import session
+                    logger.info(f"[SOCKET CONNECT] Flask Session content keys: {list(session.keys()) if session else 'None'}")
                     return False
 
                 current_user_result = auth_service.get_current_user()
+                logger.info(f"[SOCKET CONNECT] Get current user success: {current_user_result.get('success')}")
+                
                 if not current_user_result or not current_user_result.get('success'):
                     logger.warning(f"Invalid session for connection {sid}")
                     return False
@@ -59,6 +72,8 @@ def register_socketio_handlers(socketio):
                     return False
 
                 user_id = user.get('id')
+                logger.info(f"[SOCKET CONNECT] Authenticated User ID: {user_id}")
+                
                 if not user_id:
                     logger.warning(f"No user ID for connection {sid}")
                     return False
@@ -117,7 +132,10 @@ def register_socketio_handlers(socketio):
             # Broadcast updated online users count to all
             try:
                 online_count = get_online_users_count()
+                # Broadcast to others
                 emit('online_count_update', {'count': online_count}, broadcast=True)
+                # Send to self (the user who just connected)
+                emit('online_count_update', {'count': online_count})
             except Exception as emit_error:
                 logger.error(f"Error emitting online_count_update event: {emit_error}", exc_info=True)
 

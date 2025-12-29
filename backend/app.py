@@ -84,19 +84,16 @@ def create_app(config_name=None):
         
         # Only attempt Redis if:
         # 1. We're in Azure, OR
-        # 2. SESSION_TYPE is explicitly set to 'redis' AND we have REDIS_URL AND we're not forcing local mode
-        # Never use Redis in local development (non-Docker, non-Azure)
-        # Even if REDIS_URL is set in .env, ignore it in local development
+        # 2. SESSION_TYPE is explicitly set to 'redis' AND we have REDIS_URL
         should_use_redis = (
             is_azure or 
-            (session_type == 'redis' and app.config.get('REDIS_URL') and not os.getenv('FORCE_LOCAL_MODE') and is_azure)
+            (session_type == 'redis' and app.config.get('REDIS_URL'))
         )
         
-        # Force filesystem sessions in local development, even if REDIS_URL is set
-        if not is_azure and not os.getenv('FORCE_AZURE_MODE'):
-            should_use_redis = False
+        # Force filesystem sessions in local development ONLY if no Redis URL
+        if not is_azure and not should_use_redis:
             if session_type == 'redis':
-                logger.info("Local development detected: Ignoring REDIS_URL and SESSION_TYPE=redis. Using filesystem sessions.")
+                logger.info("Local development: SESSION_TYPE=redis but no REDIS_URL. Using filesystem sessions.")
                 session_type = 'filesystem'
                 app.config['SESSION_TYPE'] = 'filesystem'
         
@@ -277,6 +274,7 @@ def create_app(config_name=None):
     logger.info(f"Using SocketIO async_mode: {async_mode}")
 
     # SocketIO CORS - same origins as main app
+    # SocketIO CORS - same origins as main app
     socketio.init_app(app, 
                      cors_allowed_origins=allowed_origins,
                      async_mode=async_mode,
@@ -363,15 +361,15 @@ def create_app(config_name=None):
     from socketio_handlers import register_socketio_handlers
     register_socketio_handlers(socketio)
 
-    # Register 404 error handler BEFORE static routes
     @app.errorhandler(404)
     def handle_404(e):
         """Handle 404 errors by serving the built 404.html from Next.js (404.tsx)."""
         static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
         
-        # For API routes, return JSON error
+        # Log the 404 error but don't return JSON for API routes
+        # The user wants API 404s to also show the frontend 404 page checks
         if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'errors': ['Resource not found']}), 404
+            logger.info(f"API 404: {request.path} - Falling back to frontend 404")
         
         # Try to serve the built 404.html from Next.js (from pages/404.tsx)
         # Next.js static export creates 404.html in the output directory
@@ -384,8 +382,8 @@ def create_app(config_name=None):
         if os.path.exists(not_found_dir_path):
             return send_file(not_found_dir_path), 404
         
-        # For non-API routes, try to serve index.html (SPA fallback)
-        # This allows client-side routing to handle the 404
+        # For non-API routes (and API routes as fallback), try to serve index.html (SPA fallback)
+        # This allows client-side routing to handle the 404 if the static 404 page is missing
         index_path = os.path.join(static_folder, 'index.html')
         if os.path.exists(index_path):
             return send_file(index_path)

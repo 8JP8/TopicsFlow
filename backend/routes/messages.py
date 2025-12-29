@@ -12,9 +12,36 @@ logger = logging.getLogger(__name__)
 messages_bp = Blueprint('messages', __name__)
 
 
+def get_topic_messages_key(func_name, args, kwargs):
+    """Generate cache key for topic messages."""
+    topic_id = kwargs.get('topic_id')
+    params = [
+        request.args.get('limit', '50'),
+        request.args.get('before_message_id', '')
+    ]
+    
+    # User ID for personalization (blocked users)
+    from services.auth_service import AuthService
+    from flask import current_app
+    user_suffix = "anon"
+    try:
+        auth = AuthService(current_app.db)
+        if auth.is_authenticated():
+            res = auth.get_current_user()
+            if res.get('success'):
+                user_suffix = res['user']['id']
+    except:
+        pass
+        
+    key_string = '_'.join(str(p) for p in params)
+    import hashlib
+    key_hash = hashlib.md5(key_string.encode()).hexdigest()
+    return f"messages:topic:{topic_id}:{user_suffix}:{key_hash}"
+
+
 @messages_bp.route('/topic/<topic_id>', methods=['GET'])
 @log_requests
-@cache_result(ttl=30, key_prefix='messages:topic')
+@cache_result(ttl=30, key_func=get_topic_messages_key)
 def get_topic_messages(topic_id):
     """Get messages for a topic with pagination."""
     try:

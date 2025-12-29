@@ -92,10 +92,10 @@ const PostList: React.FC<PostListProps> = ({ topicId, onPostSelect }) => {
           // This will be used by parent to track available posts
         }
       } else {
-        toast.error(response.data.errors?.[0] || t('posts.failedToCreatePost') || 'Failed to load posts');
+        toast.error(response.data.errors?.[0] || t('posts.failedToLoadPosts') || 'Failed to load posts');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.[0] || t('posts.failedToCreatePost') || 'Failed to load posts';
+      const errorMessage = error.response?.data?.errors?.[0] || t('posts.failedToLoadPosts') || 'Failed to load posts';
       toast.error(errorMessage);
     } finally {
       setLoading(false);

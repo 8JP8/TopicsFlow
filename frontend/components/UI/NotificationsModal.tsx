@@ -321,12 +321,12 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
+        className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="bg-white dark:bg-gray-800 border theme-border rounded-lg shadow-xl w-full max-w-4xl mx-4 sm:mx-auto max-h-[90vh] flex flex-col pointer-events-auto"
           onClick={(e) => e.stopPropagation()}

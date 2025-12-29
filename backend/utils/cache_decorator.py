@@ -87,7 +87,7 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
             # Try to get from cache
             cached_value = cache.get(cache_key)
             if cached_value is not None:
-                logger.debug(f"Cache hit: {cache_key}")
+                print(f"[CACHE DEBUG] HIT {cache_key}")
                 # If cached value is dict/list, re-wrap in jsonify for consistent Response object ONLY if requested
                 if should_jsonify and isinstance(cached_value, (dict, list)):
                     from flask import jsonify
@@ -95,27 +95,50 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
                 return cached_value
             
             # Cache miss, execute function
-            logger.debug(f"Cache miss: {cache_key}")
+            print(f"[CACHE DEBUG] MISS {cache_key}")
             result = func(*args, **kwargs)
             
             # Store in cache (silently fail if Redis unavailable)
             if result is not None:
                 try:
-                    # If result is a Flask Response object (from jsonify), invoke get_json() to extract data
                     cache_data = result
-                    if hasattr(result, 'get_json') and callable(result.get_json):
-                        # Attempt to get JSON data. If it fails (e.g. not json), skip caching or cache raw?
-                        # Usually our API returns JSON.
+                    
+                    # Handle Flask (response, status_code) tuples
+                    if isinstance(result, tuple):
+                        # Extract the response object (usually the first element)
+                        response_obj = result[0]
+                        # We only cache successful responses (usually 200)?
+                        # Or we cache whatever. For now, let's just extract data.
+                        # If result[1] (status) is error (e.g. 400, 500), MAYBE NOT cache?
+                        # Let's inspect status code if possible.
+                        status_code = result[1] if len(result) > 1 else 200
+                        if status_code >= 400:
+                            print(f"[CACHE DEBUG] SKIP caching error response {status_code} for {cache_key}")
+                            return result
+
+                        if hasattr(response_obj, 'get_json') and callable(response_obj.get_json):
+                             try:
+                                json_data = response_obj.get_json()
+                                if json_data is not None:
+                                    print(f"[CACHE DEBUG] Extracted JSON for {cache_key}")
+                                    cache_data = json_data
+                             except Exception as e:
+                                print(f"[CACHE DEBUG] Failed to extract JSON from tuple response: {e}")
+                    
+                    # Handle single Response object
+                    elif hasattr(result, 'get_json') and callable(result.get_json):
                         try:
                             json_data = result.get_json()
                             if json_data is not None:
                                 cache_data = json_data
                         except Exception:
-                            pass # Keep original result if extraction fails
+                            pass 
                     
+                    print(f"[CACHE DEBUG] SET {cache_key}")
                     cache.set(cache_key, cache_data, ttl)
                 except Exception as e:
                     logger.warning(f"Failed to cache result for {cache_key}: {e}")
+                    print(f"[CACHE DEBUG] Failed to cache: {e}")
             
             return result
         
