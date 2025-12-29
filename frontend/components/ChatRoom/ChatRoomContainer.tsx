@@ -991,7 +991,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               <div className="flex flex-row items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
                 <button
                   onClick={() => handleShareChat(room.id)}
-                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                  className="p-2 rounded-lg theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors"
                   title={t('common.share') || 'Share'}
                 >
                   <Share2 size={20} />
@@ -999,7 +999,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 <button
                   onClick={() => handleFollowChat(room.id)}
                   disabled={followLoading}
-                  className={`p-2 rounded-full transition-colors ${isFollowing
+                  className={`p-2 rounded-lg transition-colors ${isFollowing
                     ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
                     : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}

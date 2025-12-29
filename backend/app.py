@@ -645,16 +645,42 @@ def create_db_indexes(app):
                 )
             else:
                 print(f"Index creation failed: {e}")
-        db.conversation_settings.create_index(
-            [("user_id", 1), ("topic_id", 1), ("type", 1)], 
-            unique=True, 
-            partialFilterExpression={"topic_id": {"$exists": True}}
-        )
-        db.conversation_settings.create_index(
-            [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
-            unique=True, 
-            partialFilterExpression={"chat_room_id": {"$exists": True}}
-        )
+
+        try:
+            db.conversation_settings.create_index(
+                [("user_id", 1), ("topic_id", 1), ("type", 1)], 
+                unique=True, 
+                partialFilterExpression={"topic_id": {"$exists": True}}
+            )
+        except Exception as e:
+            if "already exists with different options" in str(e):
+                print("Index conflict detected. Dropping old index: user_id_1_topic_id_1_type_1")
+                db.conversation_settings.drop_index("user_id_1_topic_id_1_type_1")
+                db.conversation_settings.create_index(
+                    [("user_id", 1), ("topic_id", 1), ("type", 1)], 
+                    unique=True, 
+                    partialFilterExpression={"topic_id": {"$exists": True}}
+                )
+            else:
+                print(f"Index creation failed: {e}")
+
+        try:
+            db.conversation_settings.create_index(
+                [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
+                unique=True, 
+                partialFilterExpression={"chat_room_id": {"$exists": True}}
+            )
+        except Exception as e:
+            if "already exists with different options" in str(e):
+                print("Index conflict detected. Dropping old index: user_id_1_chat_room_id_1_type_1")
+                db.conversation_settings.drop_index("user_id_1_chat_room_id_1_type_1")
+                db.conversation_settings.create_index(
+                    [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
+                    unique=True, 
+                    partialFilterExpression={"chat_room_id": {"$exists": True}}
+                )
+            else:
+                print(f"Index creation failed: {e}")
         db.conversation_settings.create_index("type")
 
         # Notification settings collection indexes

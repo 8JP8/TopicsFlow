@@ -1013,6 +1013,7 @@
     "comments": "Comments",
     "comment": "Comment",
     "upvote": "Upvote",
+    "downvote": "Downvote",
     "removeUpvote": "Remove Upvote",
     "upvoted": "Upvoted",
     "noPosts": "No posts yet",

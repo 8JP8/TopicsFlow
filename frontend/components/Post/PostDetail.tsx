@@ -175,7 +175,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
   const handleUnfollow = async () => {
     setFollowLoading(true);
     try {
-      await api.delete(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(postId));
+      await api.post(API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(postId));
       setIsFollowing(false);
       toast.success(t('posts.unfollowing') || 'Unfollowed post');
     } catch (error) {
@@ -240,19 +240,32 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="border-b border-gray-100 dark:border-gray-700 p-4 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push(post.topic_id ? `/?topicId=${post.topic_id}` : '/')}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
             <ArrowLeft size={18} />
             {t('common.back') || 'Back'}
           </button>
-          <button
-            onClick={handleShare}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
-            title={t('common.share') || 'Share'}
-          >
-            <Share2 size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={isFollowing ? handleUnfollow : handleFollow}
+              disabled={followLoading}
+              className={`p-2 rounded-lg transition-colors ${isFollowing
+                ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                }`}
+              title={isFollowing ? (t('posts.unfollow') || 'Unfollow') : (t('posts.follow') || 'Follow')}
+            >
+              {isFollowing ? <BellOff size={18} /> : <Bell size={18} />}
+            </button>
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-lg theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors"
+              title={t('common.share') || 'Share'}
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
         </div>
         <div className="p-6">
           <div className="flex gap-4">
@@ -350,7 +363,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setContextMenu({ x: rect.left, y: rect.bottom });
                   }}
-                  className="absolute top-0 right-0 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 z-10"
+                  className="absolute top-0 right-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 z-10"
                 >
                   <MoreHorizontal size={20} />
                 </button>
@@ -378,28 +391,6 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
                     {post.comment_count} {post.comment_count === 1 ? t('comments.comment') : t('comments.comments')}
                   </span>
                 </div>
-                {isFollowing ? (
-                  <button
-                    onClick={handleUnfollow}
-                    disabled={followLoading}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
-                    title={t('posts.unfollow') || 'Unfollow'}
-                  >
-                    <BellOff className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleFollow}
-                    disabled={followLoading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    title={t('posts.follow') || 'Follow'}
-                  >
-                    <Bell className="w-5 h-5" />
-                    <span className="text-sm font-medium">
-                      {t('posts.follow') || 'Follow'}
-                    </span>
-                  </button>
-                )}
               </div>
             </div>
           </div>

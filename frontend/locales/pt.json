@@ -1014,18 +1014,19 @@
     "sortHot": "Em Alta",
     "sortTop": "Top",
     "sortOld": "Antigos",
-    "upvotes": "Upvotes",
+    "upvotes": "Votos Positivos",
     "comments": "Comentários",
     "comment": "Comentário",
-    "upvote": "Upvote",
-    "removeUpvote": "Remover Upvote",
-    "upvoted": "Upvotado",
+    "upvote": "Voto Positivo",
+    "downvote": "Voto Negativo",
+    "removeUpvote": "Remover Voto Positivo",
+    "upvoted": "Votado Positivamente",
     "noPosts": "Ainda não há publicações",
     "createFirstPost": "Criar a primeira publicação",
     "postCreated": "Publicação criada com sucesso",
     "postDeleted": "Publicação eliminada com sucesso",
     "failedToCreatePost": "Falha ao criar publicação",
-    "failedToUpvote": "Falha ao fazer upvote",
+    "failedToUpvote": "Falha ao votar",
     "failedToDeletePost": "Falha ao eliminar publicação",
     "failedToLoadPost": "Falha ao carregar publicação",
     "reportPost": "Denunciar Publicação",
@@ -1075,7 +1076,7 @@
     "commentDeleted": "Comentário eliminado com sucesso",
     "failedToCreateComment": "Falha ao criar comentário",
     "failedToCreateReply": "Falha ao criar resposta",
-    "failedToUpvote": "Falha ao fazer upvote",
+    "failedToUpvote": "Falha ao fazer votar",
     "failedToDeleteComment": "Falha ao eliminar comentário",
     "reportComment": "Denunciar Comentário",
     "deleteComment": "Eliminar Comentário",
@@ -1117,13 +1118,13 @@
     "invitationReceived": "Foi convidado para {roomName}"
   },
   "upvote": {
-    "upvote": "Upvote",
-    "removeUpvote": "Remover Upvote",
-    "upvoted": "Upvotado",
-    "upvotes": "Upvotes",
-    "upvoteCount": "{count} upvotes",
-    "oneUpvote": "1 upvote",
-    "noUpvotes": "Ainda não há upvotes"
+    "upvote": "Voto Positivo",
+    "removeUpvote": "Remover Voto Positivo",
+    "upvoted": "Votado Positivamente",
+    "upvotes": "Votos Positivos",
+    "upvoteCount": "{count} votos positivos",
+    "oneUpvote": "1 voto positivo",
+    "noUpvotes": "Ainda não há votos positivos"
   },
   "blocking": {
     "blockUser": "Bloquear Utilizador",
@@ -1572,7 +1573,7 @@
     "postUnfollowed": "Deixou de seguir publicação",
     "followTopic": "Seguir Tópico",
     "unfollowTopic": "Deixar de Seguir Tópico",
-    "sharePost": "Compartilhar Publicação"
+    "sharePost": "Partilhar Publicação"
   },
   "messages": {
     "deleteMessage": "Eliminar Mensagem",

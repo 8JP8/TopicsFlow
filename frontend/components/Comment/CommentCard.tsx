@@ -502,6 +502,14 @@ const CommentCard: React.FC<CommentCardProps> = ({
             }
             setUserContextMenu(null);
           }}
+          onReportUser={(userId, username) => {
+            if (window.dispatchEvent) {
+              window.dispatchEvent(new CustomEvent('reportUser', {
+                detail: { userId, username }
+              }));
+            }
+            setUserContextMenu(null);
+          }}
           onBlockUser={async (userId, username) => {
             try {
               await api.post(API_ENDPOINTS.USERS.BLOCK(userId));

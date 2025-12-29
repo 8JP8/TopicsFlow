@@ -16,7 +16,10 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Bell,
+  BellOff,
+  Share2
 } from 'lucide-react';
 import PostContextMenu from '../UI/PostContextMenu';
 import UserContextMenu from '../UI/UserContextMenu';
@@ -173,6 +176,38 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
     setUserContextMenu(null);
   };
 
+  const handleFollowToggle = async () => {
+    if (!post) return;
+    try {
+      const endpoint = post.is_followed
+        ? API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(post.id)
+        : API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_POST(post.id);
+      const response = await api.post(endpoint);
+      if (response.data.success) {
+        setPost(prev => prev ? ({ ...prev, is_followed: !prev.is_followed }) : null);
+        toast.success(post.is_followed ? (t('success.unfollowed') || 'Unfollowed post') : (t('success.followed') || 'Followed post'));
+      }
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+      toast.error(t('errors.generic') || 'Action failed');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!post) return;
+    const targetUrl = `${window.location.origin}/post/${post.id}`;
+    try {
+      const response = await api.post(API_ENDPOINTS.SHORT_LINKS.GENERATE, { url: targetUrl });
+      if (response.data.success) {
+        await navigator.clipboard.writeText(response.data.data.short_url);
+        toast.success(t('common.linkCopied') || 'Link copied');
+      }
+    } catch {
+      await navigator.clipboard.writeText(targetUrl);
+      toast.success(t('common.linkCopied') || 'Link copied');
+    }
+  };
+
   const handleVoteChange = (upvoted: boolean, downvoted: boolean, upCount: number, downCount: number, score: number) => {
     if (post) {
       setPost({
@@ -235,9 +270,11 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
           >
             <ArrowLeft className="w-5 h-5 theme-text-primary" />
           </button>
-          <h2 className="text-lg font-semibold theme-text-primary">
-            {t('posts.post') || 'Post'}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold theme-text-primary">
+              {t('posts.post') || 'Post'}
+            </h2>
+          </div>
         </div>
 
         {totalPages > 0 && (
@@ -269,20 +306,39 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Post Content */}
           <div className="theme-bg-secondary rounded-lg border theme-border p-6 shadow-sm relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = e.currentTarget.getBoundingClientRect();
-                setContextMenu({
-                  x: rect.right,
-                  y: rect.bottom
-                });
-              }}
-              className="absolute top-4 right-4 p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
-              title={t('common.more') || 'More options'}
-            >
-              <MoreVertical className="w-5 h-5 theme-text-primary" />
-            </button>
+            <div className="absolute top-4 right-4 flex items-center gap-1">
+              <button
+                onClick={handleFollowToggle}
+                className={`p-2 rounded-lg transition-colors ${post.is_followed
+                  ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                  : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary'
+                  }`}
+                title={post.is_followed ? (t('posts.unfollow') || 'Unfollow') : (t('posts.follow') || 'Follow')}
+              >
+                {post.is_followed ? <BellOff size={20} /> : <Bell size={20} />}
+              </button>
+              <button
+                onClick={handleShare}
+                className="p-2 rounded-lg theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors"
+                title={t('common.share') || 'Share'}
+              >
+                <Share2 size={20} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setContextMenu({
+                    x: rect.right,
+                    y: rect.bottom
+                  });
+                }}
+                className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+                title={t('common.more') || 'More options'}
+              >
+                <MoreVertical className="w-5 h-5 theme-text-primary" />
+              </button>
+            </div>
             <div className="flex gap-4">
               <div className="flex flex-col items-center">
                 <VoteButtons
@@ -432,21 +488,8 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
           onClose={() => setContextMenu(null)}
           isFollowed={post.is_followed}
           isSilenced={post.is_silenced}
-          onFollow={async () => {
-            try {
-              const endpoint = post.is_followed
-                ? API_ENDPOINTS.NOTIFICATION_SETTINGS.UNFOLLOW_POST(post.id)
-                : API_ENDPOINTS.NOTIFICATION_SETTINGS.FOLLOW_POST(post.id);
-              const response = await api.post(endpoint);
-              if (response.data.success) {
-                setPost(prev => prev ? ({ ...prev, is_followed: !prev.is_followed }) : null);
-                toast.success(post.is_followed ? (t('success.unfollowed') || 'Unfollowed post') : (t('success.followed') || 'Followed post'));
-              }
-            } catch (error) {
-              console.error('Failed to toggle follow:', error);
-              toast.error(t('errors.generic') || 'Action failed');
-            }
-          }}
+          onFollow={handleFollowToggle}
+          onShare={handleShare}
           onHide={async () => {
             if (onBack) onBack();
             try {
@@ -472,6 +515,7 @@ const PostDetailContainer: React.FC<PostDetailContainerProps> = ({
             }
           } : undefined}
           onSilence={handleSilencePost}
+
         />
       )}
 

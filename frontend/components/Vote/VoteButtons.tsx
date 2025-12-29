@@ -103,10 +103,6 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
       onVoteChange(newUpvoted, newDownvoted, newUpCount, newDownCount, newScore);
     }
 
-    // No loading state for optimistic UI to prevent "disabled" feel, or keep it short
-    // We'll skip setting isLoading to true to allow rapid toggling, or handle race conditions.
-    // Better to keep isLoading=true to prevent double-clicks, but it blocks immediate feedback if button greys out.
-    // User wants "lit up", so we shouldn't disable it visually too much.
     setIsLoading(true);
 
     try {
@@ -116,22 +112,11 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
 
       const response = await api.post(endpoint);
 
-      if (response.data.success) {
-        // Sync with server truth if needed, or just trust our math. 
-        // Server might return different score if others voted.
-        const data = response.data.data;
-        if (data) {
-          // Update with actual server data to be safe
-          setUserHasUpvoted(data.user_has_upvoted);
-          setUserHasDownvoted(data.user_has_downvoted);
-          setUpvoteCount(data.upvote_count);
-          setDownvoteCount(data.downvote_count);
-          setScore(data.score);
-        }
-      } else {
-        // Revert on failure
+      if (!response.data.success) {
         throw new Error(response.data.errors?.[0] || 'Failed to upvote');
       }
+      // On success, we do NOT update state from server response to avoid UI flicker/reset
+      // We trust our optimistic update
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || 'Failed to upvote';
       toast.error(errorMessage);
@@ -198,18 +183,10 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
 
       const response = await api.post(endpoint);
 
-      if (response.data.success) {
-        const data = response.data.data;
-        if (data) {
-          setUserHasUpvoted(data.user_has_upvoted);
-          setUserHasDownvoted(data.user_has_downvoted);
-          setUpvoteCount(data.upvote_count);
-          setDownvoteCount(data.downvote_count);
-          setScore(data.score);
-        }
-      } else {
+      if (!response.data.success) {
         throw new Error(response.data.errors?.[0] || 'Failed to downvote');
       }
+      // On success, we trust our optimistic update
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || 'Failed to downvote';
       toast.error(errorMessage);
@@ -257,7 +234,7 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
             ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             ${size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6'}
           `}
-          title={userHasUpvoted ? 'Remove upvote' : 'Upvote'}
+          title={userHasUpvoted ? t('posts.removeUpvote') || 'Remove upvote' : t('posts.upvote') || 'Upvote'}
         >
           <svg
             className={size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'}
@@ -290,7 +267,7 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
             ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             ${size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6'}
           `}
-          title={userHasDownvoted ? 'Remove downvote' : 'Downvote'}
+          title={userHasDownvoted ? t('posts.downvote') || 'Remove downvote' : t('posts.downvote') || 'Downvote'}
         >
           <svg
             className={size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'}
@@ -322,7 +299,7 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
           ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${sizeClasses[size]}
         `}
-        title={userHasUpvoted ? 'Remove upvote' : 'Upvote'}
+        title={userHasUpvoted ? t('posts.removeUpvote') || 'Remove upvote' : t('posts.upvote') || 'Upvote'}
       >
         <svg
           className={iconSizeClasses[size]}
@@ -355,7 +332,7 @@ const VoteButtons: React.FC<VoteButtonsProps> = ({
           ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${sizeClasses[size]}
         `}
-        title={userHasDownvoted ? 'Remove downvote' : 'Downvote'}
+        title={userHasDownvoted ? t('posts.downvote') || 'Remove downvote' : t('posts.downvote') || 'Downvote'}
       >
         <svg
           className={iconSizeClasses[size]}

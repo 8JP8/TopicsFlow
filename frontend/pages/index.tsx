@@ -373,6 +373,16 @@ export default function Home() {
 
       const event = new CustomEvent('openPost', { detail: { postId } });
       setTimeout(() => window.dispatchEvent(event), 100);
+    } else if (router.query.topicId) {
+      const topicId = router.query.topicId as string;
+      // Remove query param
+      router.replace('/', undefined, { shallow: true });
+
+      // Find and select the topic
+      const topic = topics.find(t => t.id === topicId);
+      if (topic) {
+        handleTopicSelect(topic);
+      }
     }
   }, [router.isReady, router.query, topics]);
 
