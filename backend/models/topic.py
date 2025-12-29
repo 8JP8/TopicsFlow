@@ -59,7 +59,7 @@ class Topic:
         
         return topic_id
 
-    @cache_result(ttl=300, key_prefix='topic')
+    @cache_result(ttl=300, key_prefix='topic', should_jsonify=False)
     def get_topic_by_id(self, topic_id: str) -> Optional[Dict[str, Any]]:
         """Get topic by ID with owner and moderator details."""
         topic = self.collection.find_one({'_id': ObjectId(topic_id)})
@@ -592,7 +592,7 @@ class Topic:
             {'$set': {'last_activity': datetime.utcnow()}}
         )
 
-    @cache_result(ttl=300, key_prefix='topic')
+    @cache_result(ttl=300, key_prefix='topic', should_jsonify=False)
     def get_user_topics(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all topics where user is a member."""
         topics = list(self.collection.find({'members': ObjectId(user_id)})

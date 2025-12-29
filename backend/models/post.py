@@ -81,7 +81,7 @@ class Post:
 
         return post_id
 
-    @cache_result(ttl=300, key_prefix='post')
+    @cache_result(ttl=300, key_prefix='post', should_jsonify=False)
     def get_post_by_id(self, post_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific post by ID."""
         post = self.collection.find_one({'_id': ObjectId(post_id)})
@@ -163,7 +163,7 @@ class Post:
 
         return post
 
-    @cache_result(ttl=300, key_prefix='post')
+    @cache_result(ttl=300, key_prefix='post', should_jsonify=False)
     def get_posts_by_topic(self, topic_id: str, sort_by: str = 'new',
                           limit: int = 50, offset: int = 0,
                           user_id: Optional[str] = None) -> List[Dict[str, Any]]:

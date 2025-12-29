@@ -48,7 +48,7 @@ def _generate_cache_key(key_prefix: str, func_name: str, args: tuple, kwargs: di
     return f"{key_prefix}:{func_name}:{key_hash}"
 
 
-def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[Callable] = None):
+def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[Callable] = None, should_jsonify: bool = True):
     """
     Decorator to cache function results.
     
@@ -57,9 +57,11 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
         key_prefix: Prefix for cache key (e.g., 'user', 'post')
         key_func: Optional custom function to generate cache key.
                   Should accept (func_name, args, kwargs) and return str.
+        should_jsonify: If True (default), wraps dict/list results in jsonify() for Routes.
+                       If False, returns raw data (use this for Model methods).
     
     Usage:
-        @cache_result(ttl=3600, key_prefix='user')
+        @cache_result(ttl=3600, key_prefix='user', should_jsonify=False)
         def get_user_by_id(user_id: str):
             ...
     """
@@ -86,8 +88,8 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
             cached_value = cache.get(cache_key)
             if cached_value is not None:
                 logger.debug(f"Cache hit: {cache_key}")
-                # If cached value is dict/list, re-wrap in jsonify for consistent Response object
-                if isinstance(cached_value, (dict, list)):
+                # If cached value is dict/list, re-wrap in jsonify for consistent Response object ONLY if requested
+                if should_jsonify and isinstance(cached_value, (dict, list)):
                     from flask import jsonify
                     return jsonify(cached_value)
                 return cached_value

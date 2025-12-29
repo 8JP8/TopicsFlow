@@ -312,7 +312,7 @@ class User:
 
         return new_secret
 
-    @cache_result(ttl=3600, key_prefix='user')
+    @cache_result(ttl=3600, key_prefix='user', should_jsonify=False)
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
@@ -335,7 +335,7 @@ class User:
             user['id'] = user['_id']
         return user
 
-    @cache_result(ttl=3600, key_prefix='user')
+    @cache_result(ttl=3600, key_prefix='user', should_jsonify=False)
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username."""
         user = self.collection.find_one({'username': username})
@@ -368,7 +368,7 @@ class User:
                     user[key] = convert_objectids(value)
         return user
 
-    @cache_result(ttl=3600, key_prefix='user')
+    @cache_result(ttl=3600, key_prefix='user', should_jsonify=False)
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get user by email."""
         user = self.collection.find_one({'email': email})
