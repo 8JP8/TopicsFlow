@@ -1,8 +1,9 @@
-# TopicsFlow - Reddit-Style Discussion Platform
+# TopicsFlow App
 
-A comprehensive Reddit-style discussion platform with authenticator-based authentication, real-time messaging, theme management, posts and comments system, chat rooms, moderation system, anonymous mode, and PWA capabilities.
+> **📚 Comprehensive Documentation**: Check out the **[Project Wiki](wiki/Home.md)** for detailed guides on Architecture, API, Deployment, and more.
 
-## Features
+## Overview
+TopicsFlow is a comprehensive chat and topic discussion platform designed to facilitate focused conversations and community interactions.
 
 ### 🔐 Security & Authentication
 - **Passwordless Authentication**: Users log in via email/username + 6-digit TOTP code.

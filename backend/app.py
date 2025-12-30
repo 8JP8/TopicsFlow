@@ -538,26 +538,49 @@ def create_db_indexes(app):
     """Create database indexes for better performance."""
     try:
         db = app.db
+        
+        # Helper to safely create unique index
+        def create_unique_index(collection, key, **kwargs):
+            try:
+                collection.create_index(key, unique=True, **kwargs)
+            except Exception as e:
+                # Check for Cosmos DB "unique index cannot be modified" error (Code 13)
+                if hasattr(e, 'code') and e.code == 13:
+                    logging.getLogger(__name__).warning(
+                        f"Skipped unique index on {collection.name}.{key} due to Cosmos DB restriction. "
+                        "Unique constraint may not be enforced if collection was created without it. "
+                        "To fix: Delete collection '${collection.name}' in Azure Portal and restart."
+                    )
+                else:
+                    logging.getLogger(__name__).warning(f"Failed to create unique index on {collection.name}.{key}: {e}")
 
         # Users collection indexes
-        db.users.create_index("username", unique=True)
-        db.users.create_index("email", unique=True)
-        db.users.create_index("ip_addresses")
-        db.users.create_index("blocked_users")
-        db.users.create_index("is_admin")
-        db.users.create_index("is_banned")
-        db.users.create_index("banned_at")
-        db.users.create_index("created_at")
+        create_unique_index(db.users, "username")
+        create_unique_index(db.users, "email")
+        
+        # Non-unique indexes usually safe to add
+        try:
+            db.users.create_index("ip_addresses")
+            db.users.create_index("blocked_users")
+            db.users.create_index("is_admin")
+            db.users.create_index("is_banned")
+            db.users.create_index("banned_at")
+            db.users.create_index("created_at")
 
-        # Topics collection indexes (main containers)
-        db.topics.create_index("created_at")
-        db.topics.create_index([("member_count", -1)])
-        db.topics.create_index([("last_activity", -1)])
-        db.topics.create_index([("post_count", -1)])  # Number of posts
-        db.topics.create_index([("conversation_count", -1)])  # Number of conversations
-        db.topics.create_index("tags")
-        db.topics.create_index("owner_id")
-        db.topics.create_index("members")
+            # Topics collection indexes (main containers)
+            db.topics.create_index("created_at")
+            db.topics.create_index([("member_count", -1)])
+            db.topics.create_index([("last_activity", -1)])
+            db.topics.create_index([("post_count", -1)])  # Number of posts
+            db.topics.create_index([("conversation_count", -1)])  # Number of conversations
+            db.topics.create_index("tags")
+            db.topics.create_index("owner_id")
+            db.topics.create_index("members")
+        except Exception as e:
+             logging.getLogger(__name__).warning(f"Failed to create some standard indexes: {e}")
+             
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Critical error in create_db_indexes: {e}")
         db.topics.create_index("banned_users")
 
         # Posts collection indexes (within Topics)
