@@ -239,7 +239,7 @@ You can use these example templates:
 | `API_BASE_URL` | Used to build attachment URLs | Recommended |
 | `FILE_ENCRYPTION_KEY` | Optional encryption key for attachment URLs (defaults to `SECRET_KEY`) | Optional |
 
-**Backend ImgBB (optional for large chatroom images)**
+**Backend ImgBB (recomended)**
 
 | Variable | Description | Required |
 |----------|-------------|----------|
