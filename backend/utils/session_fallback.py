@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 
 # Try to import Flask-Session interfaces with fallback
 try:
-    from flask_session.sessions import RedisSessionInterface, FileSystemSessionInterface
+    # Flask-Session 0.4.0+ exposes interfaces directly
+    from flask_session import RedisSessionInterface, FileSystemSessionInterface
 except ImportError:
     try:
-        # Alternative import path for some Flask-Session versions
-        from flask_session import RedisSessionInterface, FileSystemSessionInterface
+        # Older versions might have them in .sessions
+        from flask_session.sessions import RedisSessionInterface, FileSystemSessionInterface
     except ImportError:
         logger.error("Flask-Session interfaces not available. Fallback session interface disabled.")
         RedisSessionInterface = None
