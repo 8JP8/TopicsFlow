@@ -1019,7 +1019,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onOpenNotificat
           />
 
           {/* Dropdown */}
-          <div className="fixed top-16 right-0 w-full sm:w-80 md:absolute md:top-full md:right-0 md:mt-2 theme-bg-secondary border theme-border rounded-lg shadow-lg z-20">
+          <div className="fixed top-16 right-0 w-full sm:w-80 md:absolute md:top-full md:right-0 md:mt-2 theme-bg-secondary border theme-border rounded-lg shadow-lg z-50">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b theme-border">
               <h3 className="text-sm font-medium theme-text-primary">{t('notifications.title')}</h3>

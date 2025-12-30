@@ -537,26 +537,31 @@ def create_app(config_name=None):
 def create_db_indexes(app):
     """Create database indexes for better performance."""
     try:
+        from pymongo import IndexModel, ASCENDING, DESCENDING
         db = app.db
         
-        # Helper to safely create unique index
-        def create_unique_index(collection, key, **kwargs):
+        # Helper to safely create unique indexes in batch
+        def create_unique_indexes_batch(collection, keys):
+            """
+            Create multiple unique indexes at once.
+            Required for Cosmos DB which mandates unique indexes at collection creation.
+            """
             try:
-                collection.create_index(key, unique=True, **kwargs)
+                indexes = [IndexModel([(key, ASCENDING)], unique=True) for key in keys]
+                collection.create_indexes(indexes)
             except Exception as e:
                 # Check for Cosmos DB "unique index cannot be modified" error (Code 13)
                 if hasattr(e, 'code') and e.code == 13:
                     logging.getLogger(__name__).warning(
-                        f"Skipped unique index on {collection.name}.{key} due to Cosmos DB restriction. "
+                        f"Skipped unique indexes on {collection.name} ({keys}) due to Cosmos DB restriction. "
                         "Unique constraint may not be enforced if collection was created without it. "
-                        "To fix: Delete collection '${collection.name}' in Azure Portal and restart."
+                        "To fix: Delete collection '{collection.name}' in Azure Portal and restart."
                     )
                 else:
-                    logging.getLogger(__name__).warning(f"Failed to create unique index on {collection.name}.{key}: {e}")
+                    logging.getLogger(__name__).warning(f"Failed to create unique indexes on {collection.name}: {e}")
 
-        # Users collection indexes
-        create_unique_index(db.users, "username")
-        create_unique_index(db.users, "email")
+        # Users collection indexes - Batch creation for unique constraints
+        create_unique_indexes_batch(db.users, ["username", "email"])
         
         # Non-unique indexes usually safe to add
         try:
