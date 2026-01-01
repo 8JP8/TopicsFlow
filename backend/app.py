@@ -586,6 +586,10 @@ def create_db_indexes(app):
              
     except Exception as e:
         logging.getLogger(__name__).error(f"Critical error in create_db_indexes: {e}")
+
+    # Ensure this runs even if previous blocks had partial failures (but not critical ones that skipped the whole block)
+    # We put this in a separate try-except block to differentiate errors
+    try:
         db.topics.create_index("banned_users")
 
         # Posts collection indexes (within Topics)
@@ -763,8 +767,12 @@ def create_db_indexes(app):
         logger.info("Database indexes created successfully")
 
     except Exception as e:
-        logger.error(f"Failed to create database indexes: {e}")
-        raise
+        # Prevent crash on Cosmos DB unique index errors (Code 13) or other non-critical index failures
+        # The application handles uniqueness checks at the model level (e.g. backend/models/user.py),
+        # so missing DB unique constraints are acceptable for stability.
+        logger.warning(f"Non-critical index creation failed: {e}. Continuing startup...")
+        # Do not raise - allow server to start
+        pass
 
 
 # Create global app instance for Gunicorn/production
