@@ -88,11 +88,24 @@ def cache_result(ttl: int = 300, key_prefix: str = 'cache', key_func: Optional[C
             cached_value = cache.get(cache_key)
             if cached_value is not None:
                 print(f"[CACHE DEBUG] HIT {cache_key}")
-                # If cached value is dict/list, re-wrap in jsonify for consistent Response object ONLY if requested
-                if should_jsonify and isinstance(cached_value, (dict, list)):
-                    from flask import jsonify
-                    return jsonify(cached_value)
-                return cached_value
+                
+                # Safeguard: If we expect raw data (should_jsonify=False) but got a Response object,
+                # treat it as a cache MISS to prevent "Response object has no attribute get" errors.
+                # This handles cases where cache contains old data stored with should_jsonify=True.
+                if not should_jsonify and hasattr(cached_value, 'status_code'):
+                    print(f"[CACHE DEBUG] INVALID HIT: Cached value is Response but raw data expected. Treating as MISS.")
+                    try:
+                        cache.delete(cache_key)
+                    except:
+                        pass
+                    cached_value = None
+                
+                if cached_value is not None:
+                    # If cached value is dict/list, re-wrap in jsonify for consistent Response object ONLY if requested
+                    if should_jsonify and isinstance(cached_value, (dict, list)):
+                        from flask import jsonify
+                        return jsonify(cached_value)
+                    return cached_value
             
             # Cache miss, execute function
             print(f"[CACHE DEBUG] MISS {cache_key}")

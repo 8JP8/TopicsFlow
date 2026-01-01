@@ -55,7 +55,7 @@ class ChatRoom:
 
         return conversation_id
 
-    @cache_result(ttl=300, key_prefix='chat_room')
+    @cache_result(ttl=300, key_prefix='chat_room', should_jsonify=False)
     def get_chat_room_by_id(self, room_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific chat room by ID."""
         room = self.collection.find_one({'_id': ObjectId(room_id)})

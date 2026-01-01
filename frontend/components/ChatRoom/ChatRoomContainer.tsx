@@ -751,8 +751,8 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
     return Promise.all(uploadPromises);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
 
     if (!messageInput.trim() && !selectedGifUrl && selectedFiles.length === 0 && !audioBlob) {
       return;
@@ -1002,7 +1002,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                 </button>
 
                 {/* VOIP Button */}
-                {!room.is_public && (
+                {!room.is_public && (roomData?.voip_enabled ?? room.voip_enabled) && (
                   <div className="flex-1 sm:flex-none">
                     <VoipButton
                       roomId={room.id}
