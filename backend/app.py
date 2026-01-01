@@ -545,20 +545,71 @@ def create_db_indexes(app):
             """
             Create multiple unique indexes at once.
             Required for Cosmos DB which mandates unique indexes at collection creation.
+            If unique creation fails due to Cosmos DB restriction, fallback to non-unique indexes.
             """
             try:
                 indexes = [IndexModel([(key, ASCENDING)], unique=True) for key in keys]
                 collection.create_indexes(indexes)
             except Exception as e:
                 # Check for Cosmos DB "unique index cannot be modified" error (Code 13)
-                if hasattr(e, 'code') and e.code == 13:
+                if (hasattr(e, 'code') and e.code == 13) or "The unique index cannot be modified" in str(e):
                     logging.getLogger(__name__).warning(
-                        f"Skipped unique indexes on {collection.name} ({keys}) due to Cosmos DB restriction. "
-                        "Unique constraint may not be enforced if collection was created without it. "
-                        "To fix: Delete collection '{collection.name}' in Azure Portal and restart."
+                        f"Cosmos DB restriction: Cannot create unique indexes on {collection.name} ({keys}) because collection already exists. "
+                        "Falling back to non-unique indexes to ensure performance."
                     )
+                    try:
+                        # Fallback: Create regular indexes so queries are still fast
+                        indexes = [IndexModel([(key, ASCENDING)], unique=False) for key in keys]
+                        collection.create_indexes(indexes)
+                        logging.getLogger(__name__).info(f"Successfully created fallback non-unique indexes on {collection.name}")
+                    except Exception as fallback_error:
+                        logging.getLogger(__name__).warning(f"Failed to create fallback indexes on {collection.name}: {fallback_error}")
                 else:
                     logging.getLogger(__name__).warning(f"Failed to create unique indexes on {collection.name}: {e}")
+
+        # Helper to safely create a single unique index with robust fallback
+        def create_index_with_fallback(collection, keys, unique=True, **kwargs):
+            """
+            Safely create an index.
+            1. Try to create with desired options (e.g. unique=True).
+            2. If 'already exists with different options', drop and retry.
+            3. If Cosmos DB error (Code 13), fallback to unique=False.
+            """
+            try:
+                collection.create_index(keys, unique=unique, **kwargs)
+            except Exception as e:
+                error_msg = str(e)
+
+                # Case 1: Index exists with different options -> Drop and Retry
+                if "already exists with different options" in error_msg:
+                    try:
+                        logging.getLogger(__name__).warning(f"Index conflict on {collection.name}. Dropping and recreating...")
+                        # PyMongo allows dropping by key specification
+                        collection.drop_index(keys)
+                        # Retry creation (recursive call to handle potential Code 13 on retry)
+                        create_index_with_fallback(collection, keys, unique=unique, **kwargs)
+                        return
+                    except Exception as drop_error:
+                        logging.getLogger(__name__).warning(f"Failed to drop/recreate index on {collection.name}: {drop_error}")
+                        # If drop failed, we can't do much, but maybe we can try fallback if it was a uniqueness issue?
+                        # Unlikely if drop failed.
+                        return
+
+                # Case 2: Cosmos DB "unique index cannot be modified" (Code 13)
+                if unique and ((hasattr(e, 'code') and e.code == 13) or "The unique index cannot be modified" in error_msg):
+                    logging.getLogger(__name__).warning(
+                        f"Cosmos DB restriction: Cannot create unique index on {collection.name}. "
+                        "Falling back to non-unique index."
+                    )
+                    try:
+                        collection.create_index(keys, unique=False, **kwargs)
+                        logging.getLogger(__name__).info(f"Successfully created fallback non-unique index on {collection.name}")
+                    except Exception as fallback_error:
+                        logging.getLogger(__name__).warning(f"Failed to create fallback index on {collection.name}: {fallback_error}")
+                    return
+
+                # Other errors
+                logging.getLogger(__name__).warning(f"Failed to create index on {collection.name}: {e}")
 
         # Users collection indexes - Batch creation for unique constraints
         create_unique_indexes_batch(db.users, ["username", "email"])
@@ -658,80 +709,49 @@ def create_db_indexes(app):
         db.tickets.create_index("reviewed_by")
 
         # Conversation settings collection indexes (Upgrade to partial indexes)
-        try:
-            db.conversation_settings.create_index(
-                [("user_id", 1), ("other_user_id", 1)], 
-                unique=True, 
-                partialFilterExpression={"other_user_id": {"$exists": True}}
-            )
-        except Exception as e:
-            if "already exists with different options" in str(e):
-                logger.warning("Index conflict detected. Dropping old index: user_id_1_other_user_id_1")
-                db.conversation_settings.drop_index("user_id_1_other_user_id_1")
-                db.conversation_settings.create_index(
-                    [("user_id", 1), ("other_user_id", 1)], 
-                    unique=True, 
-                    partialFilterExpression={"other_user_id": {"$exists": True}}
-                )
-            else:
-                logger.warning(f"Index creation failed for user_id_1_other_user_id_1: {e}")
-
-        try:
-            db.conversation_settings.create_index(
-                [("user_id", 1), ("topic_id", 1), ("type", 1)], 
-                unique=True, 
-                partialFilterExpression={"topic_id": {"$exists": True}}
-            )
-        except Exception as e:
-            if "already exists with different options" in str(e):
-                logger.warning("Index conflict detected. Dropping old index: user_id_1_topic_id_1_type_1")
-                db.conversation_settings.drop_index("user_id_1_topic_id_1_type_1")
-                db.conversation_settings.create_index(
-                    [("user_id", 1), ("topic_id", 1), ("type", 1)], 
-                    unique=True, 
-                    partialFilterExpression={"topic_id": {"$exists": True}}
-                )
-            else:
-                logger.warning(f"Index creation failed for user_id_1_topic_id_1_type_1: {e}")
-
-        try:
-            db.conversation_settings.create_index(
-                [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
-                unique=True, 
-                partialFilterExpression={"chat_room_id": {"$exists": True}}
-            )
-        except Exception as e:
-            if "already exists with different options" in str(e):
-                logger.warning("Index conflict detected. Dropping old index: user_id_1_chat_room_id_1_type_1")
-                db.conversation_settings.drop_index("user_id_1_chat_room_id_1_type_1")
-                db.conversation_settings.create_index(
-                    [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
-                    unique=True, 
-                    partialFilterExpression={"chat_room_id": {"$exists": True}}
-                )
-            else:
-                logger.warning(f"Index creation failed for user_id_1_chat_room_id_1_type_1: {e}")
+        create_index_with_fallback(
+            db.conversation_settings,
+            [("user_id", 1), ("other_user_id", 1)],
+            unique=True,
+            partialFilterExpression={"other_user_id": {"$exists": True}}
+        )
+        create_index_with_fallback(
+            db.conversation_settings,
+            [("user_id", 1), ("topic_id", 1), ("type", 1)],
+            unique=True,
+            partialFilterExpression={"topic_id": {"$exists": True}}
+        )
+        create_index_with_fallback(
+            db.conversation_settings,
+            [("user_id", 1), ("chat_room_id", 1), ("type", 1)],
+            unique=True,
+            partialFilterExpression={"chat_room_id": {"$exists": True}}
+        )
         db.conversation_settings.create_index("type")
 
         # Notification settings collection indexes
-        db.notification_settings.create_index(
+        create_index_with_fallback(
+            db.notification_settings,
             [("user_id", 1), ("post_id", 1), ("type", 1)], 
-            unique=True, 
+            unique=True,
             partialFilterExpression={"type": "post"}
         )
-        db.notification_settings.create_index(
+        create_index_with_fallback(
+            db.notification_settings,
             [("user_id", 1), ("chat_room_id", 1), ("type", 1)], 
-            unique=True, 
+            unique=True,
             partialFilterExpression={"type": "chat_room"}
         )
-        db.notification_settings.create_index(
+        create_index_with_fallback(
+            db.notification_settings,
             [("user_id", 1), ("topic_id", 1), ("type", 1)], 
-            unique=True, 
+            unique=True,
             partialFilterExpression={"type": "topic"}
         )
-        db.notification_settings.create_index(
+        create_index_with_fallback(
+            db.notification_settings,
             [("user_id", 1), ("other_user_id", 1), ("type", 1)], 
-            unique=True, 
+            unique=True,
             partialFilterExpression={"type": "private_message"}
         )
         db.notification_settings.create_index("type")
@@ -742,7 +762,11 @@ def create_db_indexes(app):
         db.private_messages.create_index("created_at")
 
         # Anonymous identities collection indexes
-        db.anonymous_identities.create_index([("user_id", 1), ("topic_id", 1)], unique=True)
+        create_index_with_fallback(
+            db.anonymous_identities,
+            [("user_id", 1), ("topic_id", 1)],
+            unique=True
+        )
 
         # Friends collection indexes (for Azure Cosmos DB compatibility)
         try:
@@ -761,7 +785,7 @@ def create_db_indexes(app):
             logger.warning(f"Failed to create some comments indexes (may already exist): {e}")
 
         # Short Links collection
-        db.short_links.create_index("code", unique=True)
+        create_index_with_fallback(db.short_links, "code", unique=True)
         db.short_links.create_index("created_at")
 
         logger.info("Database indexes created successfully")
