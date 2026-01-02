@@ -46,11 +46,26 @@ class PasskeyService:
             rp_name: Relying Party name (your app name)
         """
         # Use environment variable or default
-        self.rp_id = rp_id or os.getenv('PASSKEY_RP_ID', 'localhost')
-        self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
-
         # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.me')
         self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+        # Determine RP ID
+        if rp_id:
+            self.rp_id = rp_id
+        elif os.getenv('PASSKEY_RP_ID'):
+            self.rp_id = os.getenv('PASSKEY_RP_ID')
+        else:
+            # Derive from FRONTEND_URL if not explicitly set
+            # This handles 'https://topicsflow.me' -> 'topicsflow.me'
+            from urllib.parse import urlparse
+            try:
+                parsed_url = urlparse(self.origin)
+                self.rp_id = parsed_url.hostname or 'localhost'
+            except Exception as e:
+                logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
+                self.rp_id = 'localhost'
+
+        self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
 
         logger.info(f"PasskeyService initialized: RP ID={self.rp_id}, Origin={self.origin}")
 

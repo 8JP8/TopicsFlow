@@ -59,6 +59,7 @@ class Config:
     # TOTP/Auth Config
     TOTP_ISSUER = os.getenv('TOTP_ISSUER', 'TopicsFlow')
     TOTP_VALIDITY_WINDOW = int(os.getenv('TOTP_VALIDITY_WINDOW', '1'))
+    PASSKEY_RP_ID = os.getenv('PASSKEY_RP_ID')  # Optional: Will auto-derive from FRONTEND_URL if not set
 
     # External Services
     SMS_SERVICE_API_KEY = os.getenv('SMS_SERVICE_API_KEY')
