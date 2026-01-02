@@ -186,7 +186,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
             </span>
           ) : (
             <div className="flex items-center">
-              <span className="text-sm font-medium theme-text-primary truncate hidden sm:block">
+              <span className="text-sm font-medium theme-text-primary truncate hidden sm:block mr-1">
                 {displayName}
               </span>
               <svg

@@ -187,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
       suppressHydrationWarning
     >
       {/* Header */}
-      <header className={`h-16 flex items-center justify-between px-3 md:px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'border-b theme-border'}`}>
+      <header className={`h-16 flex items-center justify-between px-3 md:px-6 ${transparentHeader ? 'absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-cyan-500/30' : 'relative z-50 border-b theme-border'}`}>
         {/* Logo Section */}
         <div className="flex items-center space-x-3 z-50">
           <Link

@@ -341,11 +341,19 @@ const LoginPage: React.FC = () => {
                       type="text"
                       id="identifier"
                       value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
+                      onChange={(e) => {
+                        setIdentifier(e.target.value);
+                        if (showCodeInput) {
+                          setShowCodeInput(false);
+                          setTotpCode('');
+                          setUseBackupCode(false);
+                          setBackupCode('');
+                        }
+                      }}
                       className="w-full px-4 py-3 rounded-lg theme-bg-primary theme-text-primary border-2 theme-border
                     focus:outline-none focus:border-blue-500 transition-colors"
                       placeholder={t('login.usernameOrEmail')}
-                      disabled={loading || showCodeInput}
+                      disabled={loading}
                       autoFocus={!showCodeInput}
                     />
                   </div>
@@ -370,16 +378,7 @@ const LoginPage: React.FC = () => {
                         >
                           {t('login.useBackupCode')}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCodeInput(false);
-                            setTotpCode('');
-                          }}
-                          className="w-full text-sm theme-text-secondary hover:theme-text-primary"
-                        >
-                          {t('common.change')} {t('login.usernameOrEmail')}
-                        </button>
+
                       </div>
                     </div>
                   )}
@@ -421,18 +420,7 @@ const LoginPage: React.FC = () => {
                         >
                           {t('login.useTOTPInstead')}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCodeInput(false);
-                            setUseBackupCode(false);
-                            setTotpCode('');
-                            setBackupCode('');
-                          }}
-                          className="w-full text-sm theme-text-secondary hover:theme-text-primary"
-                        >
-                          {t('common.change')} {t('login.usernameOrEmail')}
-                        </button>
+
                       </div>
                     </div>
                   )}
