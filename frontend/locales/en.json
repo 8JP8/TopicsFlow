@@ -1899,6 +1899,7 @@
           "title": "Community Topics",
           "shortDesc": "Explore communities",
           "longDesc": "Search topics, filter by tags, and find new communities to join.",
+          "color": "cyan",
           "subtitle": "Discovery",
           "bullet1": "Search & Filters",
           "bullet2": "Topic Lists"
@@ -1907,6 +1908,7 @@
           "title": "Admin Dashboard",
           "shortDesc": "Powerful tools",
           "longDesc": "Manage reports, ban users, and handle support tickets efficiently.",
+          "color": "red",
           "subtitle": "Administration",
           "bullet1": "Report Management",
           "bullet2": "User Bans"
@@ -1915,6 +1917,7 @@
           "title": "User Identity",
           "shortDesc": "Express yourself",
           "longDesc": "Customize your avatar, banner, country, and view your reputation stats.",
+          "color": "indigo",
           "subtitle": "Personalization",
           "bullet1": "Custom Avatar/Banner",
           "bullet2": "Reputation Stats"

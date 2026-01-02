@@ -1818,6 +1818,7 @@
           "title": "Tópicos da Comunidade",
           "shortDesc": "Explore comunidades",
           "longDesc": "Pesquise tópicos, filtre por tags e encontre novas comunidades para participar.",
+          "color": "cyan",
           "subtitle": "Descoberta",
           "bullet1": "Pesquisa e Filtros",
           "bullet2": "Listas de Tópicos"
@@ -1826,6 +1827,7 @@
           "title": "Painel de Admin",
           "shortDesc": "Ferramentas poderosas",
           "longDesc": "Gerencie denúncias, banir utilizadores e resolva tickets de suporte eficientemente.",
+          "color": "red",
           "subtitle": "Administração",
           "bullet1": "Gestão de Denúncias",
           "bullet2": "Banimentos de Usuário"
@@ -1834,6 +1836,7 @@
           "title": "Identidade do Utilizador",
           "shortDesc": "Expresse-se",
           "longDesc": "Personalize o seu avatar, banner, país e visualize as suas estatísticas de reputação.",
+          "color": "indigo",
           "subtitle": "Personalização",
           "bullet1": "Avatar/Banner Personalizado",
           "bullet2": "Estatísticas de Reputação"
