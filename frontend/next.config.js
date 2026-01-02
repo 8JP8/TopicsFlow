@@ -102,7 +102,7 @@ if (!isExport) {
     // In local development, frontend connects directly to localhost:5000 (no proxy needed)
     // Only enable proxy for Azure production where we need to redirect /api/* to backend
     const isProduction = process.env.NODE_ENV === 'production';
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_IP;
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
 
     if (isProduction && backendUrl) {
       // Azure production: Proxy /api/* to backend URL
