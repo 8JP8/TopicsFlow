@@ -78,12 +78,24 @@ class ApiClient {
         // Don't show generic errors if we have specific error messages
         const hasSpecificError = error.response?.data?.errors || error.response?.data?.message || error.response?.data?.error;
 
+        // Extended Debug Logging
+        if (typeof window !== 'undefined') {
+          console.error('[ApiClient] Request Failed:', {
+            url: error.config?.url,
+            method: error.config?.method,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data
+          });
+        }
+
         if (error.response?.status === 401) {
           // Unauthorized - redirect to login only if not already on auth pages
           if (typeof window !== 'undefined') {
             const path = window.location.pathname;
             if (path !== '/login' && path !== '/register' && path !== '/about') {
-              window.location.href = '/login';
+              // Optional: Add logic to not redirect if it's just a background poll failing
+              // window.location.href = '/login';
             }
           }
           // Don't show toast for 401 - let the calling code handle it

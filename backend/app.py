@@ -411,11 +411,7 @@ def create_app(config_name=None):
             if path.startswith('.well-known/'):
                 from flask import abort
                 abort(404)
-            
-            # Skip icons routes if they don't exist
-            if path.startswith('icons/'):
-                from flask import abort
-                abort(404)
+
 
             # Serve static files
             if path != "" and os.path.exists(os.path.join(static_folder, path)):

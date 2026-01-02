@@ -106,6 +106,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, className = '', filename
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
         setContextMenu({ x: e.clientX, y: e.clientY });
     };
 

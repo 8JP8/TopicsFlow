@@ -382,7 +382,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   };
 
   // Message context menu state
-  const [messageContextMenu, setMessageContextMenu] = useState<{ messageId: string, userId?: string, username?: string, x: number, y: number } | null>(null);
+  const [messageContextMenu, setMessageContextMenu] = useState<{ messageId: string, userId?: string, username?: string, x: number, y: number, content?: string } | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<{ messageId: string, isOwnerDeletion: boolean } | null>(null);
   const [showReportUserDialog, setShowReportUserDialog] = useState(false);
@@ -1186,6 +1186,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                             username: message.display_name,
                             x: e.clientX,
                             y: e.clientY,
+                            content: message.content,
                           });
                         }}
                       >
@@ -1662,6 +1663,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             username={messageContextMenu.username}
             x={messageContextMenu.x}
             y={messageContextMenu.y}
+            content={messageContextMenu.content}
             onClose={() => setMessageContextMenu(null)}
             onHide={() => {
               setHiddenMessageIds(prev => [...prev, messageContextMenu.messageId]);

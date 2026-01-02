@@ -23,7 +23,7 @@ import VideoPlayer from '@/components/UI/VideoPlayer';
 import toast from 'react-hot-toast';
 import GroupChatCreateModal from '@/components/Chat/GroupChatCreateModal';
 import { VoipButton } from '@/components/Voip';
-import { Mic, Square, Trash2, Send, Image, Paperclip, Users, Plus, Volume2, VolumeX } from 'lucide-react';
+import { Mic, Square, Trash2, Send, Image, Paperclip, Users, Plus, Volume2, VolumeX, Copy } from 'lucide-react';
 import AudioPlayer from '@/components/UI/AudioPlayer';
 
 interface Conversation {
@@ -2491,6 +2491,23 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
           y={messageContextMenu.y}
           onClose={() => setMessageContextMenu(null)}
           items={[
+            {
+              label: t('privateMessages.copyText') || 'Copy Text',
+              icon: <Copy className="w-4 h-4" />,
+              action: async () => {
+                const selection = window.getSelection()?.toString();
+                const textToCopy = selection || messageContextMenu.content;
+                if (textToCopy) {
+                  try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    toast.success(t('common.copied') || 'Copied to clipboard');
+                  } catch (err) {
+                    console.error('Failed to copy', err);
+                  }
+                }
+                setMessageContextMenu(null);
+              }
+            },
             ...(messageContextMenu.isFromMe ? [{
               label: t('privateMessages.unsendMessage') || 'Unsend Message',
               icon: (

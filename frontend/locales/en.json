@@ -504,7 +504,9 @@
     "settings": "Settings",
     "voipEnabled": "Calls enabled",
     "voipDisabled": "Calls disabled",
-    "recordAudio": "Record Audio"
+    "recordAudio": "Record Audio",
+    "unfollow": "Unfollow",
+    "follow": "Follow"
   },
   "gifPicker": {
     "searchPlaceholder": "Search GIFs...",

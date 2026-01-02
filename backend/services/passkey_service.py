@@ -48,37 +48,40 @@ class PasskeyService:
         self.db = db
 
         # Determine environment
-        # IS_AZURE is usually set in config.py or env, check here if env var
+        # IS_AZURE is usually set in config.py or env
         self.is_azure = os.getenv('IS_AZURE', 'False').lower() == 'true'
 
-        if not self.is_azure:
-            # Local Development Override
-            # Force localhost settings to prevent accidental production configuration usage
-            # This is critical for local testing if env vars like FRONTEND_URL are set to prod
-            self.rp_id = 'localhost'
-            self.origin = 'http://localhost:3000'
-            logger.info("Running in local mode: Forced Passkey RP_ID to localhost and Origin to http://localhost:3000")
+        # Determine Origin and RP ID
+        # Prioritize FRONTEND_URL or explicit RP_ID env vars
+        
+        # 1. Establish Origin
+        # Default to topicsflow.me in Azure if FRONTEND_URL is not set
+        default_origin = 'https://topicsflow.me' if self.is_azure else 'http://localhost:3000'
+        self.origin = os.getenv('FRONTEND_URL', default_origin)
+        
+        if not self.is_azure and not os.getenv('FRONTEND_URL'):
+             # If strictly local and no override, be explicit
+             self.origin = 'http://localhost:3000'
+             
+        # 2. Establish RP ID
+        if rp_id:
+            self.rp_id = rp_id
+        elif os.getenv('PASSKEY_RP_ID'):
+            self.rp_id = os.getenv('PASSKEY_RP_ID')
         else:
-            # Production / Azure Configuration
-            # Use environment variable or default
-            # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.me')
-            self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+            # Derive from FRONTEND_URL
+            from urllib.parse import urlparse
+            try:
+                # Remove protocol and port to get the hostname (RP ID)
+                # e.g. https://topicsflow.me -> topicsflow.me
+                # e.g. http://localhost:3000 -> localhost
+                parsed_url = urlparse(self.origin)
+                self.rp_id = parsed_url.hostname or 'localhost'
+            except Exception as e:
+                logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
+                self.rp_id = 'localhost'
 
-            # Determine RP ID
-            if rp_id:
-                self.rp_id = rp_id
-            elif os.getenv('PASSKEY_RP_ID'):
-                self.rp_id = os.getenv('PASSKEY_RP_ID')
-            else:
-                # Derive from FRONTEND_URL if not explicitly set
-                # This handles 'https://topicsflow.me' -> 'topicsflow.me'
-                from urllib.parse import urlparse
-                try:
-                    parsed_url = urlparse(self.origin)
-                    self.rp_id = parsed_url.hostname or 'localhost'
-                except Exception as e:
-                    logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
-                    self.rp_id = 'localhost'
+        logger.info(f"PasskeyService Initialized: IS_AZURE={self.is_azure}, Origin={self.origin}, RP_ID={self.rp_id}")
 
         self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
 

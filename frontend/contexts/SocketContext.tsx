@@ -79,7 +79,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           if (backendUrl) {
             socketUrl = backendUrl;
           } else {
-            socketUrl = 'https://api.topicsflow.me';
+            socketUrl = 'https://topicsflow.me';
           }
         } else if (isLocalhost) {
           // Local Development: Prioritize localhost:5000

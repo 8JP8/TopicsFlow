@@ -506,7 +506,9 @@
     "voipDisabled": "Chamadas desativadas",
     "failedToLeave": "Falha ao sair da sala de chat",
     "audioMessage": "Mensagem de Áudio",
-    "recordAudio": "Gravar Áudio"
+    "recordAudio": "Gravar Áudio",
+    "unfollow": "Deixar de Seguir",
+    "follow": "Seguir"
   },
   "gifPicker": {
     "searchPlaceholder": "Pesquisar GIFs...",

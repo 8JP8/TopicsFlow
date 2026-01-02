@@ -54,8 +54,14 @@ const InvitationsButton: React.FC<InvitationsButtonProps> = ({ onClickOverride }
       }
 
       setInvitationCount(total);
-    } catch (error) {
-      console.error('Failed to fetch invitation count:', error);
+      setInvitationCount(total);
+    } catch (error: any) {
+      console.error('Failed to fetch invitation count details:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url,
+        data: error.response?.data
+      });
     }
   };
 
