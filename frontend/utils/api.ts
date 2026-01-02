@@ -8,11 +8,11 @@ class ApiClient {
   constructor() {
     // IMPORTANT:
     // In browser: 
-    // - Production (Azure): Use `api.topicsflow.me` directly for CORS compatibility
+    // - Production (Azure): Use `topicsflow.me` directly
     // - Local Development: Use `http://localhost:5000` directly (bypass Next.js proxy)
     // 
-    // On the server (SSR/scripts), use BACKEND_IP or NEXT_PUBLIC_API_URL for absolute calls.
-    const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
+    // On the server (SSR/scripts), use NEXT_PUBLIC_API_URL for absolute calls.
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
     let baseURL: string;
 
     if (typeof window !== 'undefined') {
@@ -21,21 +21,22 @@ class ApiClient {
         window.location.hostname === 'www.topicsflow.me' ||
         window.location.hostname.includes('azurestaticapps.net');
 
-      if (isProduction && backendUrl) {
-        // Production (Azure): Use provided backend URL
+      if (backendUrl) {
+        // Use provided backend URL
         baseURL = backendUrl;
       } else if (isProduction) {
-        // Production but no backend URL set: use relative paths (same domain)
+        // Production but no backend URL set: use topicsflow.me
         // This allows calls to go to /api/... on the same domain (topicsflow.me)
-        baseURL = '';
+        baseURL = 'https://topicsflow.me';
       } else {
-        // Local Development: Always use localhost:5000 directly (no proxy)
-        // This ensures direct connection to backend for better debugging
-        baseURL = backendUrl || 'http://localhost:5000';
+        // Local Development: Use provided URL or default to topicsflow.me if not set
+        // (to avoid accidental localhost usage when targeting prod)
+        // However, if needed for local dev without env var, users should set NEXT_PUBLIC_API_URL
+        baseURL = backendUrl || 'https://topicsflow.me';
       }
     } else {
       // Server-side: use environment variable
-      baseURL = backendUrl || 'http://localhost:5000';
+      baseURL = backendUrl || 'https://topicsflow.me';
     }
 
     this.client = axios.create({
@@ -527,7 +528,7 @@ export const clearCache = (pattern?: string) => {
 export const getApiBaseUrl = (): string => {
   if (typeof window === 'undefined') {
     // Server-side: use environment variable
-    return process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    return process.env.NEXT_PUBLIC_API_URL || 'https://topicsflow.me';
   }
 
   // Browser: Check if we're in production (Azure)
@@ -535,19 +536,16 @@ export const getApiBaseUrl = (): string => {
     window.location.hostname === 'www.topicsflow.me' ||
     window.location.hostname.includes('azurestaticapps.net');
 
-  const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL;
 
-  if (isProduction && backendUrl) {
-    // Production: Use backend URL directly
+  if (backendUrl) {
+    // Use backend URL directly
     return backendUrl;
   } else if (isProduction) {
-    // Production but no backend URL set: use current origin
-    if (typeof window !== 'undefined') {
-      return window.location.origin;
-    }
-    return '';
+    // Production but no backend URL set: use topicsflow.me
+    return 'https://topicsflow.me';
   } else {
-    // Local Development: Always use localhost:5000 directly (no proxy)
-    return backendUrl || 'http://localhost:5000';
+    // Local Development:
+    return backendUrl || 'https://topicsflow.me';
   }
 };
