@@ -74,7 +74,7 @@ class AuthService:
         self.db = db
         self.user_model = User(db)
         self.email_service = EmailService()
-        self.passkey_service = PasskeyService()
+        self.passkey_service = PasskeyService(self.db)
 
     def register_user(self, username: str, email: str, password: str,
                      phone: str = None, security_questions: list = None, lang: str = 'en') -> dict:

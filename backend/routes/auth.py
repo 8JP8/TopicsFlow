@@ -108,7 +108,8 @@ def verify_totp():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
-        totp_code = data.get('totp_code', '')
+        # Ensure totp_code is string and stripped
+        totp_code = str(data.get('totp_code', '')).strip()
         is_setup = data.get('is_setup', False)  # True for initial setup, False for general verification
 
         if not user_id or not validate_totp_code(totp_code):
@@ -125,6 +126,7 @@ def verify_totp():
                 user_id = current_user_result['user']['id']
             else:
                 # For passkey setup, allow user_id from request if provided
+                # but ensure it's valid format if necessary (service handles that)
                 pass
 
         # Use appropriate verification method
@@ -136,6 +138,8 @@ def verify_totp():
         if result['success']:
             return jsonify(result), 200
         else:
+            # Log the specific error for debugging
+            logger.warning(f"TOTP verification failed for user {user_id}: {result.get('errors')}")
             return jsonify(result), 400
 
     except Exception as e:

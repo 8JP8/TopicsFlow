@@ -37,7 +37,7 @@ def _b64url_decode(data: str) -> bytes:
 class PasskeyService:
     """Service for managing WebAuthn/Passkey authentication."""
 
-    def __init__(self, rp_id: str = None, rp_name: str = "TopicsFlow"):
+    def __init__(self, db, rp_id=None, rp_name=None):
         """
         Initialize passkey service.
 
@@ -45,25 +45,40 @@ class PasskeyService:
             rp_id: Relying Party ID (your domain, e.g., 'localhost' or 'topicsflow.me')
             rp_name: Relying Party name (your app name)
         """
-        # Use environment variable or default
-        # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.me')
-        self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        self.db = db
 
-        # Determine RP ID
-        if rp_id:
-            self.rp_id = rp_id
-        elif os.getenv('PASSKEY_RP_ID'):
-            self.rp_id = os.getenv('PASSKEY_RP_ID')
+        # Determine environment
+        # IS_AZURE is usually set in config.py or env, check here if env var
+        self.is_azure = os.getenv('IS_AZURE', 'False').lower() == 'true'
+
+        if not self.is_azure:
+            # Local Development Override
+            # Force localhost settings to prevent accidental production configuration usage
+            # This is critical for local testing if env vars like FRONTEND_URL are set to prod
+            self.rp_id = 'localhost'
+            self.origin = 'http://localhost:3000'
+            logger.info("Running in local mode: Forced Passkey RP_ID to localhost and Origin to http://localhost:3000")
         else:
-            # Derive from FRONTEND_URL if not explicitly set
-            # This handles 'https://topicsflow.me' -> 'topicsflow.me'
-            from urllib.parse import urlparse
-            try:
-                parsed_url = urlparse(self.origin)
-                self.rp_id = parsed_url.hostname or 'localhost'
-            except Exception as e:
-                logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
-                self.rp_id = 'localhost'
+            # Production / Azure Configuration
+            # Use environment variable or default
+            # Origin for WebAuthn (e.g., 'http://localhost:3000' or 'https://topicsflow.me')
+            self.origin = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+            # Determine RP ID
+            if rp_id:
+                self.rp_id = rp_id
+            elif os.getenv('PASSKEY_RP_ID'):
+                self.rp_id = os.getenv('PASSKEY_RP_ID')
+            else:
+                # Derive from FRONTEND_URL if not explicitly set
+                # This handles 'https://topicsflow.me' -> 'topicsflow.me'
+                from urllib.parse import urlparse
+                try:
+                    parsed_url = urlparse(self.origin)
+                    self.rp_id = parsed_url.hostname or 'localhost'
+                except Exception as e:
+                    logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
+                    self.rp_id = 'localhost'
 
         self.rp_name = rp_name or os.getenv('APP_NAME', 'TopicsFlow')
 

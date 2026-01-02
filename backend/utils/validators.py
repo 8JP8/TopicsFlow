@@ -79,6 +79,9 @@ def validate_totp_code(code: str) -> bool:
     if not code:
         return False
 
+    # Ensure code is a string
+    code = str(code).strip()
+
     # TOTP codes are 6 digits
     return bool(re.match(r'^\d{6}$', code))
 
@@ -87,6 +90,9 @@ def validate_backup_code(code: str) -> bool:
     """Validate backup code format."""
     if not code:
         return False
+
+    # Ensure code is a string
+    code = str(code).strip()
 
     # Backup codes are typically 8 digits
     return bool(re.match(r'^\d{8}$', code))

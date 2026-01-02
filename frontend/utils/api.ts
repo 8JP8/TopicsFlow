@@ -21,17 +21,22 @@ class ApiClient {
         window.location.hostname === 'www.topicsflow.me' ||
         window.location.hostname.includes('azurestaticapps.net');
 
-      if (backendUrl) {
-        // Use provided backend URL
-        baseURL = backendUrl;
-      } else if (isProduction) {
-        // Production but no backend URL set: use topicsflow.me
-        // This allows calls to go to /api/... on the same domain (topicsflow.me)
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if (isProduction) {
+        // Production: Always use topicsflow.me
         baseURL = 'https://topicsflow.me';
+      } else if (isLocalhost) {
+        // Local Development: Prioritize localhost:5000
+        // If provided backendUrl matches topicsflow.me, ignore it to prevent accidental prod usage
+        if (backendUrl === 'https://topicsflow.me') {
+          baseURL = 'http://localhost:5000';
+          console.warn('[ApiClient] NEXT_PUBLIC_API_URL points to production but running on localhost. Forcing connection to http://localhost:5000');
+        } else {
+          baseURL = backendUrl || 'http://localhost:5000';
+        }
       } else {
-        // Local Development: Use provided URL or default to topicsflow.me if not set
-        // (to avoid accidental localhost usage when targeting prod)
-        // However, if needed for local dev without env var, users should set NEXT_PUBLIC_API_URL
+        // Other environments (staging, etc): Use provided URL or fallback
         baseURL = backendUrl || 'https://topicsflow.me';
       }
     } else {
@@ -546,6 +551,6 @@ export const getApiBaseUrl = (): string => {
     return 'https://topicsflow.me';
   } else {
     // Local Development:
-    return backendUrl || 'https://topicsflow.me';
+    return backendUrl || 'http://localhost:5000';
   }
 };
