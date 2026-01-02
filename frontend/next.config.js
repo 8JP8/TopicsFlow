@@ -10,7 +10,7 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://topicsflow.me',
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'TopicsFlow',
     NEXT_PUBLIC_TENOR_API_KEY: process.env.NEXT_PUBLIC_TENOR_API_KEY || '',
   },
@@ -102,7 +102,7 @@ if (!isExport) {
     // In local development, frontend connects directly to localhost:5000 (no proxy needed)
     // Only enable proxy for Azure production where we need to redirect /api/* to backend
     const isProduction = process.env.NODE_ENV === 'production';
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_IP;
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
 
     if (isProduction && backendUrl) {
       // Azure production: Proxy /api/* to backend URL
