@@ -640,7 +640,19 @@
     "mutedItems": "Itens Silenciados",
     "noMutedItems": "Nenhum item silenciado encontrado",
     "deleteAccount": "Eliminar Conta",
-    "deleteAccountDesc": "Eliminar permanentemente a sua conta e todos os dados. Esta ação não pode ser desfeita."
+    "deleteAccountDesc": "Eliminar permanentemente a sua conta e todos os dados. Esta ação não pode ser desfeita.",
+    "mute": {
+      "types": {
+        "topic": "Tópico",
+        "post": "Publicação",
+        "chatroom": "Sala de Chat"
+      },
+      "indefinitely": "Indefinidamente",
+      "in": "em",
+      "remaining": "Restante",
+      "forever": "Para sempre",
+      "expired": "Expirado"
+    }
   },
   "anonymousIdentities": {
     "title": "Identidades Anónimas",

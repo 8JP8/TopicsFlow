@@ -53,23 +53,23 @@ class PasskeyService:
 
         # Determine Origin and RP ID
         # Prioritize FRONTEND_URL or explicit RP_ID env vars
-        
+
         # 1. Establish Origin
-        # Default to topicsflow.me in Azure if FRONTEND_URL is not set
-        default_origin = 'https://topicsflow.me' if self.is_azure else 'http://localhost:3000'
-        self.origin = os.getenv('FRONTEND_URL', default_origin)
-        
-        if not self.is_azure and not os.getenv('FRONTEND_URL'):
-             # If strictly local and no override, be explicit
+        env_frontend = os.getenv('FRONTEND_URL')
+        if env_frontend:
+             self.origin = env_frontend.rstrip('/')
+        elif self.is_azure:
+             self.origin = 'https://topicsflow.me'
+        else:
              self.origin = 'http://localhost:3000'
-             
+
         # 2. Establish RP ID
         if rp_id:
             self.rp_id = rp_id
         elif os.getenv('PASSKEY_RP_ID'):
             self.rp_id = os.getenv('PASSKEY_RP_ID')
         else:
-            # Derive from FRONTEND_URL
+            # Derive from Origin
             from urllib.parse import urlparse
             try:
                 # Remove protocol and port to get the hostname (RP ID)
@@ -78,8 +78,10 @@ class PasskeyService:
                 parsed_url = urlparse(self.origin)
                 self.rp_id = parsed_url.hostname or 'localhost'
             except Exception as e:
-                logger.warning(f"Failed to parse FRONTEND_URL for RP ID: {e}")
+                logger.warning(f"Failed to parse Origin for RP ID: {e}")
                 self.rp_id = 'localhost'
+
+        logger.info(f"PasskeyService Initialized: IS_AZURE={self.is_azure}, Origin={self.origin}, RP_ID={self.rp_id}")
 
         logger.info(f"PasskeyService Initialized: IS_AZURE={self.is_azure}, Origin={self.origin}, RP_ID={self.rp_id}")
 

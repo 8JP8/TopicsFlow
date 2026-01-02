@@ -637,7 +637,19 @@
     "noFollowedPublications": "No followed publications",
     "followedItems": "Followed Items",
     "mutedItems": "Muted Items",
-    "noMutedItems": "No muted items found"
+    "noMutedItems": "No muted items found",
+    "mute": {
+      "types": {
+        "topic": "Topic",
+        "post": "Post",
+        "chatroom": "Chatroom"
+      },
+      "indefinitely": "Indefinitely",
+      "in": "in",
+      "remaining": "Remaining",
+      "forever": "Forever",
+      "expired": "Expired"
+    }
   },
   "supportWidget": {
     "title": "Recent Tickets",

@@ -23,7 +23,12 @@ def silence_topic(topic_id):
         user_id = current_user_result['user']['id']
         
         settings_model = UserContentSettings(current_app.db)
-        success = settings_model.silence_topic(user_id, topic_id)
+        
+        # Get duration from request body (default to -1 for indefinite)
+        data = request.get_json() or {}
+        minutes = data.get('minutes', -1)
+        
+        success = settings_model.silence_topic(user_id, topic_id, minutes)
         
         if success:
             try:

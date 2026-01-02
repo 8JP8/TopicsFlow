@@ -16,19 +16,30 @@ class UserContentSettings:
         self.db = db
         self.collection = db.user_content_settings
 
-    def silence_topic(self, user_id: str, topic_id: str) -> bool:
-        """Silence a topic (silences all posts and chats inside)."""
+    def silence_topic(self, user_id: str, topic_id: str, minutes: int = -1) -> bool:
+        """
+        Silence a topic (silences all posts and chats inside).
+        minutes: Duration in minutes. -1 means indefinite.
+        """
         try:
+            silenced_until = None
+            if minutes > 0:
+                from datetime import timedelta
+                silenced_until = datetime.utcnow() + timedelta(minutes=minutes)
+            
+            update_data = {
+                'silenced': True,
+                'silenced_until': silenced_until,
+                'updated_at': datetime.utcnow()
+            }
+            
             self.collection.update_one(
                 {
                     'user_id': ObjectId(user_id),
                     'topic_id': ObjectId(topic_id)
                 },
                 {
-                    '$set': {
-                        'silenced': True,
-                        'updated_at': datetime.utcnow()
-                    },
+                    '$set': update_data,
                     '$setOnInsert': {
                         'user_id': ObjectId(user_id),
                         'topic_id': ObjectId(topic_id),
@@ -60,6 +71,7 @@ class UserContentSettings:
                 {
                     '$set': {
                         'silenced': False,
+                        'silenced_until': None,
                         'updated_at': datetime.utcnow()
                     }
                 }
