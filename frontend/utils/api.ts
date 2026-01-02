@@ -22,11 +22,12 @@ class ApiClient {
         window.location.hostname.includes('azurestaticapps.net');
 
       if (isProduction && backendUrl) {
-        // Production (Azure): Use backend URL directly (api.topicsflow.me)
+        // Production (Azure): Use provided backend URL
         baseURL = backendUrl;
       } else if (isProduction) {
-        // Production but no backend URL set: use api.topicsflow.me as default
-        baseURL = 'https://api.topicsflow.me';
+        // Production but no backend URL set: use relative paths (same domain)
+        // This allows calls to go to /api/... on the same domain (topicsflow.me)
+        baseURL = '';
       } else {
         // Local Development: Always use localhost:5000 directly (no proxy)
         // This ensures direct connection to backend for better debugging
@@ -537,11 +538,14 @@ export const getApiBaseUrl = (): string => {
   const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
 
   if (isProduction && backendUrl) {
-    // Production: Use backend URL directly (api.topicsflow.me)
+    // Production: Use backend URL directly
     return backendUrl;
   } else if (isProduction) {
-    // Production but no backend URL set: use api.topicsflow.me as default
-    return 'https://api.topicsflow.me';
+    // Production but no backend URL set: use current origin
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return '';
   } else {
     // Local Development: Always use localhost:5000 directly (no proxy)
     return backendUrl || 'http://localhost:5000';
