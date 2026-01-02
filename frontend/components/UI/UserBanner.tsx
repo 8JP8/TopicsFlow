@@ -68,6 +68,18 @@ const UserBanner: React.FC<UserBannerProps> = ({
       return;
     }
 
+    // Handle @everyone and @todos special mentions
+    if (initialUsername === 'everyone' || initialUsername === 'todos') {
+      setUser({
+        id: '',
+        username: initialUsername === 'everyone' ? (t('chat.tagEveryone') || 'Everyone') : 'Todos',
+        // Optional: Set a specific banner or leave empty to use gradient
+        created_at: new Date().toISOString(),
+      });
+      setLoading(false);
+      return;
+    }
+
     if (!userId && !initialUsername) {
       setError(t('errors.userNotFound') || 'User not found');
       setLoading(false);

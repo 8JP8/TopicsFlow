@@ -256,7 +256,7 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
                 }}
               >
                 <span className="text-sm font-medium theme-text-primary">{t('userMenu.settings') || 'Settings'}</span>
-                <div className="p-2 rounded-full theme-bg-secondary">
+                <div className="p-2 rounded-lg theme-bg-secondary">
                   <Settings size={18} className="theme-text-primary" />
                 </div>
               </button>
@@ -297,7 +297,7 @@ const Layout: React.FC<LayoutProps> = ({ children, transparentHeader = false }) 
                   className="w-full flex items-center justify-between p-2 rounded-lg hover:theme-bg-tertiary transition-colors text-left"
                 >
                   <span className="text-sm font-medium theme-text-primary">{t('supportWidget.title') || 'Support'}</span>
-                  <div className="p-2 rounded-full theme-bg-secondary">
+                  <div className="p-2 rounded-lg theme-bg-secondary">
                     <LifeBuoy size={18} className="theme-text-primary" />
                   </div>
                 </button>

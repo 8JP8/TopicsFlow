@@ -1536,7 +1536,16 @@
     "24hours": "24 horas",
     "forever": "Até eu voltar a ligar",
     "silenced": "Tópico silenciado",
-    "unsilenced": "Tópico não silenciado"
+    "unsilenced": "Tópico não silenciado",
+    "expired": "Expirado",
+    "remaining": "restantes",
+    "indefinitely": "Indefinidamente",
+    "in": "em {context}",
+    "types": {
+      "topic": "Tópico",
+      "chatroom": "Sala de Chat",
+      "post": "Publicação"
+    }
   },
   "userBanner": {
     "joined": "Entrou",

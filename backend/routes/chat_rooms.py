@@ -812,10 +812,11 @@ def create_chat_room_message(room_id):
                 socketio.emit('new_chat_room_message', new_message, room=room_name)
                 logger.info(f"Emitted new_chat_room_message event to room {room_name} for message {message_id}")
                 # Also emit to sender's personal room so the sender always sees the message (even if not joined)
-                try:
-                    socketio.emit('new_chat_room_message', new_message, room=f"user_{user_id}")
-                except Exception:
-                    pass
+                # FIX: Removed - this causes double messages for the sender if they are already in the room
+                # try:
+                #    socketio.emit('new_chat_room_message', new_message, room=f"user_{user_id}")
+                # except Exception:
+                #    pass
         except Exception as e:
             logger.warning(f"Failed to emit socket event for message {message_id}: {str(e)}")
 
@@ -832,23 +833,27 @@ def create_chat_room_message(room_id):
             members = [str(m) for m in room_data.get('members', [])] if room_data else []
             room_name = room.get('name', 'Chat Room')
             
+            # Check for @everyone or @todos
+            is_everyone_mention = ('@everyone' in content or '@todos' in content) and not room.get('is_public', True)
+            
             # Notify each member (except the sender)
             for member_id in members:
                 if member_id == user_id:
                     continue  # Don't notify the sender
                 
                 # Check if topic is muted FIRST (topic silencing overrides everything)
-                if topic_id and notification_settings.is_topic_muted(member_id, topic_id):
+                # @everyone bypasses mute settings in private chats usually, but let's respect topic mute if critical
+                if not is_everyone_mention and topic_id and notification_settings.is_topic_muted(member_id, topic_id):
                     logger.info(f"Skipping notification for member {member_id} - topic {topic_id} is muted")
                     continue
                 
                 # Check if chat room itself is muted
-                if notification_settings.is_chat_room_muted(member_id, room_id):
+                if not is_everyone_mention and notification_settings.is_chat_room_muted(member_id, room_id):
                     logger.info(f"Skipping notification for member {member_id} - chatroom {room_id} is muted")
                     continue
                 
                 # Check if user is following the chatroom
-                if not notification_settings.is_following_chat_room(member_id, room_id):
+                if not is_everyone_mention and not notification_settings.is_following_chat_room(member_id, room_id):
                     logger.info(f"Skipping notification for member {member_id} - chatroom {room_id} is not followed")
                     continue
                 

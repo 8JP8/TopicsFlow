@@ -1555,7 +1555,16 @@
     "24hours": "24 hours",
     "forever": "Until I turn it back on",
     "silenced": "Topic silenced",
-    "unsilenced": "Topic unsilenced"
+    "unsilenced": "Topic unsilenced",
+    "expired": "Expired",
+    "remaining": "remaining",
+    "indefinitely": "Indefinitely",
+    "in": "in {context}",
+    "types": {
+      "topic": "Topic",
+      "chatroom": "Chatroom",
+      "post": "Post"
+    }
   },
   "messages": {
     "deleteMessage": "Delete Message",

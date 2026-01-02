@@ -423,8 +423,8 @@ const Settings: React.FC = () => {
                     className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
                   >
                     <div className="flex items-center">
-                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3 group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
-                        <svg className="w-5 h-5 theme-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-3 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
                       </div>
@@ -453,8 +453,8 @@ const Settings: React.FC = () => {
                     className="flex items-center justify-between p-4 theme-bg-tertiary border theme-border rounded-lg hover:border-blue-500 transition-colors group text-left"
                   >
                     <div className="flex items-center">
-                      <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-3 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
-                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className="p-2 bg-yellow-100 dark:bg-green-900/30 rounded-lg mr-3 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                        <svg className="w-5 h-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M16 9a5 5 0 0 1 .95 2.293" />
                           <path d="M19.364 5.636a9 9 0 0 1 1.889 9.96" />
                           <path d="m2 2 20 20" />
@@ -496,7 +496,7 @@ const Settings: React.FC = () => {
                   <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-medium text-red-700 dark:text-red-300">{t('settings.deleteAccount') || 'Delete Account'}</h3>
+                        <h3 className="font-medium">{t('settings.deleteAccount') || 'Delete Account'}</h3>
                         <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1 pr-6">
                           {t('settings.deleteAccountDesc') || 'Permanently delete your account and all data. This action cannot be undone.'}
                         </p>

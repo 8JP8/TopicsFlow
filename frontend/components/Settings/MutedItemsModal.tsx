@@ -97,10 +97,10 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
     };
 
     const formatRemainingTime = (until: string | null | undefined) => {
-        if (!until) return t('mute.forever') || 'Forever';
+        if (!until) return t('settings.mute.forever') || 'Forever';
         const date = new Date(until);
         const now = new Date();
-        if (date <= now) return t('mute.expired') || 'Expired';
+        if (date <= now) return t('settings.mute.expired') || 'Expired';
 
         const diff = date.getTime() - now.getTime();
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -113,6 +113,27 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
     };
 
     if (!isOpen) return null;
+
+    const getTypeLabel = (type: string) => {
+        switch (type) {
+            case 'topic': return t('settings.mute.types.topic') || 'Topic';
+            case 'chatroom': return t('settings.mute.types.chatroom') || 'Chatroom';
+            case 'post': return t('settings.mute.types.post') || 'Post';
+            default: return type;
+        }
+    };
+
+    const getTypeIcon = (type: string) => {
+        // You might need to import these icons if they aren't already available
+        // assuming standard lucide-react imports
+        return (
+            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {type === 'topic' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />}
+                {type === 'chatroom' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />}
+                {type === 'post' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
+            </svg>
+        );
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -155,36 +176,37 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                                 <div key={`${item.type}-${item.id}`} className="p-3 rounded-lg border theme-border theme-bg-tertiary flex items-center justify-between">
                                     <div className="flex-1 min-w-0 pr-4">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full uppercase font-bold tracking-wider 
-                            ${item.type === 'topic' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                                    item.type === 'chatroom' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                            <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full uppercase font-bold tracking-wider 
+                            ${item.type === 'topic' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' :
+                                                    item.type === 'chatroom' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' :
+                                                        'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200'
                                                 }`}>
-                                                {item.type}
+                                                {getTypeIcon(item.type)}
+                                                {getTypeLabel(item.type)}
                                             </span>
-                                            <h3 className="font-medium theme-text-primary truncate">{item.name}</h3>
+                                            <h3 className="font-medium theme-text-primary truncate ml-1">{item.name}</h3>
                                         </div>
-                                        <div className="flex items-center gap-4 text-xs theme-text-muted">
+                                        <div className="flex items-center gap-4 text-xs theme-text-muted mt-2">
                                             {item.topic_title && (
-                                                <span className="flex items-center gap-1 font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">
-                                                    in {item.topic_title}
+                                                <span className="flex items-center gap-1 font-medium bg-gray-100 dark:bg-gray-700/50 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
+                                                    {t('settings.mute.in', { context: item.topic_title }) || `in ${item.topic_title}`}
                                                 </span>
                                             )}
                                             {item.silenced_until && (
                                                 <span className="flex items-center gap-1 text-orange-500">
                                                     <Clock size={12} />
-                                                    {formatRemainingTime(item.silenced_until)} remaining
+                                                    {formatRemainingTime(item.silenced_until)} {t('settings.mute.remaining') || 'remaining'}
                                                 </span>
                                             )}
-                                            {!item.silenced_until && <span>Indefinitely</span>}
+                                            {!item.silenced_until && <span>{t('settings.mute.indefinitely') || 'Indefinitely'}</span>}
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => handleUnmute(item)}
                                         disabled={processingId === item.id}
-                                        className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                        className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                                     >
-                                        {processingId === item.id ? <LoadingSpinner size="sm" /> : (t('common.unmute') || 'Unmute')}
+                                        {processingId === item.id ? <LoadingSpinner size="sm" /> : (t('mute.unmute') || 'Unmute')}
                                     </button>
                                 </div>
                             ))}

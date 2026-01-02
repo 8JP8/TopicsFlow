@@ -66,19 +66,31 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       // On server: use BACKEND_IP or NEXT_PUBLIC_API_URL
       let socketUrl: string;
       if (typeof window !== 'undefined') {
-        const isProduction = window.location.hostname === 'topicsflow.me' || 
-                             window.location.hostname === 'www.topicsflow.me' ||
-                             window.location.hostname.includes('azurestaticapps.net');
+        const isProduction = window.location.hostname === 'topicsflow.me' ||
+          window.location.hostname === 'www.topicsflow.me' ||
+          window.location.hostname.includes('azurestaticapps.net');
+
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
         const backendUrl = process.env.BACKEND_IP || process.env.NEXT_PUBLIC_API_URL;
-        
-        if (isProduction && backendUrl) {
-          // Production: Use backend URL directly
-          socketUrl = backendUrl;
-        } else if (isProduction) {
-          // Production but no backend URL: use api.topicsflow.me as default
-          socketUrl = 'https://api.topicsflow.me';
+
+        if (isProduction) {
+          // Production: Always use backend URL or default to api.topicsflow.me
+          if (backendUrl) {
+            socketUrl = backendUrl;
+          } else {
+            socketUrl = 'https://api.topicsflow.me';
+          }
+        } else if (isLocalhost) {
+          // Local Development: Prioritize localhost:5000
+          if (backendUrl && (backendUrl.includes('topicsflow.me') || backendUrl.includes('azurestaticapps.net'))) {
+            socketUrl = 'http://localhost:5000';
+            console.warn('[SocketContext] Environment variables point to production but running on localhost. Forcing socket to http://localhost:5000');
+          } else {
+            socketUrl = backendUrl || 'http://localhost:5000';
+          }
         } else {
-          // Local Development: Always use localhost:5000 directly (no proxy)
+          // Other environments
           socketUrl = backendUrl || 'http://localhost:5000';
         }
       } else {

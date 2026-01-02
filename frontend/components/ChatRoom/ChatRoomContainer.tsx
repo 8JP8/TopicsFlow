@@ -20,13 +20,13 @@ import MessageDeleteDialog from '@/components/UI/MessageDeleteDialog';
 import MessageContextMenu from '@/components/UI/MessageContextMenu';
 import ChatIcon from '@/components/UI/ChatIcon';
 import ChatRoomContextMenu from '@/components/UI/ChatRoomContextMenu';
-import { VoipButton, VoipControlBar } from '@/components/Voip';
+import { VoipButton } from '@/components/Voip';
+import { Mic, Send, Bell, BellOff, Volume2, VolumeX, Trash2, Image, Paperclip, Share2, Square, X } from 'lucide-react';
+import AudioPlayer from '@/components/UI/AudioPlayer';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { getAnonymousModeState, saveAnonymousModeState, getLastAnonymousName } from '@/utils/anonymousStorage';
 import { analyzeImageBrightness, getTextColorClass } from '@/utils/imageBrightness';
-import AudioPlayer from '@/components/UI/AudioPlayer';
-import { Mic, Square, Send, X, Trash2, Image, Paperclip, Share2, Bell, BellOff } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -177,8 +177,9 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string, username: string }>>([]);
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0); // State for mention selection
   const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<string[]>([]);
 
   // Debounced global search for mentions
   useEffect(() => {
@@ -802,7 +803,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
       }
 
       const response = await api.post(API_ENDPOINTS.CHAT_ROOMS.SEND_MESSAGE(room.id), {
-        content: messageInput.trim() || (selectedGifUrl ? '[GIF]' : '') || (audioBlob ? (t('voip.audioMessage') || 'Voice Message') : '') || (attachments.length > 0 ? '[Attachment]' : ''),
+        content: messageInput.trim(),
         message_type: messageType,
         gif_url: selectedGifUrl,
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -1082,7 +1083,7 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                   <p>{t('chat.noMessages')}</p>
                 </div>
               ) : (
-                messages.map(message => (
+                messages.filter(m => !hiddenMessageIds.includes(m.id)).map(message => (
                   <div
                     key={message.id}
                     className="flex gap-3"
@@ -1220,6 +1221,15 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                                       });
                                     }}
                                   />
+                                );
+                              } else if (attachment.type === 'audio') {
+                                return (
+                                  <div key={idx} className="w-full max-w-md min-w-[200px]">
+                                    <AudioPlayer
+                                      src={attachment.url}
+                                      filename={attachment.filename}
+                                    />
+                                  </div>
                                 );
                               } else {
                                 return (
@@ -1653,6 +1663,10 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
             x={messageContextMenu.x}
             y={messageContextMenu.y}
             onClose={() => setMessageContextMenu(null)}
+            onHide={() => {
+              setHiddenMessageIds(prev => [...prev, messageContextMenu.messageId]);
+              setMessageContextMenu(null);
+            }}
             onReportMessage={(messageId, userId, username) => {
               if (userId && username) {
                 handleReportUserFromMessage(messageId, userId, username);

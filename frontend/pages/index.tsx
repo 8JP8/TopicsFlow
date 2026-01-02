@@ -356,7 +356,7 @@ export default function Home() {
 
   // Handle deep linking via query params
   useEffect(() => {
-    if (!router.isReady || topics.length === 0) return;
+    if (!router.isReady) return;
 
     const { chatRoomId, postId } = router.query;
 
