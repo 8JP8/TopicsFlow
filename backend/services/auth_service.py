@@ -213,6 +213,40 @@ class AuthService:
             if not self.user_model.verify_totp(str(user['_id']), totp_code):
                 return {'success': False, 'errors': ['Invalid authentication code']}
 
+            # Check if Email 2FA is enabled (User-configured)
+            # If enabled, require an email code before completing login
+            user_prefs = user.get('preferences', {})
+            if user_prefs.get('email_2fa_enabled', False):
+                # Generate verification code
+                verification_code = ''.join(random.choices(string.digits, k=6))
+
+                # Store code in DB
+                self.user_model.set_login_email_code(str(user['_id']), verification_code)
+
+                # Determine language
+                lang = user_prefs.get('language', 'en')
+
+                # Send email
+                email_result = self.email_service.send_verification_email(
+                    user['email'],
+                    user['username'],
+                    verification_code,
+                    lang
+                )
+
+                if not email_result.get('success'):
+                    # Fallback or error if email fails?
+                    # For security, we should probably fail safe or log error.
+                    logger.error(f"Failed to send Login Email 2FA code: {email_result.get('error')}")
+                    return {'success': False, 'errors': ['Failed to send verification email. Please contact support.']}
+
+                return {
+                    'success': False,
+                    'require_email_2fa': True,
+                    'user_id': str(user['_id']),
+                    'message': 'Please enter the verification code sent to your email.'
+                }
+
             # Record IP address
             if ip_address:
                 self.user_model.add_ip_address(str(user['_id']), ip_address)

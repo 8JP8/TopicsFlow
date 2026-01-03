@@ -97,6 +97,8 @@ class User:
             'email_verified': False,  # Email verification status
             'email_verification_code': None,  # Verification code
             'email_verification_expires': None,  # Verification code expiry
+            'login_email_code': None, # Code for Email 2FA on login
+            'login_email_code_expires': None, # Expiry for login code
             'security_questions': security_questions or [],
             'is_admin': False,  # Admin status
             'is_banned': False,
@@ -110,7 +112,8 @@ class User:
             'preferences': {
                 'theme': 'dark',
                 'language': 'pt',
-                'anonymous_mode': False
+                'anonymous_mode': False,
+                'email_2fa_enabled': False  # Email 2FA (One-time code on login)
             },
             'backup_codes': [],  # Will be generated during TOTP setup
             'recovery_code': None,  # Recovery email code (for email verification)
@@ -701,6 +704,44 @@ class User:
         """Check if user's email is verified."""
         user = self.collection.find_one({'_id': ObjectId(user_id)})
         return user.get('email_verified', False) if user else False
+
+    # Login Email 2FA Methods
+    def set_login_email_code(self, user_id: str, code: str, expires_in_minutes: int = 15) -> bool:
+        """Set email code for login verification."""
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {
+                'login_email_code': code,
+                'login_email_code_expires': expires_at
+            }}
+        )
+        return result.modified_count > 0
+
+    def verify_login_email_code(self, user_id: str, code: str) -> bool:
+        """Verify email code for login."""
+        user = self.collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return False
+
+        # Check if code matches and hasn't expired
+        if (user.get('login_email_code') == code and
+            user.get('login_email_code_expires') and
+            user['login_email_code_expires'] > datetime.utcnow()):
+
+            # Clear verification code
+            self.collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': {
+                    'login_email_code': None,
+                    'login_email_code_expires': None
+                }}
+            )
+            return True
+
+        return False
 
     # Passwordless Authentication Methods
     def verify_user_by_username_or_email(self, identifier: str) -> Optional[Dict[str, Any]]:

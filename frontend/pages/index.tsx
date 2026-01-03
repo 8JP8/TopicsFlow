@@ -388,28 +388,8 @@ export default function Home() {
 
     // Handle Path-based Routing (SPA Fallback)
     // Only if we are effectively on the root page logic but the path is different
-    if (path !== '/') {
-        // Regex for /post/[id]
-        const postMatch = path.match(/^\/post\/([a-zA-Z0-9_-]+)$/);
-        if (postMatch) {
-           const id = postMatch[1];
-           const event = new CustomEvent('openPost', { detail: { postId: id } });
-           setTimeout(() => window.dispatchEvent(event), 100);
-           return;
-        }
-
-        // Regex for /chat-room/[id]
-        const chatMatch = path.match(/^\/chat-room\/([a-zA-Z0-9_-]+)$/);
-        if (chatMatch) {
-           const id = chatMatch[1];
-           const event = new CustomEvent('openChatRoom', { detail: { chatRoomId: id } });
-           setTimeout(() => window.dispatchEvent(event), 100);
-           return;
-        }
-
-        // If it's an unknown path served by index.html fallback, redirect to 404
-        router.replace('/404');
-    }
+    // NOTE: This fallback logic is now minimal to avoid interfering with valid direct routes.
+    // Next.js handles routing for /post/[id] and /chat-room/[id] natively.
   }, [router.isReady, router.query, router.asPath, topics]);
 
 

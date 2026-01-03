@@ -169,6 +169,10 @@ def login():
 
         result = auth_service.login_user(username, password, totp_code, ip_address)
 
+        if result.get('require_email_2fa'):
+            # Return specific response for email 2FA step
+            return jsonify(result), 200
+
         if result['success']:
             return jsonify(result), 200
         else:
@@ -177,6 +181,37 @@ def login():
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         return jsonify({'success': False, 'errors': ['Login failed. Please try again.']}), 500
+
+
+@auth_bp.route('/verify-login-email-2fa', methods=['POST'])
+@require_json
+@rate_limit('5/minute')
+def verify_login_email_2fa():
+    """Verify email code for 2FA login."""
+    try:
+        data = request.get_json()
+        user_id = str(data.get('user_id', '')).strip()
+        code = str(data.get('code', '')).strip()
+
+        if not user_id or not code:
+            return jsonify({'success': False, 'errors': ['User ID and verification code are required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        # Get client IP for security
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
+
+        result = auth_service.verify_login_email_2fa(user_id, code, ip_address)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 401
+
+    except Exception as e:
+        logger.error(f"Login Email 2FA verification error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Verification failed. Please try again.']}), 500
 
 
 @auth_bp.route('/login-backup', methods=['POST'])

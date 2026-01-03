@@ -183,6 +183,7 @@ export const API_ENDPOINTS = {
     RECOVERY_VERIFY_QUESTIONS: '/api/auth/recovery/verify-questions',
     RECOVERY_CONFIRM_TOTP: '/api/auth/recovery/confirm-totp',
     SESSION: '/api/auth/session',
+    VERIFY_LOGIN_EMAIL_2FA: '/api/auth/verify-login-email-2fa',
     PASSKEY: {
       REGISTER_OPTIONS: '/api/auth/passkey/register-options',
       REGISTER_VERIFY: '/api/auth/passkey/register-verify',
