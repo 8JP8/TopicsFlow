@@ -26,6 +26,7 @@ interface UserPreferences {
   browser_notifications_enabled?: boolean;
   sound_enabled?: boolean;
   show_support_widget?: boolean;
+  email_2fa_enabled?: boolean;
 }
 
 const Settings: React.FC = () => {
@@ -824,6 +825,32 @@ const Settings: React.FC = () => {
                             {t('settings.viewRegenerateBackupCodes') || 'View/Regenerate Backup Codes'}
                           </button>
                         )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 theme-bg-tertiary rounded-lg">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-blue-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium theme-text-primary">{t('settings.email2fa') || 'Email Verification on Login'}</h4>
+                            <p className="text-sm theme-text-secondary mt-1">{t('settings.email2faDesc') || 'Require a one-time email code every time you log in.'}</p>
+                          </div>
+                          <button
+                            onClick={() => handlePreferenceChange('email_2fa_enabled', !(user.preferences as any).email_2fa_enabled)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${(user.preferences as any).email_2fa_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                              }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(user.preferences as any).email_2fa_enabled ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

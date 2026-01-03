@@ -112,6 +112,7 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
     const globeRef = useRef<any>(null);
     const pointerInteracting = useRef<number | null>(null);
     const pointerInteractionMovement = useRef(0);
+    const touchStart = useRef<{ x: number, y: number } | null>(null);
     const [scrollY, setScrollY] = useState(0);
     const lastScrollY = useRef(0);
     const scrollVelocity = useRef(0);
@@ -317,9 +318,30 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
                             });
                         }
                     }}
+                    onTouchStart={(e) => {
+                        if (e.touches[0]) {
+                            touchStart.current = {
+                                x: e.touches[0].clientX,
+                                y: e.touches[0].clientY
+                            };
+                            pointerInteracting.current = e.touches[0].clientX;
+                            pointerInteractionMovement.current = 0;
+                        }
+                    }}
                     onTouchMove={(e) => {
-                        if (pointerInteracting.current !== null && e.touches[0]) {
-                            const delta = e.touches[0].clientX - pointerInteracting.current;
+                        if (pointerInteracting.current !== null && e.touches[0] && touchStart.current) {
+                            const currentX = e.touches[0].clientX;
+                            const currentY = e.touches[0].clientY;
+                            const deltaX = currentX - touchStart.current.x;
+                            const deltaY = currentY - touchStart.current.y;
+
+                            // If vertical movement is greater than horizontal movement,
+                            // assume it's a scroll and don't rotate the globe
+                            if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                                return;
+                            }
+
+                            const delta = currentX - pointerInteracting.current;
                             pointerInteractionMovement.current = delta;
                             api.start({
                                 r: delta / 100,
