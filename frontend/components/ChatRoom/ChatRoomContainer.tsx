@@ -990,18 +990,6 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
 
               {/* Action Buttons */}
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
-                <button
-                  onClick={() => handleFollowChat(room.id)}
-                  disabled={followLoading}
-                  className={`p-2 rounded-lg transition-colors ${isFollowing
-                    ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                    : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  title={isFollowing ? (t('chat.unfollow') || 'Unfollow') : (t('chat.follow') || 'Follow')}
-                >
-                  {isFollowing ? <BellOff size={20} /> : <Bell size={20} />}
-                </button>
-
                 {/* VOIP Button */}
                 {!room.is_public && (roomData?.voip_enabled ?? room.voip_enabled) && (
                   <div className="flex-1 sm:flex-none">
@@ -1015,34 +1003,49 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
                     />
                   </div>
                 )}
-                <div className="flex flex-col min-[925px]:flex-row gap-2 flex-1 sm:flex-none">
-                  {isOwner && (
-                    <button
-                      onClick={() => {
-                        setMembersModalMode('manage');
-                        setShowMembersModal(true);
-                      }}
-                      className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
-                      title={t('chat.manageChat') || 'Manage Chat'}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="truncate hidden min-[1050px]:inline">{t('chat.manageChat') || 'Manage'}</span>
-                    </button>
-                  )}
-                  {onBack && (
-                    <button
-                      onClick={onBack}
-                      className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                      </svg>
-                      <span className="hidden min-[1050px]:inline">{t('common.back')}</span>
-                    </button>
-                  )}
+
+                <div className="flex items-center gap-2 flex-1 sm:flex-none w-full sm:w-auto">
+                  <button
+                    onClick={() => handleFollowChat(room.id)}
+                    disabled={followLoading}
+                    className={`p-2 rounded-lg transition-colors flex-none ${isFollowing
+                      ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                      : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    title={isFollowing ? (t('chat.unfollow') || 'Unfollow') : (t('chat.follow') || 'Follow')}
+                  >
+                    {isFollowing ? <BellOff size={20} /> : <Bell size={20} />}
+                  </button>
+
+                  <div className="flex flex-row gap-2 flex-1 min-w-0">
+                    {isOwner && (
+                      <button
+                        onClick={() => {
+                          setMembersModalMode('manage');
+                          setShowMembersModal(true);
+                        }}
+                        className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
+                        title={t('chat.manageChat') || 'Manage Chat'}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="truncate hidden min-[1050px]:inline">{t('chat.manageChat') || 'Manage'}</span>
+                      </button>
+                    )}
+                    {onBack && (
+                      <button
+                        onClick={onBack}
+                        className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors whitespace-nowrap min-w-fit"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        <span className="hidden min-[1050px]:inline">{t('common.back')}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

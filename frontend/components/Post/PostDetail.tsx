@@ -45,6 +45,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
   const { t, language } = useLanguage();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
@@ -136,13 +137,11 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
       if (response.data.success) {
         setPost(response.data.data);
       } else {
-        toast.error(t('errors.postNotFound') || 'Post not found');
-        router.push('/');
+        setNotFound(true);
       }
     } catch (error) {
       console.error('Error fetching post:', error);
-      toast.error(t('errors.loadingFailed') || 'Failed to load post');
-      router.push('/');
+      setNotFound(true);
     } finally {
       setLoading(false);
     }
@@ -227,6 +226,20 @@ const PostDetail: React.FC<PostDetailProps> = ({ postId }) => {
     return (
       <div className="flex justify-center items-center h-64">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
+        <h2 className="text-2xl font-bold theme-text-primary mb-4">{t('errors.postNotFound') || 'Post Not Found'}</h2>
+        <button
+          onClick={() => router.push('/')}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {t('settings.backToDashboard') || 'Back to Dashboard'}
+        </button>
       </div>
     );
   }

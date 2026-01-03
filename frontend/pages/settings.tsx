@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -51,6 +51,44 @@ const Settings: React.FC = () => {
   const [anonymousIdentities, setAnonymousIdentities] = useState<Array<{ id: string, topic_id: string, topic_title: string, identity_name: string, created_at: string, message_count: number }>>([]);
   const [loadingIdentities, setLoadingIdentities] = useState(false);
   const [deletingIdentityId, setDeletingIdentityId] = useState<string | null>(null);
+
+  // Swipe handlers
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    const tabs: ('preferences' | 'account' | 'privacy' | 'anonymous-identities')[] = ['preferences', 'account', 'privacy', 'anonymous-identities'];
+    const currentIndex = tabs.indexOf(activeTab);
+
+    if (isLeftSwipe) {
+      // Swipe Left -> Move to Next Tab
+      if (currentIndex < tabs.length - 1) {
+        updateTab(tabs[currentIndex + 1]);
+      }
+    }
+
+    if (isRightSwipe) {
+      // Swipe Right -> Move to Prev Tab
+      if (currentIndex > 0) {
+        updateTab(tabs[currentIndex - 1]);
+      }
+    }
+  };
 
   // Listen for tour events
   useEffect(() => {
@@ -295,7 +333,12 @@ const Settings: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto py-8 px-4">
+      <div
+        className="max-w-4xl mx-auto py-8 px-4"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="mb-8">
           <button
             id="back-to-dashboard-btn"

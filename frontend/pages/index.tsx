@@ -636,11 +636,9 @@ export default function Home() {
     const isRightSwipe = distance < -minSwipeDistance;
 
     if (isLeftSwipe) {
-      // Swipe Left (Move Right in flow): Sidebar -> Content -> Profile
+      // Swipe Left (Move Right in flow): Sidebar -> Content
       if (mobileView === 'sidebar') {
         setMobileView('content');
-      } else if (mobileView === 'content') {
-        router.push('/profile');
       }
     }
 
