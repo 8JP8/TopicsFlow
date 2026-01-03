@@ -991,7 +991,8 @@ const ChatRoomContainer: React.FC<ChatRoomContainerProps> = ({
               {/* Action Buttons */}
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
                 {/* VOIP Button */}
-                {!room.is_public && (roomData?.voip_enabled ?? room.voip_enabled) && (
+                {/* Logic: Group Chat (no topic_id) -> Always Show. Private Topic Chat -> Show if enabled. Public -> Hide. */}
+                {((!room.topic_id) || (!room.is_public && (roomData?.voip_enabled ?? room.voip_enabled))) && (
                   <div className="flex-1 sm:flex-none">
                     <VoipButton
                       roomId={room.id}

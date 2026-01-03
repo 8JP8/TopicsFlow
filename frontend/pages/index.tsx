@@ -354,37 +354,63 @@ export default function Home() {
     };
   }, [topics]); // Add topics dependency to find associated topic
 
-  // Handle deep linking via query params
+  // Handle deep linking via query params and path (SPA fallback)
   useEffect(() => {
     if (!router.isReady) return;
 
     const { chatRoomId, postId } = router.query;
+    const path = router.asPath.split('?')[0];
 
+    // Handle Query Params (Legacy/Direct)
     if (chatRoomId) {
-      // Remove query param to clean URL
       router.replace('/', undefined, { shallow: true });
-
       const event = new CustomEvent('openChatRoom', { detail: { chatRoomId } });
-      // Small delay to ensure listeners are ready/state is settled
       setTimeout(() => window.dispatchEvent(event), 100);
-    } else if (postId) {
-      // Remove query param
-      router.replace('/', undefined, { shallow: true });
+      return;
+    }
 
+    if (postId) {
+      router.replace('/', undefined, { shallow: true });
       const event = new CustomEvent('openPost', { detail: { postId } });
       setTimeout(() => window.dispatchEvent(event), 100);
-    } else if (router.query.topicId) {
-      const topicId = router.query.topicId as string;
-      // Remove query param
-      router.replace('/', undefined, { shallow: true });
+      return;
+    }
 
-      // Find and select the topic
+    if (router.query.topicId) {
+      const topicId = router.query.topicId as string;
+      router.replace('/', undefined, { shallow: true });
       const topic = topics.find(t => t.id === topicId);
       if (topic) {
         handleTopicSelect(topic);
       }
+      return;
     }
-  }, [router.isReady, router.query, topics]);
+
+    // Handle Path-based Routing (SPA Fallback)
+    // Only if we are effectively on the root page logic but the path is different
+    if (path !== '/') {
+        // Regex for /post/[id]
+        const postMatch = path.match(/^\/post\/([a-zA-Z0-9_-]+)$/);
+        if (postMatch) {
+           const id = postMatch[1];
+           const event = new CustomEvent('openPost', { detail: { postId: id } });
+           setTimeout(() => window.dispatchEvent(event), 100);
+           return;
+        }
+
+        // Regex for /chat-room/[id]
+        const chatMatch = path.match(/^\/chat-room\/([a-zA-Z0-9_-]+)$/);
+        if (chatMatch) {
+           const id = chatMatch[1];
+           const event = new CustomEvent('openChatRoom', { detail: { chatRoomId: id } });
+           setTimeout(() => window.dispatchEvent(event), 100);
+           return;
+        }
+
+        // If it's an unknown path served by index.html fallback, redirect to 404
+        router.replace('/404');
+    }
+  }, [router.isReady, router.query, router.asPath, topics]);
 
 
   // Socket listeners for badge counts
