@@ -514,7 +514,7 @@ const ChatRoomSettingsSection: React.FC<ChatRoomSettingsSectionProps> = ({
           aria-checked={voipEnabled}
           onClick={handleToggleVoip}
           disabled={updating}
-          className={`${voipEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50`}
+          className={`${voipEnabled ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50`}
         >
           <span
             aria-hidden="true"

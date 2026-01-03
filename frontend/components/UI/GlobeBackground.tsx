@@ -328,7 +328,7 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
                     }}
                     width={1200}
                     height={1200}
-                    className="w-full h-full opacity-0 transition-opacity duration-1000 pointer-events-auto"
+                    className="w-full h-full opacity-0 transition-opacity duration-1000 pointer-events-auto touch-pan-y"
                     style={{
                         contain: 'layout paint size',
                         cursor: 'grab',
