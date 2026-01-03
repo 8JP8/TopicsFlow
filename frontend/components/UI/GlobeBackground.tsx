@@ -284,7 +284,10 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
     return (
         <div
             className={`fixed inset-0 flex items-center justify-center overflow-hidden pointer-events-none ${className}`}
-            style={{ transform: `translateY(${scrollY * 0.15}px)` }}
+            style={{
+                transform: `translateY(${scrollY * 0.15}px)`,
+                touchAction: 'pan-y'
+            }}
         >
             <div className="relative" style={{ width: 600, height: 600 }}>
                 <canvas
@@ -298,6 +301,10 @@ function GlobeBackgroundInner({ className = '' }: GlobeBackgroundProps) {
                         if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
                     }}
                     onPointerOut={() => {
+                        pointerInteracting.current = null;
+                        if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
+                    }}
+                    onPointerCancel={() => {
                         pointerInteracting.current = null;
                         if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
                     }}

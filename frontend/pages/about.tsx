@@ -122,12 +122,6 @@ export default function About() {
                                     >
                                         {t('auth.login')} / {t('auth.register')}
                                     </Link>
-                                    <Link
-                                        href="/?startTour=true"
-                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl no-underline hover:no-underline hover:scale-105"
-                                    >
-                                        {t('about.takeATour') || 'Take the Tour'}
-                                    </Link>
                                 </>
                             )}
                         </div>

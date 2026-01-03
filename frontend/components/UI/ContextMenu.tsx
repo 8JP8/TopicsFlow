@@ -109,6 +109,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ items, onClose, x, y }) => {
   return (
     <>
       <div
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+      />
+      <div
         ref={menuRef}
         className="fixed z-50 theme-bg-secondary border theme-border rounded-lg shadow-xl py-1 min-w-[180px]"
         style={{
