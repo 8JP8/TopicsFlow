@@ -65,6 +65,7 @@ interface PrivateMessagesSimplifiedProps {
   isExpanded?: boolean;
   onGroupSelect?: (group: any) => void;
   unreadGroupCounts?: { [chatId: string]: number };
+  forceOpenNewMessage?: boolean;
 }
 
 interface GroupChat {
@@ -86,6 +87,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   isExpanded = false,
   onGroupSelect,
   unreadGroupCounts = {},
+  forceOpenNewMessage = false,
 }) => {
   const { t } = useLanguage();
   const { socket, connected } = useSocket();
@@ -334,7 +336,6 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     }
   }, [contextMenu, groupChatContextMenu, userContextMenu, messageContextMenu]);
 
-  // If expanded message is provided, use it
   useEffect(() => {
     if (expandedMessage) {
       setSelectedConversation(expandedMessage.userId);
@@ -343,6 +344,13 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       loadMessages(expandedMessage.userId);
     }
   }, [expandedMessage?.userId, expandedMessage?.username]);
+
+  // Handle force open new message from PWA shortcut
+  useEffect(() => {
+    if (forceOpenNewMessage) {
+      setShowUserSelect(true);
+    }
+  }, [forceOpenNewMessage]);
 
   useEffect(() => {
     if (user) {

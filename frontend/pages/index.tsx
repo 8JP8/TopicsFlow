@@ -126,6 +126,7 @@ export default function Home() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [mobileView, setMobileView] = useState<'sidebar' | 'content'>('sidebar');
+  const [forceOpenNewMessage, setForceOpenNewMessage] = useState(false);
 
 
   // Listen for tour events
@@ -374,6 +375,23 @@ export default function Home() {
       router.replace('/', undefined, { shallow: true });
       const event = new CustomEvent('openPost', { detail: { postId } });
       setTimeout(() => window.dispatchEvent(event), 100);
+      return;
+    }
+
+    // Handle PWA Shortcuts
+    if (router.query.action === 'new-topic') {
+      router.replace('/', undefined, { shallow: true });
+      setShowCreateTopic(true);
+      setMobileView('sidebar');
+      return;
+    }
+
+    if (router.query.action === 'messages') {
+      router.replace('/', undefined, { shallow: true });
+      setActiveSidebarTab('messages');
+      setMobileView('sidebar');
+      // Set a flag to trigger open new message in PrivateMessagesSimplified
+      setForceOpenNewMessage(true);
       return;
     }
 
@@ -787,6 +805,7 @@ export default function Home() {
                     {activeSidebarTab === 'messages' && (
                       <div className="h-full">
                         <PrivateMessagesSimplified
+                          forceOpenNewMessage={forceOpenNewMessage}
                           onExpandMessage={(userId, username) => {
                             setExpandedPrivateMessage({ userId, username });
                             setExpandedChatRoom(null);
