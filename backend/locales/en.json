@@ -38,7 +38,17 @@
             "codeLabel": "Verification Code",
             "expiry": "This code will expire in {minutes} minutes.",
             "warning": "⚠️ Warning: Deleting your account is permanent and cannot be undone. All your data will be erased.",
-            "ignore": "If you didn't request this, please ignore this email and change your password immediately.",
+            "ignore": "If you didn't request this, please ignore this email and change your TOTP and passkeys immediately.",
+            "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
+        },
+        "login2fa": {
+            "subject": "{app_name} - Login Verification Code",
+            "title": "Login Verification",
+            "greeting": "Hello {username},",
+            "intro": "A login attempt requires verification. Please use the following code to complete your login:",
+            "codeLabel": "Verification Code",
+            "expiry": "This code will expire in {minutes} minutes.",
+            "warning": "⚠️ Security Notice: If you didn't attempt to login, please change your TOTP and passkeys immediately.",
             "footer": "This is an automated email, please do not reply.\n© {year} {app_name}. All rights reserved."
         }
     }

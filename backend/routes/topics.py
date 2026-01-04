@@ -27,20 +27,11 @@ def get_topics_cache_key(func_name, args, kwargs):
     ]
     
     # Include user_id in cache key as query results depend on it (hidden/muted topics)
-    from services.auth_service import AuthService
-    from flask import current_app
+    from flask import session
     user_suffix = "anon"
-    try:
-        # We need a new auth service instance or use the one from the request context if available
-        # Since we are in a decorator, we might not have easy access to valid DB session if not careful
-        # But here we are inside request context.
-        auth = AuthService(current_app.db)
-        if auth.is_authenticated():
-            res = auth.get_current_user()
-            if res.get('success'):
-                user_suffix = str(res['user']['id'])
-    except:
-        pass
+    user_id = session.get('user_id')
+    if user_id:
+        user_suffix = str(user_id)
     
     params.append(user_suffix)
 
@@ -103,11 +94,17 @@ def get_topics():
             from models.notification_settings import NotificationSettings
             ns_model = NotificationSettings(current_app.db)
             
+            # Bulk fetch hidden and muted items to prevent N+1 queries
+            hidden_items = ucs_model.get_hidden_items(user_id)
+            hidden_topic_ids = set(hidden_items.get('topics', []))
+            
+            muted_topic_ids = set(ns_model.get_muted_topics(user_id))
+            
             filtered_topics = []
             for topic in topics:
                 t_id = str(topic['id'])
                 # Filter hidden topics
-                if ucs_model.is_topic_hidden(user_id, t_id):
+                if t_id in hidden_topic_ids:
                     continue
                 
                 # Check for invite-only access (require_approval = True)
@@ -129,7 +126,7 @@ def get_topics():
                     continue
 
                 # Add mute status
-                topic['is_muted'] = ns_model.is_topic_muted(user_id, t_id)
+                topic['is_muted'] = t_id in muted_topic_ids
                 
                 filtered_topics.append(topic)
             

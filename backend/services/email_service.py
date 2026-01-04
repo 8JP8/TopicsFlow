@@ -186,6 +186,54 @@ class EmailService:
 
         return self.send_email(to_email, subject, html_content, text_content)
 
+    def send_login_email_2fa(self, to_email: str, username: str, verification_code: str, lang: str = 'en') -> Dict[str, Any]:
+        """Send login 2FA verification code."""
+        # Prepare content data
+        data = {
+            'username': username,
+            'minutes': 15
+        }
+        
+        subject = self.get_text('email.login2fa.subject', lang, **data)
+        title = self.get_text('email.login2fa.title', lang, **data)
+        
+        body_content = f"""
+            <p style="font-size: 16px;">{self.get_text('email.login2fa.greeting', lang, **data)}</p>
+
+            <p style="font-size: 16px;">{self.get_text('email.login2fa.intro', lang, **data)}</p>
+
+            <div style="background: white; border: 2px solid #1976d2; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <p style="margin: 0; color: #666; font-size: 14px;">{self.get_text('email.login2fa.codeLabel', lang, **data)}</p>
+                <p style="margin: 10px 0 0 0; font-size: 32px; font-weight: bold; color: #1976d2; letter-spacing: 5px; font-family: 'Courier New', monospace;">
+                    {verification_code}
+                </p>
+            </div>
+
+            <p style="font-size: 14px; color: #666;">{self.get_text('email.login2fa.expiry', lang, **data)}</p>
+
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                    {self.get_text('email.login2fa.warning', lang, **data)}
+                </p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                {self.get_text('email.login2fa.footer', lang, **data).replace(chr(10), '<br>')}
+            </p>
+        """
+        
+        html_content = self._get_email_template(
+            "background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+            title,
+            body_content
+        )
+
+        text_content = f"{title}\n\n{self.get_text('email.login2fa.greeting', lang, **data)}\n\n{self.get_text('email.login2fa.intro', lang, **data)}\n\n{verification_code}\n\n{self.get_text('email.login2fa.expiry', lang, **data)}\n\n{self.get_text('email.login2fa.warning', lang, **data)}"
+
+        return self.send_email(to_email, subject, html_content, text_content)
+
     def send_recovery_email(self, to_email: str, username: str, recovery_code: str, lang: str = 'en') -> Dict[str, Any]:
         """Send account recovery email with verification code."""
         data = {

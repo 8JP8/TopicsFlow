@@ -140,7 +140,10 @@
     "enterCode": "Introduza o código de 6 dígitos",
     "verificationCode": "Código de Verificação",
     "recoveryCode": "Código de Recuperação",
-    "confirmRecoveryCode": "Confirmar Código de Recuperação"
+    "confirmRecoveryCode": "Confirmar Código de Recuperação",
+    "emailVerification": "Verificação de Email",
+    "enterCodeSent": "Introduza o código enviado para o seu email",
+    "resendVerificationCode": "Reenviar código de verificação"
   },
   "registration": {
     "title": "Criar Sua Conta",
@@ -282,7 +285,9 @@
     "userUnblocked": "Userunblocked",
     "followed": "A seguir",
     "unfollowed": "Deixou de seguir",
-    "topicHidden": "Tópico ocultado"
+    "topicHidden": "Tópico ocultado",
+    "codeResent": "Código de verificação reenviado!",
+    "checkEmail": "Por favor, verifique o seu email"
   },
   "home": {
     "title": "Bem-vindo ao TopicsFlow",
@@ -554,6 +559,8 @@
     "soundEffectsDesc": "Reproduzir sons para notificações e mensagens",
     "twoFactorAuth": "Autenticação de Dois Fatores",
     "twoFactorAuthDesc": "A autenticação TOTP está ativada",
+    "email2fa": "Email 2FA",
+    "email2faDesc": "Requer um código de verificação de email cada vez que iniciar sessão.",
     "passkeys": "Passkeys",
     "passkeysDesc": "Adicione login biométrico (Face ID, Touch ID ou Windows Hello) para um acesso mais rápido e seguro.",
     "addPasskey": "Adicionar Passkey",
@@ -578,6 +585,47 @@
     "backupCodesVerifyDesc": "Introduza o código TOTP para regerar os códigos. Nota: Os códigos anteriores deixarão de funcionar.",
     "backupCodesWarning": "Guarde estes códigos agora! Cada código pode ser usado apenas uma vez. Guarde-os num local seguro.",
     "viewRegenerateBackupCodes": "Ver/Regerar Códigos de Backup",
+    "passkeyInfoTitle": "Sobre as Passkeys",
+    "passkeyInfoSubtitle": "As Passkeys são uma forma moderna e segura de iniciar sessão sem digitar uma palavra-passe. Utilizam as funcionalidades de segurança biométrica já existentes no seu dispositivo.",
+    "whatIsPasskey": "O que é uma Passkey?",
+    "platformInfo": {
+      "windows": {
+        "title": "Utilizadores Windows",
+        "description": "No Windows, pode usar o Windows Hello para iniciar sessão com o rosto, impressão digital ou PIN, tal como desbloqueia o PC."
+      },
+      "mac": {
+        "title": "Utilizadores Mac",
+        "description": "No macOS, pode utilizar o Touch ID ou a palavra-passe do dispositivo para iniciar sessão com segurança."
+      },
+      "linux": {
+        "title": "Utilizadores Linux",
+        "description": "No Linux, pode utilizar chaves de segurança ou sensores biométricos integrados, se suportados pelo navegador e sistema."
+      },
+      "ios": {
+        "title": "Utilizadores iOS",
+        "description": "No iPhone ou iPad, pode utilizar o Face ID ou Touch ID para iniciar sessão de forma rápida e segura."
+      },
+      "android": {
+        "title": "Utilizadores Android",
+        "description": "No Android, pode utilizar a sua impressão digital, desbloqueio facial ou padrão/PIN de bloqueio de ecrã para iniciar sessão."
+      },
+      "default": {
+        "title": "Para o seu dispositivo",
+        "description": "Pode utilizar as capacidades de segurança integradas no seu dispositivo (como biometria ou bloqueio de ecrã) para iniciar sessão."
+      }
+    },
+    "passkeyExplanation": "Passkeys são uma forma moderna e segura de fazer login sem digitar uma palavra-passe. Usam os recursos de segurança biométrica já existentes no seu dispositivo.",
+    "supportedMethods": "Métodos Suportados",
+    "biometricLogin": "Login Biométrico",
+    "biometricDesc": "Use Touch ID ou sensores de impressão digital no seu portátil ou telemóvel.",
+    "faceRecognition": "Reconhecimento Facial",
+    "faceIdDesc": "Use Face ID no iOS ou reconhecimento facial Windows Hello.",
+    "securityKeys": "Chaves de Segurança",
+    "securityKeysDesc": "Chaves de hardware como YubiKey ou Titan Security Key.",
+    "otherDevices": "Outros Dispositivos",
+    "qrCodeDesc": "Digitalize um código QR para usar o seu telemóvel para fazer login noutro dispositivo.",
+    "windowsHelloTitle": "Utilizadores Windows",
+    "windowsHelloInfo": "No Windows, pode usar o Windows Hello para fazer login com o seu rosto, impressão digital ou PIN, exatamente como desbloqueia o seu PC.",
     "anonymousPosting": "Publicação Anónima",
     "anonymousPostingDesc": "Pode publicar anonimamente em tópicos que o permitam. Gerir as suas identidades anónimas a partir do separador Conta.",
     "viewAnonymousIdentities": "Ver Identidades Anónimas →",
@@ -901,7 +949,8 @@
     "messageDeleted": "Mensagem eliminada",
     "reportMessage": "Reportar Mensagem",
     "deleteMessage": "Apagar Mensagem",
-    "failedToDeleteMessage": "Falha ao eliminar mensagem"
+    "failedToDeleteMessage": "Falha ao eliminar mensagem",
+    "copyText": "Copiar Texto"
   },
   "qrCode": {
     "copy": "Copiar"
@@ -963,6 +1012,7 @@
     "settings": "Definições",
     "anonymousIdentities": "Identidades Anónimas",
     "twoFactorEnabled": "2FA Ativo",
+    "totpEnabled": "TOTP Ativo",
     "about": "Sobre",
     "logout": "Terminar Sessão"
   },

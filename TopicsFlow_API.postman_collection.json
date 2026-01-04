@@ -82,8 +82,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/register",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "register"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
 						},
 						"description": "Register a new user with password and TOTP setup."
 					}
@@ -121,8 +127,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/register-passwordless",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "register-passwordless"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register-passwordless"
+							]
 						},
 						"description": "Register a new user without password. Returns user_id and sends verification code to email."
 					}
@@ -143,8 +155,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/verify-email",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "verify-email"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"verify-email"
+							]
 						},
 						"description": "Verify email with 6-digit code sent to email. Returns TOTP QR data for authenticator app setup."
 					}
@@ -165,8 +183,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/complete-totp-setup",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "complete-totp-setup"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"complete-totp-setup"
+							]
 						},
 						"description": "Complete TOTP setup by verifying a 6-digit code from authenticator app. Returns backup codes."
 					}
@@ -187,8 +211,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/login",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "login"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
 						},
 						"description": "Login with username, password, and TOTP code."
 					}
@@ -227,8 +257,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/login-passwordless",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "login-passwordless"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login-passwordless"
+							]
 						},
 						"description": "Login with username/email and TOTP code from authenticator app. No password required."
 					}
@@ -240,8 +276,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/auth/me",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "me"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
 						},
 						"description": "Get currently authenticated user information."
 					}
@@ -253,8 +295,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/auth/logout",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "logout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
 						},
 						"description": "Logout user and clear session."
 					}
@@ -275,8 +323,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/passkey/register-options",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "passkey", "register-options"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"passkey",
+								"register-options"
+							]
 						},
 						"description": "Generate passkey registration options for WebAuthn."
 					}
@@ -297,10 +352,73 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/auth/passkey/auth-options",
-							"host": ["{{base_url}}"],
-							"path": ["api", "auth", "passkey", "auth-options"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"passkey",
+								"auth-options"
+							]
 						},
 						"description": "Generate passkey authentication options for login."
+					}
+				},
+				{
+					"name": "1.11 Resend Login Email 2FA",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/resend-login-email-2fa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"resend-login-email-2fa"
+							]
+						},
+						"description": "Resend the 6-digit Email 2FA code during login."
+					}
+				},
+				{
+					"name": "1.12 Verify Login Email 2FA",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/verify-login-email-2fa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"verify-login-email-2fa"
+							]
+						},
+						"description": "Verify the 6-digit Email 2FA code to complete login."
 					}
 				}
 			],
@@ -333,8 +451,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics?limit=20&offset=0&sort_by=last_activity",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -386,8 +509,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/topics",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics"
+							]
 						},
 						"description": "Create a new topic. Requires authentication."
 					}
@@ -399,8 +527,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics/{{topic_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "{{topic_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"{{topic_id}}"
+							]
 						},
 						"description": "Get details of a specific topic."
 					}
@@ -421,8 +555,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/topics/{{topic_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "{{topic_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"{{topic_id}}"
+							]
 						},
 						"description": "Update topic details (only owner can update)."
 					}
@@ -434,8 +574,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics/{{topic_id}}/join",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "{{topic_id}}", "join"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"{{topic_id}}",
+								"join"
+							]
 						},
 						"description": "Join a topic. Requires authentication."
 					}
@@ -447,8 +594,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics/{{topic_id}}/leave",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "{{topic_id}}", "leave"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"{{topic_id}}",
+								"leave"
+							]
 						},
 						"description": "Leave a topic. Requires authentication."
 					}
@@ -460,8 +614,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics/my",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "my"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"my"
+							]
 						},
 						"description": "Get topics that the current user is a member of."
 					}
@@ -473,8 +633,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/topics/{{topic_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "topics", "{{topic_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"topics",
+								"{{topic_id}}"
+							]
 						},
 						"description": "Delete a topic (only owner can delete)."
 					}
@@ -509,8 +675,16 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/posts/topics/{{topic_id}}/posts?sort_by=new&limit=50&offset=0",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "topics", "{{topic_id}}", "posts"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"topics",
+								"{{topic_id}}",
+								"posts"
+							],
 							"query": [
 								{
 									"key": "sort_by",
@@ -562,8 +736,16 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/posts/topics/{{topic_id}}/posts",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "topics", "{{topic_id}}", "posts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"topics",
+								"{{topic_id}}",
+								"posts"
+							]
 						},
 						"description": "Create a new post in a topic. Requires authentication."
 					}
@@ -575,8 +757,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/posts/{{post_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "{{post_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"{{post_id}}"
+							]
 						},
 						"description": "Get a specific post by ID."
 					}
@@ -588,8 +776,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/posts/{{post_id}}/upvote",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "{{post_id}}", "upvote"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"{{post_id}}",
+								"upvote"
+							]
 						},
 						"description": "Upvote a post. Requires authentication."
 					}
@@ -601,8 +796,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/posts/{{post_id}}/downvote",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "{{post_id}}", "downvote"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"{{post_id}}",
+								"downvote"
+							]
 						},
 						"description": "Downvote a post. Requires authentication."
 					}
@@ -614,8 +816,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/posts/{{post_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "{{post_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"{{post_id}}"
+							]
 						},
 						"description": "Delete a post (moderator, owner, or post author)."
 					}
@@ -636,8 +844,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/posts/{{post_id}}/report",
-							"host": ["{{base_url}}"],
-							"path": ["api", "posts", "{{post_id}}", "report"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"{{post_id}}",
+								"report"
+							]
 						},
 						"description": "Report a post for moderation. Requires authentication."
 					}
@@ -672,8 +887,16 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/comments/posts/{{post_id}}/comments?sort_by=top&limit=100",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "posts", "{{post_id}}", "comments"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"posts",
+								"{{post_id}}",
+								"comments"
+							],
 							"query": [
 								{
 									"key": "sort_by",
@@ -721,8 +944,16 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/comments/posts/{{post_id}}/comments",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "posts", "{{post_id}}", "comments"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"posts",
+								"{{post_id}}",
+								"comments"
+							]
 						},
 						"description": "Create a new comment on a post. Requires authentication."
 					}
@@ -743,8 +974,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/comments/{{comment_id}}/reply",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "{{comment_id}}", "reply"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"{{comment_id}}",
+								"reply"
+							]
 						},
 						"description": "Reply to a comment. Requires authentication."
 					}
@@ -756,8 +994,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/comments/{{comment_id}}/upvote",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "{{comment_id}}", "upvote"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"{{comment_id}}",
+								"upvote"
+							]
 						},
 						"description": "Upvote a comment. Requires authentication."
 					}
@@ -769,8 +1014,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/comments/{{comment_id}}/downvote",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "{{comment_id}}", "downvote"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"{{comment_id}}",
+								"downvote"
+							]
 						},
 						"description": "Downvote a comment. Requires authentication."
 					}
@@ -782,8 +1034,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/comments/{{comment_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "{{comment_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"{{comment_id}}"
+							]
 						},
 						"description": "Delete a comment (moderator, owner, or comment author)."
 					}
@@ -804,8 +1062,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/comments/{{comment_id}}/report",
-							"host": ["{{base_url}}"],
-							"path": ["api", "comments", "{{comment_id}}", "report"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"comments",
+								"{{comment_id}}",
+								"report"
+							]
 						},
 						"description": "Report a comment for moderation. Requires authentication."
 					}
@@ -840,8 +1105,16 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/topics/{{topic_id}}/conversations",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "topics", "{{topic_id}}", "conversations"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"topics",
+								"{{topic_id}}",
+								"conversations"
+							]
 						},
 						"description": "Get all chat rooms (conversations) for a topic."
 					}
@@ -879,8 +1152,16 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/topics/{{topic_id}}/conversations",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "topics", "{{topic_id}}", "conversations"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"topics",
+								"{{topic_id}}",
+								"conversations"
+							]
 						},
 						"description": "Create a new chat room in a topic. Requires authentication."
 					}
@@ -892,8 +1173,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/messages?limit=50",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "{{chat_room_id}}", "messages"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"{{chat_room_id}}",
+								"messages"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -920,8 +1208,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/messages",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "{{chat_room_id}}", "messages"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"{{chat_room_id}}",
+								"messages"
+							]
 						},
 						"description": "Create a new message in a chat room. Requires authentication."
 					}
@@ -933,8 +1228,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/join",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "{{chat_room_id}}", "join"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"{{chat_room_id}}",
+								"join"
+							]
 						},
 						"description": "Join a chat room. Requires authentication."
 					}
@@ -946,8 +1248,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/chat-rooms/{{chat_room_id}}/leave",
-							"host": ["{{base_url}}"],
-							"path": ["api", "chat-rooms", "{{chat_room_id}}", "leave"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat-rooms",
+								"{{chat_room_id}}",
+								"leave"
+							]
 						},
 						"description": "Leave a chat room. Requires authentication."
 					}
@@ -982,8 +1291,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/messages/topic/{{topic_id}}?limit=50",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "topic", "{{topic_id}}"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"topic",
+								"{{topic_id}}"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -1010,8 +1326,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/messages/topic/{{topic_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "topic", "{{topic_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"topic",
+								"{{topic_id}}"
+							]
 						},
 						"description": "Create a new message in a topic. Requires authentication."
 					}
@@ -1023,8 +1346,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/messages/{{message_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "{{message_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"{{message_id}}"
+							]
 						},
 						"description": "Delete a message (moderator, owner, or message author)."
 					}
@@ -1045,8 +1374,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/messages/{{message_id}}/report",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "{{message_id}}", "report"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"{{message_id}}",
+								"report"
+							]
 						},
 						"description": "Report a message for moderation. Requires authentication."
 					}
@@ -1073,8 +1409,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/messages/private",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "private"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"private"
+							]
 						},
 						"description": "Send a private message to another user. Requires authentication."
 					}
@@ -1086,8 +1428,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/messages/private?other_user_id={{user_id}}&limit=50",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "private"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"private"
+							],
 							"query": [
 								{
 									"key": "other_user_id",
@@ -1109,8 +1457,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/messages/private/conversations?limit=20",
-							"host": ["{{base_url}}"],
-							"path": ["api", "messages", "private", "conversations"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"private",
+								"conversations"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -1134,8 +1489,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/users/profile",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "profile"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
 						},
 						"description": "Get current user's profile. Requires authentication."
 					}
@@ -1156,8 +1517,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/users/profile",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "profile"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
 						},
 						"description": "Update current user's profile. Requires authentication."
 					}
@@ -1169,8 +1536,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/users/search?q=test&limit=20",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "search"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"search"
+							],
 							"query": [
 								{
 									"key": "q",
@@ -1192,8 +1565,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/users/{{user_id}}/block",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "{{user_id}}", "block"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{user_id}}",
+								"block"
+							]
 						},
 						"description": "Block a user. Requires authentication."
 					}
@@ -1205,8 +1585,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/users/{{user_id}}/unblock",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "{{user_id}}", "unblock"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{user_id}}",
+								"unblock"
+							]
 						},
 						"description": "Unblock a user. Requires authentication."
 					}
@@ -1233,8 +1620,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/friends/requests/send",
-							"host": ["{{base_url}}"],
-							"path": ["api", "friends", "requests", "send"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"friends",
+								"requests",
+								"send"
+							]
 						},
 						"description": "Send a friend request to another user. Requires authentication."
 					}
@@ -1246,8 +1640,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/friends",
-							"host": ["{{base_url}}"],
-							"path": ["api", "friends"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"friends"
+							]
 						},
 						"description": "Get list of current user's friends. Requires authentication."
 					}
@@ -1259,8 +1658,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/friends/requests/pending",
-							"host": ["{{base_url}}"],
-							"path": ["api", "friends", "requests", "pending"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"friends",
+								"requests",
+								"pending"
+							]
 						},
 						"description": "Get pending friend requests received by current user. Requires authentication."
 					}
@@ -1287,8 +1693,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/reports",
-							"host": ["{{base_url}}"],
-							"path": ["api", "reports"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"reports"
+							]
 						},
 						"description": "Create a new report for content or user. Requires authentication."
 					}
@@ -1300,8 +1711,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/reports/my",
-							"host": ["{{base_url}}"],
-							"path": ["api", "reports", "my"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"my"
+							]
 						},
 						"description": "Get reports submitted by current user. Requires authentication."
 					}
@@ -1345,8 +1762,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/tickets",
-							"host": ["{{base_url}}"],
-							"path": ["api", "tickets"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tickets"
+							]
 						},
 						"description": "Create a new support ticket. Requires authentication."
 					}
@@ -1358,8 +1780,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/tickets/my",
-							"host": ["{{base_url}}"],
-							"path": ["api", "tickets", "my"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tickets",
+								"my"
+							]
 						},
 						"description": "Get current user's support tickets. Requires authentication."
 					}
@@ -1371,8 +1799,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/tickets/categories",
-							"host": ["{{base_url}}"],
-							"path": ["api", "tickets", "categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tickets",
+								"categories"
+							]
 						},
 						"description": "Get available ticket categories. Requires authentication."
 					}
@@ -1390,8 +1824,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/admin/reports?status=pending&limit=50",
-							"host": ["{{base_url}}"],
-							"path": ["api", "admin", "reports"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"reports"
+							],
 							"query": [
 								{
 									"key": "status",
@@ -1413,8 +1853,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/admin/stats",
-							"host": ["{{base_url}}"],
-							"path": ["api", "admin", "stats"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"stats"
+							]
 						},
 						"description": "Get admin dashboard statistics (admin only)."
 					}
@@ -1435,8 +1881,16 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/admin/users/{{user_id}}/ban",
-							"host": ["{{base_url}}"],
-							"path": ["api", "admin", "users", "{{user_id}}", "ban"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"{{user_id}}",
+								"ban"
+							]
 						},
 						"description": "Ban a user (admin only)."
 					}
@@ -1454,8 +1908,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/gifs/search?q=happy&limit=20",
-							"host": ["{{base_url}}"],
-							"path": ["api", "gifs", "search"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"gifs",
+								"search"
+							],
 							"query": [
 								{
 									"key": "q",
@@ -1477,8 +1937,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/gifs/trending?limit=20",
-							"host": ["{{base_url}}"],
-							"path": ["api", "gifs", "trending"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"gifs",
+								"trending"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -1502,8 +1968,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/health",
-							"host": ["{{base_url}}"],
-							"path": ["health"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
 						},
 						"description": "Check if the API is running."
 					}
@@ -1513,5 +1983,3 @@
 		}
 	]
 }
-
-

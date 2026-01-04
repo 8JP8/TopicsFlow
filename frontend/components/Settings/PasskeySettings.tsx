@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { startRegistration } from '@simplewebauthn/browser';
 import TOTPInput from '@/components/Auth/TOTPInput';
+import PasskeyInfoModal from './PasskeyInfoModal';
 
 // Avoid importing an extra package just for types in this repo setup.
 type RegistrationResponseJSON = any;
@@ -28,6 +29,7 @@ const PasskeySettings: React.FC = () => {
 
     // Name / rename modal
     const [showNameModal, setShowNameModal] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     const [nameModalMode, setNameModalMode] = useState<'add' | 'rename'>('add');
     const [nameInput, setNameInput] = useState('');
     const [nameError, setNameError] = useState<string | null>(null);
@@ -273,7 +275,14 @@ const PasskeySettings: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+                <button
+                    onClick={() => setShowInfoModal(true)}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg"
+                    title={t('common.learnMore') || 'Learn More'}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
+                </button>
                 <button
                     onClick={handleCreatePasskey}
                     disabled={isAdding}
@@ -450,6 +459,11 @@ const PasskeySettings: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <PasskeyInfoModal
+                isOpen={showInfoModal}
+                onClose={() => setShowInfoModal(false)}
+            />
         </div >
     );
 };

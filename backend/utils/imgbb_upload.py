@@ -124,15 +124,24 @@ def should_use_imgbb(base64_image: str) -> bool:
         return os.getenv('USE_IMGBB', 'false').lower() in ('true', '1', 'yes')
 
 
+def _extract_mime_type(base64_image: str) -> str:
+    """Extract mime type from base64 string."""
+    import re
+    if base64_image.startswith('data:'):
+        match = re.match(r'^data:(?P<mime>[-\w.]+/[-\w.]+);base64,', base64_image)
+        if match:
+            return match.group('mime')
+    return 'image/jpeg'  # Default
+
 def process_image_for_storage(base64_image: str) -> dict:
     """
-    Process an image for storage - upload to imgbb if large, otherwise return base64.
+    Process an image for storage - upload to imgbb if available, otherwise Azure.
     
     Args:
         base64_image: Base64 encoded image string
     
     Returns:
-        dict with 'success' (bool), 'url' (str if imgbb) or 'data' (str if base64), and 'source' ('imgbb' or 'base64')
+        dict with 'success' (bool), 'url' (str - either http URL or azure:ID or base64)
     """
     if not base64_image:
         return {
@@ -140,29 +149,98 @@ def process_image_for_storage(base64_image: str) -> dict:
             'error': 'No image data provided'
         }
     
-    # Check if we should use imgbb
-    if should_use_imgbb(base64_image):
-        logger.info("Image is large, uploading to imgbb...")
+    # 1. Try ImgBB if key is configured
+    api_key = os.getenv('IMGBB_API_KEY')
+    if api_key:
+        logger.info("IMGBB_API_KEY found, attempting ImgBB upload...")
         imgbb_result = upload_to_imgbb(base64_image)
-        
         if imgbb_result['success']:
-            return {
-                'success': True,
-                'url': imgbb_result['url'],
-                'source': 'imgbb'
-            }
+             return {
+                 'success': True,
+                 'url': imgbb_result['url'],
+                 'source': 'imgbb'
+             }
         else:
-            # If imgbb fails, fall back to base64
-            logger.warning(f"imgbb upload failed, falling back to base64: {imgbb_result.get('error')}")
-            return {
-                'success': True,
-                'data': base64_image,
-                'source': 'base64'
-            }
-    else:
-        # Small image, use base64
-        return {
-            'success': True,
-            'data': base64_image,
-            'source': 'base64'
-        }
+             logger.warning(f"ImgBB upload failed: {imgbb_result.get('error')}")
+             # Proceed to Azure fallback? User said "if the env variable is set... use imgbb".
+             # If it fails, fallback is reasonable.
+    
+    # 2. Use Azure Storage
+    try:
+        from services.file_storage import FileStorageService
+        # Check if we assume Azure is configured. The user said "if not [imgbb] use azure".
+        # We'll use FileStorageService with use_azure=True if configured in env, 
+        # but the prompt implies enforcing Azure if ImgBB is missing.
+        # We'll rely on FileStorageService defaults/env.
+        
+        # We need to distinguish if we want to FORCE Azure or just use configured storage.
+        # User specified "azure storage container path".
+        # We'll check if AZURE is configured.
+        if os.getenv('AZURE_STORAGE_CONNECTION_STRING'):
+             storage = FileStorageService(use_azure=True)
+             
+             # Parse base64
+             mime_type = _extract_mime_type(base64_image)
+             if ',' in base64_image:
+                 data_str = base64_image.split(',', 1)[1]
+             else:
+                 data_str = base64_image
+             
+             import base64 as b64
+             file_data = b64.b64decode(data_str)
+             
+             # Generate a generic filename
+             ext = mime_type.split('/')[-1] if '/' in mime_type else 'jpg'
+             filename = f"image.{ext}"
+             
+             file_id, _ = storage.store_file(file_data, filename, mime_type=mime_type, file_id_prefix='img_')
+             
+             # Return formatted azure path
+             azure_path = f"azure:{file_id}" 
+             return {
+                 'success': True,
+                 'url': azure_path,
+                 'source': 'azure'
+             }
+    except Exception as e:
+        logger.error(f"Azure upload failed: {e}")
+
+    # 3. Fallback to base64 if everything fails or no storage configured
+    return {
+        'success': True,
+        'url': base64_image, # "data" was used before, but "url" unifies the return field
+        'source': 'base64'
+    }
+
+def resolve_image_content(image_str: str) -> str:
+    """
+    Resolve an image string (URL, base64, or azure:ID) to content useable by frontend.
+    If it's an Azure ID, fetches content and returns base64.
+    """
+    if not image_str:
+        return image_str
+        
+    if image_str.startswith('azure:'):
+        try:
+            file_id = image_str.split(':', 1)[1]
+            from services.file_storage import FileStorageService
+            # Assume env vars are set for Azure
+            if os.getenv('AZURE_STORAGE_CONNECTION_STRING'):
+                storage = FileStorageService(use_azure=True)
+                content = storage.get_file_content(file_id)
+                if content:
+                    import base64 as b64
+                    # We don't know the original mime type easily unless we stored it in DB or 
+                    # we can guess from bytes/signature.
+                    # Or we just return base64 without prefix? Frontend might need prefix.
+                    # Let's try to detect mime or default to png/jpg.
+                    # Or simpler: The backend just sends base64 string.
+                    b64_str = b64.b64encode(content).decode('utf-8')
+                    # HACK: Guess mime or use generic.
+                    return f"data:image/jpeg;base64,{b64_str}" 
+        except Exception as e:
+            logger.error(f"Failed to resolve azure image {image_str}: {e}")
+            return image_str # Fail safe
+            
+    return image_str
+

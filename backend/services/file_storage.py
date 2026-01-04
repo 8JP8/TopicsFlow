@@ -348,6 +348,39 @@ class FileStorageService:
         
         return None
     
+    def get_file_content(self, file_id: str) -> Optional[bytes]:
+        """Get file content as bytes."""
+        try:
+            if self.use_azure:
+                # Need to find the blob name (we flattened it to file_id.ext)
+                # But we don't know the extension.
+                # However, _store_azure_file uses file_id + ext.
+                # If we only have file_id, we need to search or store extension in DB.
+                # But wait, store_file returns file_id.
+                # In _store_azure_file: blob_name = f"{file_id}{file_ext}"
+                # So the blob name HAS an extension.
+                # But file_id usually implies the ID without extension?
+                # _generate_file_id returns base_id.
+                # _store_azure_file uses file_id and appends ext.
+                # So when we deleted, we did list_blobs(name_starts_with=file_id).
+                # We can do the same here.
+                container_client = self.blob_service_client.get_container_client(self.container_name)
+                blobs = list(container_client.list_blobs(name_starts_with=file_id))
+                if not blobs:
+                    return None
+                # Assume the first one is the file (collisions unlikely with hash+timestamp)
+                blob_client = container_client.get_blob_client(blobs[0].name)
+                return blob_client.download_blob().readall()
+            else:
+                file_path = self.get_file_path(file_id)
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, 'rb') as f:
+                        return f.read()
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get file content for {file_id}: {e}")
+            return None
+    
     def delete_file(self, file_id: str) -> bool:
         """Delete file from storage."""
         try:

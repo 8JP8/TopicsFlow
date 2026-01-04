@@ -1956,13 +1956,6 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                             userId: conversation.user_id,
                             username: conversation.username,
                           });
-                          setContextMenu({
-                            x: e.clientX,
-                            y: e.clientY,
-                            userId: conversation.user_id,
-                            username: conversation.username,
-                            isMuted: conversation.is_muted || false,
-                          });
                         }}
                         className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
                       >
@@ -2175,12 +2168,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                     onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
+                      setUserContextMenu({
                         userId: conversation.user_id,
                         username: conversation.username,
-                        isMuted: conversation.is_muted || false,
+                        x: e.clientX,
+                        y: e.clientY,
                       });
                     }}
                     className="flex items-center justify-between p-3 theme-bg-tertiary rounded-lg hover:opacity-90 cursor-pointer transition-opacity"
@@ -2372,78 +2364,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
         onSelectFriend={(friendId, username) => handleStartConversation(friendId, username)}
       />
 
-      {/* Context Menu */}
-      {
-        contextMenu && (
-          <ContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            onClose={() => setContextMenu(null)}
-            items={[
-              {
-                label: t('privateMessages.markAsRead'),
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ),
-                action: () => handleMarkConversationAsRead(contextMenu.userId),
-              },
-              contextMenu.isMuted ? {
-                label: t('mute.unmute') || 'Unmute',
-                icon: <Volume2 className="w-4 h-4" />,
-                action: () => handleMuteConversation(contextMenu.userId, 0),
-              } : {
-                label: t('privateMessages.muteConversation'),
-                icon: <VolumeX className="w-4 h-4" />,
-                action: () => { },
-                submenu: [
-                  {
-                    label: t('mute.15m') || '15 Minutes',
-                    action: () => handleMuteConversation(contextMenu.userId, 15),
-                  },
-                  {
-                    label: t('mute.1h') || '1 Hour',
-                    action: () => handleMuteConversation(contextMenu.userId, 60),
-                  },
-                  {
-                    label: t('mute.8h') || '8 Hours',
-                    action: () => handleMuteConversation(contextMenu.userId, 480),
-                  },
-                  {
-                    label: t('mute.24h') || '24 Hours',
-                    action: () => handleMuteConversation(contextMenu.userId, 1440),
-                  },
-                  {
-                    label: t('mute.always') || 'Until I turn it back on',
-                    action: () => handleMuteConversation(contextMenu.userId, -1),
-                  },
-                ],
-              },
-              {
-                label: t('privateMessages.blockUser'),
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                ),
-                danger: true,
-                action: () => handleBlockUser(contextMenu.userId),
-              },
-              {
-                label: t('privateMessages.deleteConversation'),
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                ),
-                danger: true,
-                action: () => handleDeleteConversation(contextMenu.userId),
-              },
-            ]}
-          />
-        )
-      }
+
 
       {/* User Hover Card / Tooltip */}
       {
@@ -2632,6 +2553,10 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             }}
             onSilence={() => {
               // Submenu in UserContextMenu handles mute API calls directly
+            }}
+            onDeleteConversation={(userId) => {
+              handleDeleteConversation(userId);
+              setUserContextMenu(null);
             }}
           />
         )

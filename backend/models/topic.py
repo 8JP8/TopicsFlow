@@ -129,6 +129,28 @@ class Topic:
                      .limit(limit)
                      .skip(offset))
 
+        # Bulk fetch owners
+        owner_ids = set()
+        for topic in topics:
+            if topic.get('owner_id'):
+                owner_ids.add(topic['owner_id'])
+        
+        owners_map = {}
+        if owner_ids:
+            from .user import User
+            # Convert to distinct ObjectIds for query
+            user_obj_ids = []
+            for uid in owner_ids:
+                if isinstance(uid, ObjectId):
+                     user_obj_ids.append(uid)
+                elif ObjectId.is_valid(str(uid)):
+                     user_obj_ids.append(ObjectId(str(uid)))
+            
+            if user_obj_ids:
+                users_list = list(self.db.users.find({'_id': {'$in': user_obj_ids}}))
+                for u in users_list:
+                    owners_map[str(u['_id'])] = u
+
         # Convert ObjectIds and add owner details
         for topic in topics:
             # Convert all ObjectIds to strings
@@ -152,10 +174,9 @@ class Topic:
                     if 'added_by' in mod:
                         mod['added_by'] = str(mod['added_by'])
 
-            # Get owner details
-            from .user import User
-            user_model = User(self.db)
-            owner = user_model.get_user_by_id(topic['owner_id'])
+            # Get owner details from map
+            owner_id = topic['owner_id']
+            owner = owners_map.get(owner_id)
             if owner:
                 topic['owner'] = {
                     'id': str(owner['_id']),
@@ -620,7 +641,7 @@ class Topic:
                     if 'added_by' in mod:
                         mod['added_by'] = str(mod['added_by'])
             
-            topic['user_permission_level'] = self.get_user_permission_level(str(topic['_id']), user_id)
+            topic['user_permission_level'] = self.calculate_permission_level(topic, user_id)
 
         return topics
 
@@ -741,6 +762,28 @@ class Topic:
             'deletion_status': 'pending'
         }).sort([('deleted_at', -1)]))
         
+        # Bulk fetch owners
+        owner_ids = set()
+        for topic in topics:
+            if topic.get('owner_id'):
+                owner_ids.add(topic['owner_id'])
+        
+        owners_map = {}
+        if owner_ids:
+            from .user import User
+            # Convert to distinct ObjectIds for query
+            user_obj_ids = []
+            for uid in owner_ids:
+                if isinstance(uid, ObjectId):
+                     user_obj_ids.append(uid)
+                elif ObjectId.is_valid(str(uid)):
+                     user_obj_ids.append(ObjectId(str(uid)))
+            
+            if user_obj_ids:
+                users_list = list(self.db.users.find({'_id': {'$in': user_obj_ids}}))
+                for u in users_list:
+                    owners_map[str(u['_id'])] = u
+
         for topic in topics:
             # Convert all ObjectIds to strings
             topic['_id'] = str(topic['_id'])
@@ -784,10 +827,9 @@ class Topic:
             if 'permanent_delete_at' in topic and isinstance(topic.get('permanent_delete_at'), datetime):
                 topic['permanent_delete_at'] = topic['permanent_delete_at'].isoformat()
             
-            # Get owner details
-            from .user import User
-            user_model = User(self.db)
-            owner = user_model.get_user_by_id(topic['owner_id'])
+            # Get owner details form map
+            owner_id = topic['owner_id']
+            owner = owners_map.get(owner_id)
             if owner:
                 topic['owner'] = {
                     'id': str(owner['_id']),

@@ -60,15 +60,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
       icon: <AlertTriangle className="w-4 h-4" />,
       disabled: !onReport,
     },
-    {
-      label: t('common.share') || 'Share',
-      action: () => {
-        if (onShare) onShare(chatId);
-        onClose();
-      },
-      icon: <Share2 className="w-4 h-4" />,
-      disabled: !onShare,
-    },
+
     {
       label: isFollowing ? (t('chats.unfollow') || 'Unfollow Chatroom') : (t('contextMenu.followChatroom') || 'Follow Chatroom'),
       action: () => {

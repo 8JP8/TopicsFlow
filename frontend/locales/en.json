@@ -138,9 +138,11 @@
     "signIn": "Sign In",
     "authenticatorCode": "Authenticator Code",
     "enterCode": "Enter 6-digit code",
-    "verificationCode": "Verification Code",
     "recoveryCode": "Recovery Code",
-    "confirmRecoveryCode": "Confirm Recovery Code"
+    "confirmRecoveryCode": "Confirm Recovery Code",
+    "emailVerification": "Email Verification",
+    "enterCodeSent": "Enter the code sent to your email",
+    "resendVerificationCode": "Resend verification code"
   },
   "registration": {
     "title": "Create Your Account",
@@ -281,7 +283,9 @@
     "userUnblocked": "Userunblocked",
     "followed": "Followed successfully",
     "unfollowed": "Unfollowed successfully",
-    "topicHidden": "Topic hidden"
+    "topicHidden": "Topic hidden",
+    "codeResent": "Verification code resent!",
+    "checkEmail": "Please check your email"
   },
   "home": {
     "title": "Welcome to TopicsFlow",
@@ -552,6 +556,8 @@
     "soundEffectsDesc": "Play sounds for notifications and messages",
     "twoFactorAuth": "Two-Factor Authentication",
     "twoFactorAuthDesc": "TOTP authentication is enabled and active",
+    "email2fa": "Email 2FA",
+    "email2faDesc": "Require a one-time email code every time you log in.",
     "passkeys": "Passkeys",
     "passkeysDesc": "Add biometric login (Face ID, Touch ID, or Windows Hello) for faster and more secure access.",
     "addPasskey": "Add Passkey",
@@ -583,6 +589,47 @@
     "deleteAccountDesc": "Permanently delete your account and all data. This action cannot be undone.",
     "backupCodesWarning": "Save these codes now! Each code can only be used once. Store them in a secure location.",
     "viewRegenerateBackupCodes": "View/Regenerate Backup Codes",
+    "passkeyInfoTitle": "About Passkeys",
+    "passkeyInfoSubtitle": "Passkeys are a modern, secure way to sign in without typing a password. They use the biometric security features already on your device.",
+    "whatIsPasskey": "What is a Passkey?",
+    "passkeyExplanation": "Passkeys are a modern, secure way to sign in without typing a password. They use the biometric security features already on your device.",
+    "supportedMethods": "Supported Methods",
+    "biometricLogin": "Biometric Login",
+    "biometricDesc": "Use Touch ID or Fingerprint sensors on your laptop or phone.",
+    "faceRecognition": "Face Recognition",
+    "faceIdDesc": "Use Face ID on iOS or Windows Hello facial recognition.",
+    "securityKeys": "Security Keys",
+    "securityKeysDesc": "Hardware keys like YubiKey or Titan Security Key.",
+    "otherDevices": "Other Devices",
+    "qrCodeDesc": "Scan a QR code to use your phone to sign in on another device.",
+    "platformInfo": {
+      "windows": {
+        "title": "Windows Users",
+        "description": "On Windows, you can use Windows Hello to sign in with your face, fingerprint, or PIN exactly like you unlock your PC."
+      },
+      "mac": {
+        "title": "Mac Users",
+        "description": "On macOS, you can use Touch ID or your device password to sign in securely."
+      },
+      "linux": {
+        "title": "Linux Users",
+        "description": "On Linux, you can use security keys or integrated biometric sensors if supported by your browser and system."
+      },
+      "ios": {
+        "title": "iOS Users",
+        "description": "On iPhone or iPad, you can use Face ID or Touch ID to sign in quickly and securely."
+      },
+      "android": {
+        "title": "Android Users",
+        "description": "On Android, you can use your fingerprint, face unlock, or screen lock pattern/PIN to sign in."
+      },
+      "default": {
+        "title": "For your device",
+        "description": "You can use the security capabilities built into your device (like biometrics or screen lock) to sign in."
+      }
+    },
+    "windowsHelloTitle": "Windows Users",
+    "windowsHelloInfo": "On Windows, you can use Windows Hello to sign in with your face, fingerprint, or PIN exactly like you unlock your PC.",
     "settingsSaved": "Settings saved",
     "settingsSaveFailed": "Failed to save settings",
     "blockedUsers": "Blocked Users",
@@ -669,6 +716,7 @@
     "theme": "Theme",
     "language": "Language",
     "twoFactorEnabled": "2FA Enabled",
+    "totpEnabled": "TOTP Enabled",
     "openTicket": "Open Support Ticket",
     "myTickets": "My Tickets",
     "anonymousIdentities": "Anonymous Identities",
@@ -922,7 +970,8 @@
     "messageDeleted": "Message deleted",
     "reportMessage": "Report Message",
     "deleteMessage": "Delete Message",
-    "failedToDeleteMessage": "Failed to delete message"
+    "failedToDeleteMessage": "Failed to delete message",
+    "copyText": "Copy Text"
   },
   "qrCode": {
     "copy": "Copy"

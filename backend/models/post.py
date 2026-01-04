@@ -197,6 +197,34 @@ class Post:
             followed_posts = notif_settings.get_followed_posts(user_id)
             followed_post_ids = {p['post_id'] for p in followed_posts}
 
+        # Collect user IDs for batch fetching
+        user_ids = set()
+        for post in posts:
+            if not post.get('anonymous_identity') and 'user_id' in post:
+                user_ids.add(post['user_id'])
+        
+        # Batch fetch users
+        users_map = {}
+        if user_ids:
+            from .user import User
+            # Convert to ObjectIds for query
+            user_obj_ids = []
+            for uid in user_ids:
+                if isinstance(uid, ObjectId):
+                     user_obj_ids.append(uid)
+                elif ObjectId.is_valid(str(uid)):
+                     user_obj_ids.append(ObjectId(str(uid)))
+            
+            if user_obj_ids:
+                users_list = list(self.db.users.find({'_id': {'$in': user_obj_ids}}))
+                for u in users_list:
+                    users_map[str(u['_id'])] = u
+
+        # Optimization: Fetch topic ONCE
+        from .topic import Topic
+        topic_model = Topic(self.db)
+        current_topic = topic_model.get_topic_by_id(topic_id)
+
         # Process posts
         for post in posts:
             post['_id'] = str(post['_id'])
@@ -243,9 +271,7 @@ class Post:
                 post['is_owner'] = False
                 post['is_moderator'] = False
             else:
-                from .user import User
-                user_model = User(self.db)
-                user = user_model.get_user_by_id(post['user_id'])
+                user = users_map.get(post['user_id'])
                 if user:
                     post['display_name'] = user['username']
                     post['author_username'] = user['username']
@@ -255,13 +281,18 @@ class Post:
                     # Check if owner or moderator of the topic
                     post['is_owner'] = False
                     post['is_moderator'] = False
-                    if post.get('topic_id'):
-                        from .topic import Topic
-                        topic_model = Topic(self.db)
-                        topic = topic_model.get_topic_by_id(str(post['topic_id']))
-                        if topic:
-                            post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
-                            post['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(post['user_id']))
+                    if current_topic:
+                        post['is_owner'] = str(current_topic.get('owner_id')) == str(post['user_id'])
+                        
+                        # Check mod status locally using current_topic dict to avoid DB query
+                        moderators = current_topic.get('moderators', [])
+                        is_mod = False
+                        for mod in moderators:
+                             mod_id = mod.get('user_id') if isinstance(mod, dict) else mod
+                             if str(mod_id) == str(post['user_id']):
+                                 is_mod = True
+                                 break
+                        post['is_moderator'] = is_mod
                 else:
                     post['display_name'] = 'Deleted User'
                     post['author_username'] = 'Deleted User'
@@ -295,6 +326,47 @@ class Post:
             notif_settings = NotificationSettings(self.db)
             followed_posts = notif_settings.get_followed_posts(user_id)
             followed_post_ids = {p['post_id'] for p in followed_posts}
+
+        # Collect user IDs & Topic IDs for batch fetching
+        user_ids = set()
+        topic_ids = set()
+        for post in posts:
+            if not post.get('anonymous_identity') and 'user_id' in post:
+                user_ids.add(post['user_id'])
+            if 'topic_id' in post:
+                topic_ids.add(post['topic_id'])
+        
+        # Batch fetch users
+        users_map = {}
+        if user_ids:
+            from .user import User
+            user_obj_ids = []
+            for uid in user_ids:
+                if isinstance(uid, ObjectId):
+                     user_obj_ids.append(uid)
+                elif ObjectId.is_valid(str(uid)):
+                     user_obj_ids.append(ObjectId(str(uid)))
+            
+            if user_obj_ids:
+                users_list = list(self.db.users.find({'_id': {'$in': user_obj_ids}}))
+                for u in users_list:
+                    users_map[str(u['_id'])] = u
+
+        # Batch fetch topics
+        topics_map = {}
+        if topic_ids:
+            from .topic import Topic
+            topic_obj_ids = []
+            for tid in topic_ids:
+                if isinstance(tid, ObjectId):
+                     topic_obj_ids.append(tid)
+                elif ObjectId.is_valid(str(tid)):
+                     topic_obj_ids.append(ObjectId(str(tid)))
+            
+            if topic_obj_ids:
+                topics_list = list(self.db.topics.find({'_id': {'$in': topic_obj_ids}}))
+                for t in topics_list:
+                    topics_map[str(t['_id'])] = t
 
         # Process posts (same as get_posts_by_topic)
         processed_posts = []
@@ -348,9 +420,7 @@ class Post:
                 post['is_owner'] = False
                 post['is_moderator'] = False
             else:
-                from .user import User
-                user_model = User(self.db)
-                user = user_model.get_user_by_id(post['user_id'])
+                user = users_map.get(post['user_id'])
                 if user:
                     post['display_name'] = user['username']
                     post['author_username'] = user['username']
@@ -360,13 +430,17 @@ class Post:
                     # Check if owner or moderator of the topic
                     post['is_owner'] = False
                     post['is_moderator'] = False
-                    if post.get('topic_id'):
-                        from .topic import Topic
-                        topic_model = Topic(self.db)
-                        topic = topic_model.get_topic_by_id(str(post['topic_id']))
-                        if topic:
-                            post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
-                            post['is_moderator'] = topic_model.is_user_moderator(str(post['topic_id']), str(post['user_id']))
+                    topic = topics_map.get(str(post['topic_id']))
+                    if topic:
+                         post['is_owner'] = str(topic.get('owner_id')) == str(post['user_id'])
+                         moderators = topic.get('moderators', [])
+                         is_mod = False
+                         for mod in moderators:
+                             mod_id = mod.get('user_id') if isinstance(mod, dict) else mod
+                             if str(mod_id) == str(post['user_id']):
+                                 is_mod = True
+                                 break
+                         post['is_moderator'] = is_mod
                 else:
                     post['display_name'] = 'Deleted User'
                     post['author_username'] = 'Deleted User'
@@ -377,12 +451,11 @@ class Post:
                 post['is_anonymous'] = False
 
             # Get topic title
-            from .topic import Topic
-            topic_model = Topic(self.db)
-            topic = topic_model.get_topic_by_id(post['topic_id'])
+            topic = topics_map.get(str(post['topic_id']))
             if topic:
                 post['topic_title'] = topic.get('title', 'Unknown Topic')
             else:
+                 # Fallback (should typically not happen if batch fetch worked)
                 post['topic_title'] = 'Unknown Topic'
             
             processed_posts.append(post)

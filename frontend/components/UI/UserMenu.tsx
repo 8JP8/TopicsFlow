@@ -215,11 +215,15 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
               <p className="text-xs theme-text-secondary">{user.email}</p>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center space-x-2">
-                  {user.totp_enabled && (
+                  {user.preferences?.email_2fa_enabled ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       {t('userMenu.twoFactorEnabled') || '2FA Enabled'}
                     </span>
-                  )}
+                  ) : user.totp_enabled ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      {t('userMenu.totpEnabled') || 'TOTP Enabled'}
+                    </span>
+                  ) : null}
                 </div>
                 {(user as any).country_code && (
                   <CountryFlag countryCode={(user as any).country_code} size="sm" showName={true} />

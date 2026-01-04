@@ -8,7 +8,7 @@ import { Clock } from 'lucide-react';
 
 interface SilencedItem {
     id: string;
-    type: 'topic' | 'post' | 'chatroom'; // Removed 'user' as it's not currently supported by backend logic here
+    type: 'topic' | 'post' | 'chatroom' | 'user';
     name: string; // Username, Title, or Chatroom Name
     description?: string; // Content preview or descriptions
     topic_id?: string;
@@ -47,7 +47,21 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                 // Backend now returns { items: [...], topics: [...], ... }
                 // We want the flat 'items' list which has 'type' populated
                 if (data && Array.isArray(data.items)) {
-                    setSilencedItems(data.items);
+                    const items = [...data.items];
+
+                    // Add silenced users if available
+                    if (data.silenced_users && Array.isArray(data.silenced_users)) {
+                        const userItems: SilencedItem[] = data.silenced_users.map((u: any) => ({
+                            id: u.id,
+                            type: 'user',
+                            name: u.username,
+                            silenced_at: new Date().toISOString(), // Not typically stored for DMs in the same way, or use returned timestamp
+                            silenced_until: u.muted_until,
+                        }));
+                        items.push(...userItems);
+                    }
+
+                    setSilencedItems(items);
                 } else if (Array.isArray(data)) {
                     // Fallback for unexpected structure or old API
                     setSilencedItems(data);
@@ -78,6 +92,9 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                     break;
                 case 'chatroom':
                     response = await api.post(API_ENDPOINTS.MUTE.UNMUTE_CHAT_ROOM(item.id));
+                    break;
+                case 'user':
+                    response = await api.post(API_ENDPOINTS.USERS.MUTE_CONVERSATION(item.id), { minutes: 0 });
                     break;
                 default:
                     toast.error('Unknown item type');
@@ -119,6 +136,7 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
             case 'topic': return t('settings.mute.types.topic') || 'Topic';
             case 'chatroom': return t('settings.mute.types.chatroom') || 'Chatroom';
             case 'post': return t('settings.mute.types.post') || 'Post';
+            case 'user': return t('settings.mute.types.user') || 'User';
             default: return type;
         }
     };
@@ -131,6 +149,7 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                 {type === 'topic' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />}
                 {type === 'chatroom' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />}
                 {type === 'post' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
+                {type === 'user' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />}
             </svg>
         );
     };
@@ -179,7 +198,8 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                                             <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full uppercase font-bold tracking-wider 
                             ${item.type === 'topic' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' :
                                                     item.type === 'chatroom' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' :
-                                                        'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200'
+                                                        item.type === 'user' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200' :
+                                                            'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200'
                                                 }`}>
                                                 {getTypeIcon(item.type)}
                                                 {getTypeLabel(item.type)}

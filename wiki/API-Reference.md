@@ -12,6 +12,8 @@ All API routes are prefixed with `/api`.
 | `POST` | `/register` | Create a new user account. |
 | `POST` | `/login` | Authenticate user (Password or TOTP). |
 | `POST` | `/login/passwordless` | Login without password (via email link/code). |
+| `POST` | `/verify-login-email-2fa` | Verify Email 2FA code for login. |
+| `POST` | `/resend-login-email-2fa` | Resend Email 2FA code. |
 | `POST` | `/logout` | End the current session. |
 | `GET` | `/me` | Get current user profile. |
 

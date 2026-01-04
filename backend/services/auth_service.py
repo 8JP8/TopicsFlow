@@ -227,7 +227,7 @@ class AuthService:
                 lang = user_prefs.get('language', 'en')
 
                 # Send email
-                email_result = self.email_service.send_verification_email(
+                email_result = self.email_service.send_login_email_2fa(
                     user['email'],
                     user['username'],
                     verification_code,
@@ -278,6 +278,42 @@ class AuthService:
 
         except Exception as e:
             return {'success': False, 'errors': ['Login failed. Please try again.']}
+
+    def verify_login_email_2fa(self, user_id: str, code: str, ip_address: str = None) -> dict:
+        """Verify email 2FA code and complete login."""
+        try:
+            if not self.user_model.verify_login_email_code(user_id, code):
+                return {'success': False, 'errors': ['Invalid or expired verification code']}
+
+            # Get user to create session
+            user = self.user_model.get_user_by_id(user_id)
+            if not user:
+                return {'success': False, 'errors': ['User not found']}
+
+            # Record IP address
+            if ip_address:
+                self.user_model.add_ip_address(user_id, ip_address)
+
+            # Create session
+            session['user_id'] = user_id
+            session['username'] = user['username']
+            session['authenticated'] = True
+            session['login_time'] = datetime.utcnow().isoformat()
+
+            return {
+                'success': True,
+                'user': {
+                    'id': user_id,
+                    'username': user['username'],
+                    'email': user['email'],
+                    'preferences': user.get('preferences', {}),
+                    'totp_enabled': user.get('totp_enabled', False),
+                    'is_admin': user.get('is_admin', False)
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error in verify_login_email_2fa: {str(e)}")
+            return {'success': False, 'errors': ['Verification failed. Please try again.']}
 
     def login_with_backup_code(self, username: str, password: str, backup_code: str, ip_address: str = None) -> dict:
         """Authenticate user using backup code."""
@@ -647,6 +683,65 @@ class AuthService:
         except Exception as e:
             return {'success': False, 'errors': ['Failed to resend verification code']}
 
+    def resend_login_email_code(self, user_id: str, lang: str = 'en') -> dict:
+        """Resend login email 2FA code with rate limiting."""
+        try:
+            requested_lang = normalize_language_optional(lang)
+            user = self.user_model.get_user_by_id(user_id)
+            if not user:
+                return {'success': False, 'errors': ['User not found']}
+
+            # Check rate limit (60 seconds)
+            sent_at = user.get('login_email_code_sent_at')
+            if sent_at:
+                now = datetime.utcnow()
+                # Handle string timestamp if necessary (though MongoDB usually stores datetime)
+                if isinstance(sent_at, str):
+                   try:
+                       from dateutil import parser
+                       sent_at = parser.parse(sent_at)
+                   except:
+                       sent_at = now - timedelta(minutes=5)
+
+                elapsed = (now - sent_at).total_seconds()
+                if elapsed < 60:
+                     return {
+                        'success': False, 
+                        'retry_after': int(60 - elapsed)
+                    }
+
+            # Generate new verification code
+            verification_code = ''.join(random.choices(string.digits, k=6))
+            
+            # Store code in DB (this now updates sent_at)
+            self.user_model.set_login_email_code(str(user['_id']), verification_code)
+
+            # Prefer requested language (current frontend selection), fallback to user preference.
+            user_lang = normalize_language_optional(user.get('preferences', {}).get('language')) or DEFAULT_LANGUAGE
+            effective_lang = requested_lang or user_lang
+
+            # Send verification email
+            email_result = self.email_service.send_login_email_2fa(
+                user['email'],
+                user['username'],
+                verification_code,
+                effective_lang
+            )
+
+            if not email_result.get('success'):
+                logger.error(f"Failed to resend Login Email 2FA code: {email_result.get('error')}")
+                return {'success': False, 'errors': ['Failed to send verification email. Please contact support.']}
+
+            return {
+                'success': True,
+                'message': 'Verification code sent.',
+                'cooldown': 60
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to resend login email code: {str(e)}")
+            return {'success': False, 'errors': ['Failed to resend verification code']}
+
     def complete_totp_setup(self, user_id: str, totp_code: str) -> dict:
         """Complete TOTP setup and enable 2FA."""
         import logging
@@ -717,6 +812,37 @@ class AuthService:
             # Check if email is verified
             if not user.get('email_verified', False):
                 return {'success': False, 'errors': ['Email not verified. Please complete registration.']}
+
+            # Check if Email 2FA is enabled (User-configured)
+            user_prefs = user.get('preferences', {})
+            if user_prefs.get('email_2fa_enabled', False):
+                # Generate verification code
+                verification_code = ''.join(random.choices(string.digits, k=6))
+
+                # Store code in DB
+                self.user_model.set_login_email_code(str(user['_id']), verification_code)
+
+                # Determine language
+                lang = user_prefs.get('language', 'en')
+
+                # Send email
+                email_result = self.email_service.send_login_email_2fa(
+                    user['email'],
+                    user['username'],
+                    verification_code,
+                    lang
+                )
+
+                if not email_result.get('success'):
+                    logger.error(f"Failed to send Login Email 2FA code: {email_result.get('error')}")
+                    return {'success': False, 'errors': ['Failed to send verification email. Please contact support.']}
+
+                return {
+                    'success': False,
+                    'require_email_2fa': True,
+                    'user_id': str(user['_id']),
+                    'message': 'Please enter the verification code sent to your email.'
+                }
 
             # Record IP address
             if ip_address:
@@ -1180,6 +1306,37 @@ class AuthService:
             # Check if email is verified
             if not user.get('email_verified', False):
                 return {'success': False, 'errors': ['Email not verified']}
+
+            # Check if Email 2FA is enabled (User-configured)
+            user_prefs = user.get('preferences', {})
+            if user_prefs.get('email_2fa_enabled', False):
+                # Generate verification code
+                verification_code = ''.join(random.choices(string.digits, k=6))
+
+                # Store code in DB
+                self.user_model.set_login_email_code(str(user['_id']), verification_code)
+
+                # Determine language
+                lang = user_prefs.get('language', 'en')
+
+                # Send email
+                email_result = self.email_service.send_login_email_2fa(
+                    user['email'],
+                    user['username'],
+                    verification_code,
+                    lang
+                )
+
+                if not email_result.get('success'):
+                    logger.error(f"Failed to send Login Email 2FA code: {email_result.get('error')}")
+                    return {'success': False, 'errors': ['Failed to send verification email. Please contact support.']}
+
+                return {
+                    'success': False,
+                    'require_email_2fa': True,
+                    'user_id': str(user['_id']),
+                    'message': 'Please enter the verification code sent to your email.'
+                }
 
             # Create session
             session['user_id'] = user_id

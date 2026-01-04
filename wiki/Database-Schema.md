@@ -125,6 +125,9 @@ Stores all user-related information, including authentication secrets, profile d
 | `ip_addresses` | Array[String] | No | History of login IPs. |
 | `blocked_users` | Array[ObjectId] | No | Users blocked by this account. |
 | `passkey_credentials` | Array | No | WebAuthn credentials. |
+| `login_email_code` | String | No | Temporary code for Email 2FA. |
+| `login_email_code_expires` | Date | No | Expiration for Email 2FA code. |
+| `login_email_code_sent_at` | Date | No | Timestamp for Email 2FA rate limiting. |
 
 **Indexes:**
 *   `username` (Unique)

@@ -635,6 +635,99 @@ class NotificationSettings:
             print(f"Error getting settings: {str(e)}")
             return None
 
+    def get_muted_topics(self, user_id: str) -> List[str]:
+        """Get list of IDs for all topics effectively muted for the user."""
+        try:
+            # Find all topics where muted=True
+            query = {
+                'user_id': ObjectId(user_id),
+                'type': 'topic',
+                'muted': True
+            }
+            results = list(self.collection.find(query, {'topic_id': 1, 'muted_until': 1}))
+            
+            muted_ids = []
+            now = datetime.utcnow()
+            for r in results:
+                # Check expiration
+                if r.get('muted_until') and now > r['muted_until']:
+                    # Auto unmute (db update is non-blocking/optional here strictly for read perf, 
+                    # but good to clean up. We'll skip adding to list but won't write to DB to keep this fast)
+                    continue
+                muted_ids.append(str(r.get('topic_id')))
+            return muted_ids
+        except Exception as e:
+            print(f"Error getting muted topics: {str(e)}")
+            return []
+
+    def get_muted_chat_rooms(self, user_id: str) -> List[str]:
+        """Get list of IDs for all chat rooms effectively muted for the user."""
+        try:
+            query = {
+                'user_id': ObjectId(user_id),
+                'type': 'chat_room',
+                'muted': True
+            }
+            results = list(self.collection.find(query, {'chat_room_id': 1, 'muted_until': 1}))
+            
+            muted_ids = []
+            now = datetime.utcnow()
+            for r in results:
+                if r.get('muted_until') and now > r['muted_until']:
+                    continue
+                muted_ids.append(str(r.get('chat_room_id')))
+            return muted_ids
+        except Exception as e:
+            print(f"Error getting muted chat rooms: {str(e)}")
+            return []
+
+    def get_muted_posts(self, user_id: str) -> List[str]:
+        """Get list of IDs for all posts effectively muted for the user."""
+        try:
+            query = {
+                'user_id': ObjectId(user_id),
+                'type': 'post',
+                'muted': True
+            }
+            results = list(self.collection.find(query, {'post_id': 1, 'muted_until': 1}))
+            
+            muted_ids = []
+            now = datetime.utcnow()
+            for r in results:
+                if r.get('muted_until') and now > r['muted_until']:
+                    continue
+                muted_ids.append(str(r.get('post_id')))
+            return muted_ids
+        except Exception as e:
+            print(f"Error getting muted posts: {str(e)}")
+            return []
+
+    def get_muted_private_messages(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get list of all muted private message conversations."""
+        try:
+            query = {
+                'user_id': ObjectId(user_id),
+                'type': 'private_message',
+                'muted': True
+            }
+            results = list(self.collection.find(query))
+            
+            muted_dms = []
+            now = datetime.utcnow()
+            for r in results:
+                if r.get('muted_until') and now > r['muted_until']:
+                    # Auto unmute (optional)
+                    continue
+                
+                muted_dms.append({
+                    'other_user_id': str(r.get('other_user_id')),
+                    'muted_until': r.get('muted_until')
+                })
+            return muted_dms
+        except Exception as e:
+            print(f"Error getting muted private messages: {str(e)}")
+            return []
+
     def migrate_from_conversation_settings(self) -> int:
         """
         Migrate data from conversation_settings collection to notification_settings.

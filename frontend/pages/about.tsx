@@ -293,7 +293,7 @@ export default function About() {
                 </div>
 
                 {/* Footer */}
-                <footer className="w-full py-6 px-8 mt-20 relative z-10 pointer-events-auto">
+                <footer className="w-full py-6 px-6 mt-20 relative z-10 pointer-events-auto">
                     <div className="flex items-center justify-between">
                         <div className="text-left">
                             <p className="text-slate-400 text-sm font-medium">João Oliveira 1240369</p>
@@ -315,12 +315,12 @@ export default function About() {
                                 href="https://www.isep.ipp.pt"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="opacity-70 hover:opacity-100 transition-opacity"
+                                className="flex items-center opacity-70 hover:opacity-100 transition-opacity"
                             >
                                 <img
                                     src="https://www.isep.ipp.pt/img/LogoIsep.png"
                                     alt="ISEP"
-                                    className="h-8"
+                                    className="w-auto h-auto max-h-8"
                                 />
                             </a>
                         </div>

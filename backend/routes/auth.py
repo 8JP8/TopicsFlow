@@ -565,7 +565,7 @@ def verify_email():
             user_model = User(current_app.db)
             user = user_model.get_user_by_email(email)
             if not user:
-                return jsonify({'success': False, 'error': 'User not found'}), 404
+                return jsonify({'success': False, 'error': t('errors.userNotFound')}), 404
             user_id = str(user['_id'])
 
         result = auth_service.verify_email(user_id, code)
@@ -681,6 +681,9 @@ def login_passwordless():
 
         result = auth_service.login_passwordless(identifier, totp_code, ip_address)
 
+        if result.get('require_email_2fa'):
+            return jsonify(result), 200
+
         if result['success']:
             return jsonify(result), 200
         else:
@@ -689,6 +692,34 @@ def login_passwordless():
     except Exception as e:
         logger.error(f"Passwordless login error: {str(e)}")
         return jsonify({'success': False, 'errors': ['Login failed. Please try again.']}), 500
+
+
+@auth_bp.route('/resend-login-email-2fa', methods=['POST'])
+@require_json
+@rate_limit('3/minute')
+def resend_login_email_2fa():
+    """Resend login verification email code."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        language = data.get('language')
+
+        if not user_id:
+            return jsonify({'success': False, 'errors': ['User ID is required']}), 400
+
+        from flask import current_app
+        auth_service = AuthService(current_app.db)
+
+        result = auth_service.resend_login_email_code(user_id, language)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Resend login email error: {str(e)}")
+        return jsonify({'success': False, 'errors': ['Failed to resend code.']}), 500
 
 
 @auth_bp.route('/login-passwordless-backup', methods=['POST'])
@@ -1095,6 +1126,9 @@ def passkey_auth_verify():
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR'))
 
         result = auth_service.verify_passkey_authentication(credential, identifier if identifier else None)
+
+        if result.get('require_email_2fa'):
+            return jsonify(result), 200
 
         if result['success']:
             # Log IP address

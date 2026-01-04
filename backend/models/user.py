@@ -715,7 +715,8 @@ class User:
             {'_id': ObjectId(user_id)},
             {'$set': {
                 'login_email_code': code,
-                'login_email_code_expires': expires_at
+                'login_email_code_expires': expires_at,
+                'login_email_code_sent_at': datetime.utcnow()
             }}
         )
         return result.modified_count > 0

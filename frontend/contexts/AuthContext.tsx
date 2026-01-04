@@ -18,6 +18,7 @@ interface User {
     anonymous_mode: boolean;
     notifications_enabled?: boolean;
     sound_enabled?: boolean;
+    email_2fa_enabled?: boolean;
   };
   totp_enabled: boolean;
   created_at: string;

@@ -65,6 +65,13 @@ class ChatRoom:
             room['topic_id'] = str(room['topic_id'])
             room['owner_id'] = str(room['owner_id'])
             
+            # Resolve images
+            from utils.imgbb_upload import resolve_image_content
+            if room.get('picture'):
+                room['picture'] = resolve_image_content(room['picture'])
+            if room.get('background_picture'):
+                room['background_picture'] = resolve_image_content(room['background_picture'])
+            
             # Convert members list ObjectIds to strings
             if 'members' in room and room['members']:
                 room['members'] = [str(member_id) for member_id in room['members']]
@@ -133,73 +140,7 @@ class ChatRoom:
         rooms = list(self.collection.find(query)
                     .sort([('last_activity', -1)]))
 
-        for room in rooms:
-            room['_id'] = str(room['_id'])
-            room['id'] = str(room['_id'])
-            room['topic_id'] = str(room['topic_id'])
-            room['owner_id'] = str(room['owner_id'])
-            
-            # Convert deleted_by ObjectId to string if present
-            if 'deleted_by' in room and room['deleted_by']:
-                if isinstance(room['deleted_by'], ObjectId):
-                    room['deleted_by'] = str(room['deleted_by'])
-            
-            # Check if user is member (before converting members to strings)
-            if user_id:
-                original_members = room.get('members', [])
-                room['user_is_member'] = ObjectId(user_id) in original_members
-            else:
-                room['user_is_member'] = False
-            
-            # Convert members list ObjectIds to strings
-            if 'members' in room and room['members']:
-                room['members'] = [str(member_id) if isinstance(member_id, ObjectId) else member_id for member_id in room['members']]
-            
-            # Convert moderators list ObjectIds to strings
-            # Handle both simple ObjectId list and complex objects with user_id/added_by
-            if 'moderators' in room and room['moderators']:
-                converted_moderators = []
-                for mod in room['moderators']:
-                    if isinstance(mod, ObjectId):
-                        converted_moderators.append(str(mod))
-                    elif isinstance(mod, dict):
-                        # Handle moderator objects with nested ObjectIds
-                        converted_mod = {}
-                        for key, value in mod.items():
-                            if isinstance(value, ObjectId):
-                                converted_mod[key] = str(value)
-                            else:
-                                converted_mod[key] = value
-                        converted_moderators.append(converted_mod)
-                    else:
-                        converted_moderators.append(mod)
-                room['moderators'] = converted_moderators
-            
-            # Convert banned_users list ObjectIds to strings if present
-            if 'banned_users' in room and room['banned_users']:
-                room['banned_users'] = [str(ban_id) if isinstance(ban_id, ObjectId) else ban_id for ban_id in room['banned_users']]
-            
-            # Convert datetime to ISO string
-            if 'created_at' in room and isinstance(room['created_at'], datetime):
-                room['created_at'] = room['created_at'].isoformat()
-            if 'last_activity' in room and isinstance(room['last_activity'], datetime):
-                room['last_activity'] = room['last_activity'].isoformat()
-            if 'deleted_at' in room and room['deleted_at'] and isinstance(room['deleted_at'], datetime):
-                room['deleted_at'] = room['deleted_at'].isoformat()
-            if 'permanent_delete_at' in room and room['permanent_delete_at'] and isinstance(room['permanent_delete_at'], datetime):
-                room['permanent_delete_at'] = room['permanent_delete_at'].isoformat()
-            
-            # Get owner details
-            from .user import User
-            user_model = User(self.db)
-            owner = user_model.get_user_by_id(room['owner_id'])
-            if owner:
-                room['owner'] = {
-                    'id': str(owner['_id']),
-                    'username': owner['username']
-                }
-
-        return rooms
+        return self._process_rooms_list(rooms, user_id)
 
     def get_group_chats(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all group chats (no topic) for a user."""
@@ -231,11 +172,40 @@ class ChatRoom:
 
     def _process_rooms_list(self, rooms: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Helper to process a list of room documents."""
+        from utils.imgbb_upload import resolve_image_content
+        # Bulk fetch owners
+        owner_ids = set()
+        for room in rooms:
+            if room.get('owner_id'):
+                owner_ids.add(room['owner_id'])
+        
+        owners_map = {}
+        if owner_ids:
+            from .user import User
+            # Convert to distinct ObjectIds for query
+            user_obj_ids = []
+            for uid in owner_ids:
+                if isinstance(uid, ObjectId):
+                     user_obj_ids.append(uid)
+                elif ObjectId.is_valid(str(uid)):
+                     user_obj_ids.append(ObjectId(str(uid)))
+            
+            if user_obj_ids:
+                users_list = list(self.db.users.find({'_id': {'$in': user_obj_ids}}))
+                for u in users_list:
+                    owners_map[str(u['_id'])] = u
+
         for room in rooms:
             room['_id'] = str(room['_id'])
             room['id'] = str(room['_id'])
             room['topic_id'] = str(room['topic_id']) if room.get('topic_id') else None
             room['owner_id'] = str(room['owner_id'])
+            
+            # Resolve images
+            if room.get('picture'):
+                room['picture'] = resolve_image_content(room['picture'])
+            if room.get('background_picture'):
+                room['background_picture'] = resolve_image_content(room['background_picture'])
             
             # Convert deleted_by ObjectId to string if present
             if 'deleted_by' in room and room['deleted_by']:
@@ -286,10 +256,9 @@ class ChatRoom:
             if 'permanent_delete_at' in room and room['permanent_delete_at'] and isinstance(room['permanent_delete_at'], datetime):
                 room['permanent_delete_at'] = room['permanent_delete_at'].isoformat()
             
-            # Get owner details
-            from .user import User
-            user_model = User(self.db)
-            owner = user_model.get_user_by_id(room['owner_id'])
+            # Get owner details from map
+            owner_id = room['owner_id']
+            owner = owners_map.get(owner_id)
             if owner:
                 room['owner'] = {
                     'id': str(owner['_id']),

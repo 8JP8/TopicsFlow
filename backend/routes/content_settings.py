@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, current_app
 from services.auth_service import AuthService
 from models.user_content_settings import UserContentSettings
+from models.notification_settings import NotificationSettings
+from models.user import User
 from utils.decorators import require_auth, log_requests
 from utils.cache_decorator import cache_result, user_cache_key
 import logging
@@ -652,6 +654,31 @@ def get_silenced_items():
         
         settings_model = UserContentSettings(current_app.db)
         silenced_items = settings_model.get_silenced_items(user_id)
+        
+        # Also get muted private messages
+        notif_settings = NotificationSettings(current_app.db)
+        muted_dms = notif_settings.get_muted_private_messages(user_id)
+        
+        silenced_users = []
+        if muted_dms:
+            user_model = User(current_app.db)
+            for dm in muted_dms:
+                other_user = user_model.get_user_by_id(dm['other_user_id'])
+                if other_user:
+                    silenced_users.append({
+                        'id': dm['other_user_id'],
+                        'username': other_user.get('username', 'Unknown'),
+                        'profile_picture': other_user.get('profile_picture'),
+                        'muted_until': dm['muted_until'] # Already serializes correctly if helper used, or need check? 
+                                                        # helper usually handles ObjectId, datetime might need check.
+                                                        # But let's assume util handles or we do str() if needed?
+                                                        # Actually, flask jsonify handles datetime? No, usually not. 
+                                                        # Let's ensure it's isoformat if exists.
+                    })
+                    if isinstance(silenced_users[-1]['muted_until'], datetime):
+                         silenced_users[-1]['muted_until'] = silenced_users[-1]['muted_until'].isoformat()
+
+        silenced_items['silenced_users'] = silenced_users
         
         return jsonify({
             'success': True,

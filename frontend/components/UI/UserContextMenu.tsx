@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   UserX,
   Volume2,
-  VolumeX
+  VolumeX,
+  Trash2
 } from 'lucide-react';
 
 interface UserContextMenuProps {
@@ -29,7 +30,8 @@ interface UserContextMenuProps {
   onAddFriend?: (userId: string, username: string) => void;
   onRemoveFriend?: (userId: string, username: string) => void;
   onMarkAsRead?: (userId: string) => void;
-  onSilence?: (userId: string, username: string) => void; // NEW: Open mute menu for DM
+  onSilence?: (userId: string, username: string) => void;
+  onDeleteConversation?: (userId: string) => void; // NEW: Delete conversation option
   isBlocked?: boolean;
   areFriends?: boolean;
   // Chat room management actions (for private chats only)
@@ -53,6 +55,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onRemoveFriend,
   onMarkAsRead,
   onSilence,
+  onDeleteConversation,
   isBlocked = false,
   areFriends = false,
   onPromoteToModerator,
@@ -147,6 +150,19 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       });
     }
 
+
+
+    if (onDeleteConversation) {
+      items.push({
+        label: t('privateMessages.deleteConversation') || 'Delete Conversation',
+        action: () => {
+          onDeleteConversation(userId);
+        },
+        icon: <Trash2 className="w-4 h-4 text-red-500" />,
+        disabled: false,
+      });
+    }
+
     items.push({
       label: t('userContextMenu.reportUser'),
       action: () => {
@@ -169,6 +185,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       disabled: !onBlockUser,
     });
   }
+
 
   // Add chat room management items if available (for private chats only)
   if (canManage && !isOwner) {

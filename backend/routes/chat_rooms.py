@@ -20,17 +20,11 @@ def get_topic_conversations_key(func_name, args, kwargs):
     topic_id = kwargs.get('topic_id')
     
     # Include user_id in cache key as query results depend on it (is_member, etc)
-    from services.auth_service import AuthService
-    from flask import current_app
+    from flask import session
     user_suffix = "anon"
-    try:
-        auth = AuthService(current_app.db)
-        if auth.is_authenticated():
-            res = auth.get_current_user()
-            if res.get('success'):
-                user_suffix = res['user']['id']
-    except:
-        pass
+    user_id = session.get('user_id')
+    if user_id:
+        user_suffix = str(user_id)
         
 
 
@@ -98,14 +92,19 @@ def get_topic_conversations(topic_id):
             from models.user_content_settings import UserContentSettings
             settings_model = UserContentSettings(current_app.db)
             hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, topic_id)
+            if hidden_chat_ids is None:
+                hidden_chat_ids = []
+            
+            # Bulk fetch muted rooms
+            muted_room_ids = set(ns_model.get_muted_chat_rooms(user_id))
 
             filtered_rooms = []
             for room in rooms:
-                if hidden_chat_ids and room['id'] in hidden_chat_ids:
+                if room['id'] in hidden_chat_ids:
                     continue
                 
                 # Check if muted
-                room['is_muted'] = ns_model.is_chat_room_muted(user_id, room['id'])
+                room['is_muted'] = room['id'] in muted_room_ids
                 filtered_rooms.append(room)
             
             rooms = filtered_rooms
@@ -216,14 +215,19 @@ def get_user_group_chats():
         settings_model = UserContentSettings(current_app.db)
         
         hidden_chat_ids = settings_model.get_hidden_chat_ids(user_id, None)
+        if hidden_chat_ids is None:
+            hidden_chat_ids = []
+
+        # Bulk fetch muted rooms
+        muted_room_ids = set(ns_model.get_muted_chat_rooms(user_id))
 
         filtered_rooms = []
         for room in rooms:
-            if hidden_chat_ids and room['id'] in hidden_chat_ids:
+            if room['id'] in hidden_chat_ids:
                 continue
             
             # Check if muted
-            room['is_muted'] = ns_model.is_chat_room_muted(user_id, room['id'])
+            room['is_muted'] = room['id'] in muted_room_ids
             filtered_rooms.append(room)
 
         return jsonify({
@@ -619,10 +623,11 @@ def create_chat_room_message(room_id):
         message_type = data.get('message_type', 'text')
         use_anonymous = data.get('use_anonymous', False)
         gif_url = data.get('gif_url')
+        attachments = data.get('attachments', [])
 
-        # Allow empty content if it's a GIF message
-        if not content and not gif_url:
-            return jsonify({'success': False, 'errors': ['Message content or GIF URL is required']}), 400
+        # Allow empty content if it's a GIF message or has attachments
+        if not content and not gif_url and not attachments:
+            return jsonify({'success': False, 'errors': ['Message content, GIF URL, or attachment is required']}), 400
 
         if message_type == 'gif' and gif_url and not content:
             content = '[GIF]'
@@ -672,8 +677,8 @@ def create_chat_room_message(room_id):
             anon_model = AnonymousIdentity(current_app.db)
             anonymous_identity = anon_model.get_anonymous_identity(user_id, topic_id)
 
-        # Get attachments if provided
-        attachments = data.get('attachments', [])
+        # Attachments extracted above for validation
+
         
         # Log incoming attachments for debugging
         if attachments:
@@ -1520,10 +1525,7 @@ def update_chat_picture(room_id):
         if permission_level < 2:  # Only owner (3) or moderator (2) can update
             return jsonify({'success': False, 'errors': ['Only the owner or moderator can update the picture']}), 403
 
-        def _generate_encryption_key(file_id: str, secret_key: str) -> str:
-            import hashlib
-            key_data = f"{file_id}:{secret_key}".encode('utf-8')
-            return hashlib.sha256(key_data).hexdigest()[:16]
+
 
         def _parse_base64_image(image_str: str):
             """
@@ -1557,7 +1559,7 @@ def update_chat_picture(room_id):
 
             return base64.b64decode(data_str), mime_type, f"chatroom_{room_id}_picture{ext}"
 
-        # Process picture - use imgbb for large images (otherwise store in uploads/Azure and reference by URL)
+        # Process picture
         processed_picture = picture
         if picture:
             # If user sent a URL already, keep it as-is
@@ -1567,28 +1569,7 @@ def update_chat_picture(room_id):
                 from utils.imgbb_upload import process_image_for_storage
                 image_result = process_image_for_storage(picture)
                 if image_result['success']:
-                    if image_result['source'] == 'imgbb':
-                        processed_picture = image_result['url']
-                        logger.info(f"Using imgbb URL for large image: {processed_picture[:50]}...")
-                    else:
-                        # Store in file storage and save URL (do not store base64 in DB)
-                        from services.file_storage import FileStorageService
-                        use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
-                        file_storage = FileStorageService(
-                            uploads_dir=current_app.config.get('UPLOADS_DIR'),
-                            use_azure=use_azure
-                        )
-                        file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
-                        file_id, _ = file_storage.store_file(
-                            file_data=file_bytes,
-                            filename=filename,
-                            mime_type=mime_type,
-                            user_id=user_id,
-                            file_id_prefix='chatpic_'
-                        )
-                        secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
-                        encryption_key = _generate_encryption_key(file_id, secret_key)
-                        processed_picture = file_storage.get_file_url(file_id, encryption_key, request=request)
+                    processed_picture = image_result['url']
                 else:
                     logger.error(f"Failed to process image: {image_result.get('error')}")
                     return jsonify({'success': False, 'errors': [f"Failed to process image: {image_result.get('error', 'Unknown error')}"]}), 500
@@ -1615,7 +1596,7 @@ def update_chat_picture(room_id):
                     # Emit to room's channel
                     socketio.emit('chat_room_updated', {
                         'room_id': room_id,
-                        'picture': processed_picture,
+                        'picture': updated_room.get('picture'),
                         'type': 'picture_update'
                     }, room=f"chat_room_{room_id}")
             except Exception as e:
@@ -1651,42 +1632,7 @@ def update_chat_background(room_id):
         data = request.get_json()
         background_picture = data.get('background_picture')
         
-        def _generate_encryption_key(file_id: str, secret_key: str) -> str:
-            import hashlib
-            key_data = f"{file_id}:{secret_key}".encode('utf-8')
-            return hashlib.sha256(key_data).hexdigest()[:16]
-
-        def _parse_base64_image(image_str: str):
-            """
-            Accepts either a data URL (data:image/png;base64,...) or a raw base64 string.
-            Returns: (bytes, mime_type, filename)
-            """
-            import base64
-            import re
-
-            mime_type = 'image/jpeg'
-            ext = '.jpg'
-            data_str = image_str
-
-            if image_str and image_str.startswith('data:'):
-                match = re.match(r'^data:(?P<mime>[-\\w.]+/[-\\w.]+);base64,', image_str)
-                if match:
-                    mime_type = match.group('mime')
-                    if mime_type == 'image/png':
-                        ext = '.png'
-                    elif mime_type == 'image/webp':
-                        ext = '.webp'
-                    elif mime_type == 'image/gif':
-                        ext = '.gif'
-                    else:
-                        ext = '.jpg'
-                data_str = image_str.split(',', 1)[1]
-            elif image_str and ',' in image_str:
-                data_str = image_str.split(',', 1)[1]
-
-            return base64.b64decode(data_str), mime_type, f"chatroom_{room_id}_background{ext}"
-
-        # Process background picture - use imgbb for large images (otherwise store in uploads/Azure and reference by URL)
+        # Process background picture
         processed_background = background_picture
         if background_picture:
             if isinstance(background_picture, str) and (background_picture.startswith('http://') or background_picture.startswith('https://')):
@@ -1699,31 +1645,11 @@ def update_chat_background(room_id):
                     background_picture = darkened_image
                     logger.info("Background image darkened before storage")
                 
-                # Use imgbb for large images
                 from utils.imgbb_upload import process_image_for_storage
                 image_result = process_image_for_storage(background_picture)
                 if image_result['success']:
-                    if image_result['source'] == 'imgbb':
-                        processed_background = image_result['url']
-                        logger.info(f"Using imgbb URL for large background image: {processed_background[:50]}...")
-                    else:
-                        from services.file_storage import FileStorageService
-                        use_azure = current_app.config.get('USE_AZURE_STORAGE', False)
-                        file_storage = FileStorageService(
-                            uploads_dir=current_app.config.get('UPLOADS_DIR'),
-                            use_azure=use_azure
-                        )
-                        file_bytes, mime_type, filename = _parse_base64_image(image_result['data'])
-                        file_id, _ = file_storage.store_file(
-                            file_data=file_bytes,
-                            filename=filename,
-                            mime_type=mime_type,
-                            user_id=user_id,
-                            file_id_prefix='chatbg_'
-                        )
-                        secret_key = current_app.config.get('FILE_ENCRYPTION_KEY') or current_app.config.get('SECRET_KEY')
-                        encryption_key = _generate_encryption_key(file_id, secret_key)
-                        processed_background = file_storage.get_file_url(file_id, encryption_key, request=request)
+                    processed_background = image_result['url']
+                    logger.info(f"Using storage URL for background image: {processed_background[:50]}...")
                 else:
                     logger.error(f"Failed to process background image: {image_result.get('error')}")
                     return jsonify({'success': False, 'errors': [f"Failed to process background image: {image_result.get('error', 'Unknown error')}"]}), 500

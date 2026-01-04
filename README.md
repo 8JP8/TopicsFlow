@@ -441,6 +441,45 @@ Response 200:
     "email": "user@example.com"
   }
 }
+
+```
+
+**Response 200 (Email 2FA Required):**
+```json
+{
+  "success": false,
+  "require_email_2fa": true,
+  "user_id": "507f1f77bcf86cd799439011",
+  "message": "Please check your email for the verification code"
+}
+```
+
+#### Verify Login Email 2FA
+```http
+POST /api/auth/verify-login-email-2fa
+Content-Type: application/json
+
+{
+  "user_id": "507f1f77bcf86cd799439011",
+  "code": "123456"
+}
+```
+
+#### Resend Login Email 2FA Code
+```http
+POST /api/auth/resend-login-email-2fa
+Content-Type: application/json
+
+{
+  "user_id": "507f1f77bcf86cd799439011"
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Verification code sent.",
+  "cooldown": 60
+}
 ```
 
 #### Account Recovery

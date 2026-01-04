@@ -38,7 +38,17 @@
             "codeLabel": "Código de Verificação",
             "expiry": "Este código expira em {minutes} minutos.",
             "warning": "⚠️ Aviso: A eliminação da sua conta é permanente e não pode ser desfeita. Todos os seus dados serão apagados.",
-            "ignore": "Se não solicitou isto, por favor ignore este email e altere a sua palavra-passe imediatamente.",
+            "ignore": "Se não solicitou isto, por favor ignore este email e altere o seu TOTP e as suas passkeys imediatamente.",
+            "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
+        },
+        "login2fa": {
+            "subject": "{app_name} - Código de Verificação de Login",
+            "title": "Verificação de Login",
+            "greeting": "Olá {username},",
+            "intro": "Uma tentativa de login requer verificação. Por favor, use o código abaixo para completar o seu login:",
+            "codeLabel": "Código de Verificação",
+            "expiry": "Este código expira em {minutes} minutos.",
+            "warning": "⚠️ Aviso de Segurança: Se não tentou fazer login, por favor altere o seu TOTP e redefina as passkeys imediatamente.",
             "footer": "Este é um email automatizado, por favor não responda.\n© {year} {app_name}. Todos os direitos reservados."
         }
     }
