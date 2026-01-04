@@ -64,6 +64,7 @@ export default function About() {
         <Layout transparentHeader>
             <Head>
                 <title>{t('about.title') || 'About TopicsFlow - The Future of Discussion'}</title>
+                <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
                 <meta name="description" content={t('about.metaDescription') || 'TopicsFlow is a modern Reddit-style discussion platform with real-time chat rooms.'} />
             </Head>
 

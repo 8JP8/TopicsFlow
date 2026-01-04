@@ -329,7 +329,7 @@ const LoginPage: React.FC = () => {
               <img
                 src="https://i.postimg.cc/FY5shL9w/chat.png"
                 alt="TopicsFlow Logo"
-                className="h-10 w-10"
+                className="h-8 w-8"
               />
               <span className="text-xl font-bold theme-text-primary no-underline">
                 {t('common.appName')}
