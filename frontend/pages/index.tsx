@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
@@ -663,6 +664,9 @@ export default function Home() {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      <Head>
+        <title>TopicsFlow</title>
+      </Head>
       <Layout>
         <div className="flex flex-col h-full overflow-hidden">
           {/* Main Dashboard Area */}

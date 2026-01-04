@@ -147,7 +147,7 @@
     "resendVerificationCode": "Reenviar código de verificação"
   },
   "registration": {
-    "title": "Criar Sua Conta",
+    "title": "Criar Conta",
     "metaDescription": "Crie uma conta segura com autenticação sem palavra-passe",
     "step1Title": "Informações da Conta",
     "step2Title": "Verificar Email",
