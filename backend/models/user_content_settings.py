@@ -606,12 +606,23 @@ class UserContentSettings:
         except Exception:
             return False
 
-    def get_hidden_items(self, user_id: str) -> Dict[str, Any]:
-        """Get all hidden items for a user."""
+    def get_hidden_topic_ids(self, user_id: str) -> List[str]:
+        """Get only the IDs of hidden topics for a user (fast)."""
         try:
-            settings = list(self.collection.find({
-                'user_id': ObjectId(user_id)
-            }))
+            settings = self.collection.find(
+                {'user_id': ObjectId(user_id), 'hidden': True},
+                {'topic_id': 1}
+            )
+            return [str(s['topic_id']) for s in settings if s.get('topic_id')]
+        except Exception as e:
+            logger.error(f"Error getting hidden topic IDs: {str(e)}")
+            return []
+
+    def get_hidden_items(self, user_id: str) -> Dict[str, Any]:
+        """Get all hidden items for a user with optimized bulk fetching."""
+        try:
+            user_obj_id = ObjectId(user_id)
+            settings = list(self.collection.find({'user_id': user_obj_id}))
 
             hidden_topics_ids = []
             hidden_posts_ids = []
@@ -636,14 +647,16 @@ class UserContentSettings:
                 if 'hidden_chat_messages' in setting and setting['hidden_chat_messages']:
                     hidden_chat_messages_ids.extend([str(m) for m in setting['hidden_chat_messages']])
 
-            # Fetch details for topics
+            # Fetch details for topics using bulk query
             hidden_topics = []
             if hidden_topics_ids:
                 from models.topic import Topic
                 topic_model = Topic(self.db)
-                for t_id in hidden_topics_ids:
-                    topic = topic_model.get_topic_by_id(t_id)
-                    if topic:
+                topic_obj_ids = [ObjectId(tid) for tid in hidden_topics_ids if ObjectId.is_valid(tid)]
+                if topic_obj_ids:
+                    topics_cursor = self.db.topics.find({'_id': {'$in': topic_obj_ids}})
+                    for topic in topics_cursor:
+                        t_id = str(topic['_id'])
                         hidden_topics.append({
                             'id': t_id,
                             'title': topic.get('title', 'Unknown Topic'),
@@ -651,102 +664,108 @@ class UserContentSettings:
                             'created_at': topic.get('created_at')
                         })
 
-            # Fetch details for posts
+            # Fetch details for posts using bulk query
             hidden_posts = []
             if hidden_posts_ids:
                 from models.post import Post
                 post_model = Post(self.db)
-                for p_id in hidden_posts_ids:
-                    post = post_model.get_post_by_id(p_id)
-                    if post:
+                post_obj_ids = [ObjectId(pid) for pid in hidden_posts_ids if ObjectId.is_valid(pid)]
+                if post_obj_ids:
+                    posts_cursor = self.db.posts.find({'_id': {'$in': post_obj_ids}})
+                    for post in posts_cursor:
+                        p_id = str(post['_id'])
                         hidden_posts.append({
                             'id': p_id,
                             'title': post.get('title', 'Untitled Post'),
                             'author_username': post.get('author_username', 'Unknown'),
                             'created_at': post.get('created_at'),
-                            'topic_id': post.get('topic_id'),
-                            'topic_title': post.get('topic_title', '') # Assuming get_post_by_id might join, or we just leave empty if not avail. Post model usually has topic_title joined.
+                            'topic_id': str(post.get('topic_id')) if post.get('topic_id') else None,
+                            'topic_title': post.get('topic_title', '')
                         })
 
-            # Fetch details for chats (Topic Conversations and Group Chats)
+            # Fetch details for chats using bulk query
             hidden_chats = []
             if hidden_chats_ids:
                 from models.chat_room import ChatRoom
                 chat_model = ChatRoom(self.db)
-                for c_id in hidden_chats_ids:
-                    chat = chat_model.get_chat_room_by_id(c_id)
-                    if chat:
+                chat_obj_ids = [ObjectId(cid) for cid in hidden_chats_ids if ObjectId.is_valid(cid)]
+                if chat_obj_ids:
+                    chats_cursor = self.db.chat_rooms.find({'_id': {'$in': chat_obj_ids}})
+                    for chat in chats_cursor:
+                        c_id = str(chat['_id'])
                         hidden_chats.append({
                             'id': c_id,
                             'name': chat.get('name', 'Unnamed Chat'),
                             'description': chat.get('description', ''),
-                            'topic_id': chat.get('topic_id'),
+                            'topic_id': str(chat.get('topic_id')) if chat.get('topic_id') and chat.get('topic_id') != 'None' else None,
                             'topic_title': chat.get('topic_title', ''),
                             'is_group_chat': not chat.get('topic_id') or chat.get('topic_id') == 'None',
                             'created_at': chat.get('created_at')
                         })
 
-            # Fetch details for comments
+            # Fetch details for comments using bulk query
             hidden_comments = []
             if hidden_comments_ids:
-                from models.comment import Comment
-                comment_model = Comment(self.db)
-                for c_id in hidden_comments_ids:
-                    comment = comment_model.get_comment_by_id(c_id)
-                    if comment:
+                comment_obj_ids = [ObjectId(cid) for cid in hidden_comments_ids if ObjectId.is_valid(cid)]
+                if comment_obj_ids:
+                    comments_cursor = self.db.comments.find({'_id': {'$in': comment_obj_ids}})
+                    for comment in comments_cursor:
+                        c_id = str(comment['_id'])
+                        content = comment.get('content', '')
                         hidden_comments.append({
                             'id': c_id,
-                            'content': comment.get('content', '')[:50] + '...' if len(comment.get('content', '')) > 50 else comment.get('content', ''),
+                            'content': content[:50] + '...' if len(content) > 50 else content,
                             'author_username': comment.get('author_username', 'Unknown'),
                             'created_at': comment.get('created_at'),
-                            'post_id': comment.get('post_id')
+                            'post_id': str(comment.get('post_id')) if comment.get('post_id') else None
                         })
 
-            # Fetch details for chat messages
+            # Fetch details for chat messages using bulk query
             hidden_messages = []
             if hidden_chat_messages_ids:
-                from models.message import Message
-                message_model = Message(self.db)
-                for m_id in hidden_chat_messages_ids:
-                    message = message_model.get_message_by_id(m_id)
-                    if message:
+                msg_obj_ids = [ObjectId(mid) for mid in hidden_chat_messages_ids if ObjectId.is_valid(mid)]
+                if msg_obj_ids:
+                    # Collect topic IDs for additional lookup if needed
+                    topic_ids_to_fetch = set()
+                    messages_cursor = list(self.db.messages.find({'_id': {'$in': msg_obj_ids}}))
+                    
+                    for message in messages_cursor:
+                        m_id = str(message['_id'])
                         msg_type = 'topic'
                         if message.get('chat_room_id'):
                             msg_type = 'group'
                         
+                        content = message.get('content', '')
                         hidden_messages.append({
                             'id': m_id,
-                            'content': message.get('content', '')[:50] + '...' if len(message.get('content', '')) > 50 else message.get('content', ''),
+                            'content': content[:50] + '...' if len(content) > 50 else content,
                             'sender_username': message.get('sender_username', 'Unknown'),
                             'created_at': message.get('created_at'),
                             'type': msg_type,
-                            'topic_id': message.get('topic_id'),
-                            'topic_title': message.get('topic_title', ''), # Assuming message aggregation might include it, or we fetch if needed. 
-                            # Message model usually stores topic_id. Fetching topic title might require separate query or join.
-                            # For efficiency, if topic_id is present, we can look it up or rely on frontend to fetch? 
-                            # Frontend listing usually wants it ready.
-                            # Let's do a quick lookup if not present in message object for now, or just leave it if message model doesn't have it.
-                            # Actually, for chat messages in topics, topic_title is important.
-                            # Code improvement: Fetch topic title if missing.
+                            'topic_id': str(message.get('topic_id')) if message.get('topic_id') else None,
+                            'topic_title': message.get('topic_title', ''),
                             'chat_room_title': message.get('chat_room_title', ''),
-                            'chat_room_id': message.get('chat_room_id')
+                            'chat_room_id': str(message.get('chat_room_id')) if message.get('chat_room_id') else None
                         })
                         
-                        # Enrich with topic title if missing and topic_id exists
-                        if hidden_messages[-1]['topic_id'] and not hidden_messages[-1].get('topic_title'):
-                             from models.topic import Topic
-                             t_model = Topic(self.db)
-                             t = t_model.get_topic_by_id(hidden_messages[-1]['topic_id'])
-                             if t: hidden_messages[-1]['topic_title'] = t.get('title')
+                        if hidden_messages[-1]['topic_id'] and not hidden_messages[-1]['topic_title']:
+                            topic_ids_to_fetch.add(ObjectId(hidden_messages[-1]['topic_id']))
 
-            # Get deleted private messages
+                    # Batch fetch missing topic titles
+                    if topic_ids_to_fetch:
+                        topics_map = {str(t['_id']): t.get('title') for t in self.db.topics.find({'_id': {'$in': list(topic_ids_to_fetch)}})}
+                        for msg in hidden_messages:
+                            if msg['topic_id'] and not msg['topic_title']:
+                                msg['topic_title'] = topics_map.get(msg['topic_id'], 'Unknown Topic')
+
+            # Get deleted private messages (these usually have their own logic in PM model)
             from models.private_message import PrivateMessage
             pm_model = PrivateMessage(self.db)
             deleted_messages = pm_model.get_deleted_messages_for_user(user_id)
             hidden_private_messages = [
                 {
-                    'id': msg['_id'],
-                    'other_user_id': msg.get('other_user_id'),
+                    'id': str(msg['_id']),
+                    'other_user_id': str(msg.get('other_user_id')) if msg.get('other_user_id') else None,
                     'other_username': msg.get('other_username'),
                     'content': msg.get('content', '')[:50] + '...' if len(msg.get('content', '')) > 50 else msg.get('content', ''),
                     'created_at': msg.get('created_at')
@@ -763,8 +782,11 @@ class UserContentSettings:
                 'hidden_private_messages': hidden_private_messages
             }
         except Exception as e:
-            logger.error(f"Error getting hidden items: {str(e)}")
-            return {'topics': [], 'posts': [], 'chats': [], 'comments': [], 'messages': [], 'private_messages': []}
+            logger.error(f"Error getting hidden items: {str(e)}", exc_info=True)
+            return {
+                'hidden_topics': [], 'hidden_posts': [], 'hidden_chats': [], 
+                'hidden_comments': [], 'hidden_chat_messages': [], 'hidden_private_messages': []
+            }
 
     def get_silenced_items(self, user_id: str) -> Dict[str, Any]:
         """Get all silenced items for a user with full details."""

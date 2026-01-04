@@ -25,7 +25,7 @@ interface ChatRoomContextMenuProps {
   onShare?: (chatId: string) => void;
 }
 
-const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
+const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps & { isGroupChat?: boolean }> = ({
   chatId,
   chatName,
   x,
@@ -45,6 +45,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   onMute,
   isMuted = false,
   onShare,
+  isGroupChat = false,
 }) => {
   const { t } = useLanguage();
 
@@ -73,6 +74,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
       },
       icon: isFollowing ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />,
       disabled: (!isFollowing && !onFollow) || (isFollowing && !onUnfollow),
+      hidden: isGroupChat && isFollowing, // Hide "Unfollow" for Group Chats as requested
     },
     ...(isFollowing ? [
       isMuted ? {
@@ -121,7 +123,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   // Add delete option for owners
   if (isOwner && onDelete) {
     items.push({
-      label: t('chat.deleteChatroom') || 'Delete Chatroom',
+      label: isGroupChat ? (t('chats.deleteGroup') || 'Delete ChatGroup') : (t('chat.deleteChatroom') || 'Delete Chatroom'),
       action: () => {
         if (onDelete) {
           onDelete(chatId);
@@ -149,7 +151,7 @@ const ChatRoomContextMenu: React.FC<ChatRoomContextMenuProps> = ({
   }
 
   return (
-    <ContextMenu items={items} onClose={onClose} x={x} y={y} />
+    <ContextMenu items={items.filter(i => !i.hidden)} onClose={onClose} x={x} y={y} />
   );
 };
 

@@ -9,6 +9,7 @@ interface UserProfile {
 }
 
 const profileCache = new Map<string, UserProfile>();
+const pendingRequests = new Map<string, Promise<UserProfile | null>>();
 
 export const useUserProfile = (userId?: string | null) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -29,18 +30,12 @@ export const useUserProfile = (userId?: string | null) => {
 
     // Fetch from API
     setLoading(true);
-    api.get(API_ENDPOINTS.USERS.GET(userId))
-      .then(response => {
-        if (response.data.success) {
-          const userData = response.data.data;
-          const profileData: UserProfile = {
-            id: userData.id,
-            username: userData.username,
-            profile_picture: userData.profile_picture, // Store as-is (may be base64 without prefix)
-          };
-          profileCache.set(userId, profileData);
-          setProfile(profileData);
-          console.log('Fetched user profile:', userId, 'has picture:', !!profileData.profile_picture);
+
+    // Use the deduplicated refreshUserProfile
+    refreshUserProfile(userId)
+      .then(profile => {
+        if (profile) {
+          setProfile(profile);
         }
       })
       .catch(error => {
@@ -106,28 +101,46 @@ export const updateUserProfileCache = (userId: string, profileData: UserProfile)
 };
 
 // Helper function to force refresh a user's profile from API
-export const refreshUserProfile = async (userId: string): Promise<UserProfile | null> => {
+// Automatically deduplicates concurrent requests for the same userId
+export const refreshUserProfile = async (userId: string, skipToasts: boolean = false): Promise<UserProfile | null> => {
   if (!userId || typeof userId !== 'string' || userId.length < 10) {
     return null;
   }
-  try {
-    const response = await api.get(API_ENDPOINTS.USERS.GET(userId));
-    if (response.data.success) {
-      const userData = response.data.data;
-      const profileData: UserProfile = {
-        id: userData.id,
-        username: userData.username,
-        profile_picture: userData.profile_picture, // Store as-is (may be base64 without prefix)
-        banner: userData.banner, // Store as-is (may be base64 without prefix)
-      };
-      profileCache.set(userId, profileData);
-      console.log('Refreshed user profile from API:', userId, 'has picture:', !!profileData.profile_picture, 'format:', profileData.profile_picture?.substring(0, 30));
-      return profileData;
-    }
-  } catch (error) {
-    console.error('Failed to refresh user profile:', error);
+
+  // Check if there's already a pending request for this user
+  const pending = pendingRequests.get(userId);
+  if (pending) {
+    return pending;
   }
-  return null;
+
+  const fetchPromise = (async (): Promise<UserProfile | null> => {
+    try {
+      const config = skipToasts ? { headers: { 'X-Skip-Toasts': 'true' } } : {};
+      const response = await api.get(API_ENDPOINTS.USERS.GET(userId), config);
+
+      if (response.data.success) {
+        const userData = response.data.data;
+        const profileData: UserProfile = {
+          id: userData.id,
+          username: userData.username,
+          profile_picture: userData.profile_picture, // Store as-is (may be base64 without prefix)
+          banner: userData.banner, // Store as-is (may be base64 without prefix)
+        };
+        profileCache.set(userId, profileData);
+        console.log('Refreshed user profile from API:', userId, 'has picture:', !!profileData.profile_picture);
+        return profileData;
+      }
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+    } finally {
+      // Clean up pending request
+      pendingRequests.delete(userId);
+    }
+    return null;
+  })();
+
+  pendingRequests.set(userId, fetchPromise);
+  return fetchPromise;
 };
 
 

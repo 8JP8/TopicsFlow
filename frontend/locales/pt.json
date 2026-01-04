@@ -76,7 +76,8 @@
     "menu": "Menu",
     "content": "Conteúdo",
     "added": "Adicionado",
-    "backToHome": "Voltar para o Início"
+    "backToHome": "Voltar para o Início",
+    "all": "Todas"
   },
   "chats": {
     "title": "Conversações",
@@ -693,7 +694,9 @@
       "types": {
         "topic": "Tópico",
         "post": "Publicação",
-        "chatroom": "Sala de Chat"
+        "chatroom": "Sala de Chat",
+        "user": "Utilizador",
+        "chatgroup": "Grupo de Chat"
       },
       "indefinitely": "Indefinidamente",
       "in": "em",
@@ -1608,7 +1611,9 @@
     "types": {
       "topic": "Tópico",
       "chatroom": "Sala de Chat",
-      "post": "Publicação"
+      "post": "Publicação",
+      "user": "Utilizador",
+      "chatgroup": "Grupo de Chat"
     }
   },
   "userBanner": {

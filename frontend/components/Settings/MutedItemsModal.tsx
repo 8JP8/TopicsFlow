@@ -29,14 +29,25 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
         if (isOpen) onClose();
     });
     const [silencedItems, setSilencedItems] = useState<SilencedItem[]>([]);
+    const [filteredItems, setFilteredItems] = useState<SilencedItem[]>([]);
+    const [activeFilter, setActiveFilter] = useState<'all' | 'user' | 'topic' | 'chatroom' | 'post'>('all');
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             loadSilencedItems();
+            setActiveFilter('all');
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (activeFilter === 'all') {
+            setFilteredItems(silencedItems);
+        } else {
+            setFilteredItems(silencedItems.filter(item => item.type === activeFilter));
+        }
+    }, [silencedItems, activeFilter]);
 
     const loadSilencedItems = async () => {
         setLoading(true);
@@ -175,10 +186,31 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                     </button>
                 </div>
 
+                <div className="flex items-center flex-wrap gap-2 px-4 py-3 border-b theme-border">
+                    {(['all', 'user', 'topic', 'chatroom', 'post'] as const).map((filterType) => (
+                        <button
+                            key={filterType}
+                            onClick={() => setActiveFilter(filterType)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
+                                ${activeFilter === filterType
+                                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            {filterType === 'all' ? (t('common.all') || 'All') : getTypeLabel(filterType)}
+                            <span className="ml-1.5 opacity-60">
+                                {filterType === 'all'
+                                    ? silencedItems.length
+                                    : silencedItems.filter(i => i.type === filterType).length}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
                 <div className="flex-1 overflow-y-auto p-4">
                     {loading ? (
                         <div className="flex justify-center py-8"><LoadingSpinner /></div>
-                    ) : silencedItems.length === 0 ? (
+                    ) : filteredItems.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-volume-off-icon lucide-volume-off w-12 h-12 mx-auto mb-3 opacity-50">
                                 <path d="M16 9a5 5 0 0 1 .95 2.293" />
@@ -191,7 +223,7 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {silencedItems.map(item => (
+                            {filteredItems.map(item => (
                                 <div key={`${item.type}-${item.id}`} className="p-3 rounded-lg border theme-border theme-bg-tertiary flex items-center justify-between">
                                     <div className="flex-1 min-w-0 pr-4">
                                         <div className="flex items-center gap-2 mb-1">

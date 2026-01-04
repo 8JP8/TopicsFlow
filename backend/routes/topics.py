@@ -94,10 +94,8 @@ def get_topics():
             from models.notification_settings import NotificationSettings
             ns_model = NotificationSettings(current_app.db)
             
-            # Bulk fetch hidden and muted items to prevent N+1 queries
-            hidden_items = ucs_model.get_hidden_items(user_id)
-            hidden_topic_ids = set(hidden_items.get('topics', []))
-            
+            # Bulk fetch hidden and muted IDs (optimized)
+            hidden_topic_ids = set(ucs_model.get_hidden_topic_ids(user_id))
             muted_topic_ids = set(ns_model.get_muted_topics(user_id))
             
             filtered_topics = []

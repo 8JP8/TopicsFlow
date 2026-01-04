@@ -632,6 +632,12 @@ def create_db_indexes(app):
             db.topics.create_index("tags")
             db.topics.create_index("owner_id")
             db.topics.create_index("members")
+            
+            # Optimized compound indexes for get_topics filtering and sorting
+            db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("last_activity", -1)])
+            db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("member_count", -1)])
+            db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("created_at", -1)])
+            db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("tags", 1)])
         except Exception as e:
              logging.getLogger(__name__).warning(f"Failed to create some standard indexes: {e}")
              
@@ -728,6 +734,14 @@ def create_db_indexes(app):
             partialFilterExpression={"chat_room_id": {"$exists": True}}
         )
         db.conversation_settings.create_index("type")
+
+        # User content settings (hide/silence) indexes
+        ensure_index(
+            db.user_content_settings,
+            [("user_id", 1), ("topic_id", 1)],
+            unique=True
+        )
+        db.user_content_settings.create_index("hidden")
 
         # Notification settings collection indexes
         ensure_index(

@@ -89,6 +89,9 @@ class ApiClient {
           });
         }
 
+        // Check if we should skip toasts for this request
+        const skipToasts = error.config?.headers?.['X-Skip-Toasts'] === 'true' || error.config?.headers?.['x-skip-toasts'] === 'true';
+
         if (error.response?.status === 401) {
           // Unauthorized - redirect to login only if not already on auth pages
           if (typeof window !== 'undefined') {
@@ -99,13 +102,13 @@ class ApiClient {
             }
           }
           // Don't show toast for 401 - let the calling code handle it
-        } else if (error.response?.status >= 500 && !hasSpecificError) {
+        } else if (error.response?.status >= 500 && !hasSpecificError && !skipToasts) {
           // Server error - only show if no specific error message
           toast.error(translate('toast.serverError'));
-        } else if (error.code === 'ECONNABORTED') {
+        } else if (error.code === 'ECONNABORTED' && !skipToasts) {
           // Timeout
           toast.error(translate('toast.requestTimeout'));
-        } else if (error.message === 'Network Error' || error.code === 'ECONNREFUSED' || error.code === 'ERR_CONNECTION_REFUSED') {
+        } else if ((error.message === 'Network Error' || error.code === 'ECONNREFUSED' || error.code === 'ERR_CONNECTION_REFUSED') && !skipToasts) {
           // Network error or connection refused (backend not running)
           if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
             toast.error(translate('toast.backendNotRunning'));

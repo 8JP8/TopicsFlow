@@ -47,7 +47,7 @@ const Avatar: React.FC<AvatarProps> = ({
         setFetchedProfilePicture(picture);
       } else {
         // If not in cache, fetch from API
-        refreshUserProfile(userId).then(profile => {
+        refreshUserProfile(userId, true).then(profile => {
           if (profile?.profile_picture) {
             setFetchedProfilePicture(normalizeProfilePicture(profile.profile_picture));
           }

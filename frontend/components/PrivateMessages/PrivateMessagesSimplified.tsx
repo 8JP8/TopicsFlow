@@ -323,12 +323,16 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     const handleClickOutside = () => {
       setContextMenu(null);
       setGroupChatContextMenu(null);
+      setUserContextMenu(null);
+      setMessageContextMenu(null);
     };
-    if (contextMenu || groupChatContextMenu) {
+    if (contextMenu || groupChatContextMenu || userContextMenu || messageContextMenu) {
       document.addEventListener('click', handleClickOutside);
+      // Also close on right click outside (if needed, but might conflict with opening new one)
+      // For now, rely on individual handlers closing others
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [contextMenu, groupChatContextMenu]);
+  }, [contextMenu, groupChatContextMenu, userContextMenu, messageContextMenu]);
 
   // If expanded message is provided, use it
   useEffect(() => {
@@ -1413,15 +1417,23 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
 
 
   const handleMuteConversation = async (userId: string, minutes: number) => {
+    // Optimistically update
+    setConversations(prev => prev.map(c =>
+      c.user_id === userId ? { ...c, is_muted: minutes !== 0 } : c
+    ));
+
     try {
       const response = await api.post(API_ENDPOINTS.USERS.MUTE_CONVERSATION(userId), {
         minutes,
       });
       if (response.data.success) {
+        // Reload to ensure consistency
         loadConversations();
       }
     } catch (error) {
       console.error('Failed to mute conversation:', error);
+      // Revert on failure
+      loadConversations();
     }
   };
 
@@ -1950,6 +1962,11 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
                         onClick={() => handleSelectUser(conversation.user_id, conversation.username)}
                         onContextMenu={(e) => {
                           e.preventDefault();
+                          // Close other menus first
+                          setContextMenu(null);
+                          setGroupChatContextMenu(null);
+                          setMessageContextMenu(null);
+
                           setUserContextMenu({
                             x: e.clientX,
                             y: e.clientY,
@@ -2605,6 +2622,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             x={groupChatContextMenu.x}
             y={groupChatContextMenu.y}
             isMuted={groupChatContextMenu.isMuted}
+            isGroupChat={true}
             onClose={() => setGroupChatContextMenu(null)}
             onHide={() => handleHideGroupChat(groupChatContextMenu.groupId)}
             onMute={async (chatId: string, minutes: number) => {

@@ -76,7 +76,8 @@
     "menu": "Menu",
     "content": "Content",
     "added": "Added",
-    "backToHome": "Back To Home"
+    "backToHome": "Back To Home",
+    "all": "All"
   },
   "chats": {
     "title": "Chats",
@@ -689,7 +690,9 @@
       "types": {
         "topic": "Topic",
         "post": "Post",
-        "chatroom": "Chatroom"
+        "chatroom": "Chatroom",
+        "user": "User",
+        "chatgroup": "Chatgroup"
       },
       "indefinitely": "Indefinitely",
       "in": "in",
