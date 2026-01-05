@@ -58,7 +58,7 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
       }
 
       console.log('[TicketsModal] Fetching tickets with params:', params);
-      const response = await api.get(API_ENDPOINTS.ADMIN.TICKETS, { params });
+      const response = await api.get(API_ENDPOINTS.ADMIN.TICKETS, params);
       if (response.data.success) {
         let ticketsData = response.data.data || [];
 

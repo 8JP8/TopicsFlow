@@ -373,9 +373,9 @@ class Ticket:
     def _format_ticket(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
         """Format ticket for API response."""
         # Convert ObjectIds to strings
-        ticket['_id'] = str(ticket['_id'])
-        ticket['id'] = str(ticket['_id'])
-        ticket['user_id'] = str(ticket['user_id'])
+        ticket['_id'] = str(ticket.get('_id', ''))
+        ticket['id'] = ticket['_id']
+        ticket['user_id'] = str(ticket.get('user_id', ''))
 
         if ticket.get('reviewed_by'):
             ticket['reviewed_by'] = str(ticket['reviewed_by'])
@@ -390,7 +390,7 @@ class Ticket:
             if ticket.get('description'):
                 formatted_messages.append({
                     'id': str(ObjectId()),
-                    'user_id': str(ticket['user_id']),
+                    'user_id': str(ticket.get('user_id', '')),
                     'username': ticket.get('username', 'Unknown'),
                     'is_admin': False,
                     'message': ticket.get('description', ''),
@@ -425,7 +425,7 @@ class Ticket:
             if ticket.get('description'):
                 formatted_messages.append({
                     'id': str(ObjectId()),
-                    'user_id': str(ticket['user_id']),
+                    'user_id': str(ticket.get('user_id', '')),
                     'username': ticket.get('username', 'Unknown'),
                     'is_admin': False,
                     'message': ticket.get('description', ''),

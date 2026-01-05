@@ -762,7 +762,7 @@ def get_deleted_messages():
         messages = message_model.get_deleted_messages(limit=limit, skip=offset)
         total_count = message_model.get_deleted_messages_count()
         
-        return jsonify({
+        return jsonify(_serialize_for_json({
             'success': True,
             'data': messages,
             'pagination': {
@@ -771,7 +771,7 @@ def get_deleted_messages():
                 'total': total_count,
                 'has_more': offset + limit < total_count
             }
-        }), 200
+        })), 200
 
     except Exception as e:
         logger.error(f"Get deleted messages error: {str(e)}", exc_info=True)
@@ -863,14 +863,14 @@ def get_pending_deletions():
         pending_posts = [_serialize_for_json(p) for p in pending_posts]
         pending_chatrooms = [_serialize_for_json(c) for c in pending_chatrooms]
         
-        return jsonify({
+        return jsonify(_serialize_for_json({
             'success': True,
             'data': {
                 'topics': pending_topics,
                 'posts': pending_posts,
                 'chatrooms': pending_chatrooms
             }
-        }), 200
+        })), 200
         
     except Exception as e:
         logger.error(f"Get pending deletions error: {str(e)}", exc_info=True)

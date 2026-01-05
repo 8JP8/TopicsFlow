@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { createPortal } from 'react-dom';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -62,7 +63,7 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
       const response = await api.get(API_ENDPOINTS.ADMIN.DELETED_MESSAGES, {
         params: { limit: pagination.limit, offset: pagination.offset }
       });
-      
+
       if (response.data.success) {
         setMessages(response.data.data || []);
         setPagination(response.data.pagination || pagination);
@@ -97,13 +98,13 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
     const now = new Date();
     const deleteAt = new Date(permanentDeleteAt);
     const diff = deleteAt.getTime() - now.getTime();
-    
+
     if (diff <= 0) return t('admin.expired') || 'Expired';
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
@@ -167,9 +168,8 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
                       <button
                         key={message._id || message.id}
                         onClick={() => setSelectedMessage(message)}
-                        className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                          selectedMessage?.id === message.id || selectedMessage?._id === message._id ? 'bg-gray-100 dark:bg-gray-700' : ''
-                        }`}
+                        className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${selectedMessage?.id === message.id || selectedMessage?._id === message._id ? 'bg-gray-100 dark:bg-gray-700' : ''
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-3">
@@ -204,152 +204,152 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
             {/* Message Details */}
             {selectedMessage && (
               <div className="w-1/2 overflow-y-auto p-6 border-l border-gray-200 dark:border-gray-700">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold theme-text-primary">
-                    {t('admin.messageDetails') || 'Message Details'}
-                  </h3>
-                  <button
-                    onClick={() => setSelectedMessage(null)}
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold theme-text-primary">
+                      {t('admin.messageDetails') || 'Message Details'}
+                    </h3>
+                    <button
+                      onClick={() => setSelectedMessage(null)}
+                      className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium theme-text-muted">
-                      {t('admin.user') || 'User'}
-                    </label>
-                    <div className="flex items-center gap-3 mt-1">
-                      <Avatar userId={selectedMessage.user_id} username={selectedMessage.username} size="md" />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium theme-text-muted">
+                        {t('admin.user') || 'User'}
+                      </label>
+                      <div className="flex items-center gap-3 mt-1">
+                        <Avatar userId={selectedMessage.user_id} username={selectedMessage.username} size="md" />
+                        <div>
+                          <p className="theme-text-primary font-medium">{selectedMessage.username}</p>
+                          <p className="text-xs theme-text-muted">{selectedMessage.user_id}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium theme-text-muted">
+                        {t('admin.deletedBy') || 'Deleted by'}
+                      </label>
+                      <p className="theme-text-primary">{selectedMessage.deleted_by_username || 'Unknown'}</p>
+                    </div>
+
+                    {selectedMessage.deletion_reason && (
                       <div>
-                        <p className="theme-text-primary font-medium">{selectedMessage.username}</p>
-                        <p className="text-xs theme-text-muted">{selectedMessage.user_id}</p>
+                        <label className="text-sm font-medium theme-text-muted">
+                          {t('admin.deletionReason') || 'Deletion Reason'}
+                        </label>
+                        <div className="mt-1 p-3 bg-yellow-100 dark:bg-yellow-900 rounded">
+                          <p className="theme-text-primary">{selectedMessage.deletion_reason}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-sm font-medium theme-text-muted">
+                        {t('admin.content') || 'Content'}
+                      </label>
+                      <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                        <p className="theme-text-primary whitespace-pre-wrap">{selectedMessage.content || '[No content]'}</p>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="text-sm font-medium theme-text-muted">
-                      {t('admin.deletedBy') || 'Deleted by'}
-                    </label>
-                    <p className="theme-text-primary">{selectedMessage.deleted_by_username || 'Unknown'}</p>
-                  </div>
+                    {/* Attachments */}
+                    {selectedMessage.attachments && selectedMessage.attachments.length > 0 && (
+                      <div>
+                        <label className="text-sm font-medium theme-text-muted">
+                          {t('admin.attachments') || 'Attachments'} ({selectedMessage.attachments.length})
+                        </label>
+                        <div className="mt-2 space-y-2">
+                          {selectedMessage.attachments.map((attachment, idx) => {
+                            if (attachment.type === 'image') {
+                              return (
+                                <img
+                                  key={idx}
+                                  src={attachment.url}
+                                  alt={attachment.filename}
+                                  className="max-w-full rounded-lg cursor-pointer"
+                                  onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename })}
+                                />
+                              );
+                            } else if (attachment.type === 'video') {
+                              return (
+                                <VideoPlayer
+                                  key={idx}
+                                  src={attachment.url}
+                                  filename={attachment.filename}
+                                  className="max-w-full"
+                                />
+                              );
+                            } else {
+                              return (
+                                <div key={idx} className="p-3 bg-gray-200 dark:bg-gray-600 rounded">
+                                  <a href={attachment.url} download className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    {attachment.filename} ({(attachment.size / 1024).toFixed(2)} KB)
+                                  </a>
+                                </div>
+                              );
+                            }
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                  {selectedMessage.deletion_reason && (
-                    <div>
-                      <label className="text-sm font-medium theme-text-muted">
-                        {t('admin.deletionReason') || 'Deletion Reason'}
-                      </label>
-                      <div className="mt-1 p-3 bg-yellow-100 dark:bg-yellow-900 rounded">
-                        <p className="theme-text-primary">{selectedMessage.deletion_reason}</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <label className="text-sm font-medium theme-text-muted">
+                          {t('admin.createdAt') || 'Created'}
+                        </label>
+                        <p className="theme-text-primary">{formatDate(selectedMessage.created_at)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium theme-text-muted">
+                          {t('admin.deletedAt') || 'Deleted'}
+                        </label>
+                        <p className="theme-text-primary">{formatDate(selectedMessage.deleted_at)}</p>
                       </div>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="text-sm font-medium theme-text-muted">
-                      {t('admin.content') || 'Content'}
-                    </label>
-                    <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded">
-                      <p className="theme-text-primary whitespace-pre-wrap">{selectedMessage.content || '[No content]'}</p>
+                    <div>
+                      <label className="text-sm font-medium theme-text-muted">
+                        {t('admin.permanentDeleteIn') || 'Permanent Delete In'}
+                      </label>
+                      <p className="theme-text-primary font-semibold text-lg">
+                        {formatTimeRemaining(selectedMessage.permanent_delete_at)}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Attachments */}
-                  {selectedMessage.attachments && selectedMessage.attachments.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium theme-text-muted">
-                        {t('admin.attachments') || 'Attachments'} ({selectedMessage.attachments.length})
-                      </label>
-                      <div className="mt-2 space-y-2">
-                        {selectedMessage.attachments.map((attachment, idx) => {
-                          if (attachment.type === 'image') {
-                            return (
-                              <img
-                                key={idx}
-                                src={attachment.url}
-                                alt={attachment.filename}
-                                className="max-w-full rounded-lg cursor-pointer"
-                                onClick={() => setViewingImage({ url: attachment.url, filename: attachment.filename })}
-                              />
-                            );
-                          } else if (attachment.type === 'video') {
-                            return (
-                              <VideoPlayer
-                                key={idx}
-                                src={attachment.url}
-                                filename={attachment.filename}
-                                className="max-w-full"
-                              />
-                            );
-                          } else {
-                            return (
-                              <div key={idx} className="p-3 bg-gray-200 dark:bg-gray-600 rounded">
-                                <a href={attachment.url} download className="text-blue-600 dark:text-blue-400 hover:underline">
-                                  {attachment.filename} ({(attachment.size / 1024).toFixed(2)} KB)
-                                </a>
-                              </div>
-                            );
-                          }
-                        })}
-                      </div>
+                  {/* Actions */}
+                  <div className="pt-4 space-y-2 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => handlePermanentDelete(selectedMessage._id || selectedMessage.id)}
+                      className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    >
+                      {t('admin.permanentDelete') || 'Permanent Delete'}
+                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleWarnUser(selectedMessage.user_id, selectedMessage.username)}
+                        className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+                      >
+                        {t('admin.warnUser') || 'Warn User'}
+                      </button>
+                      <button
+                        onClick={() => handleBanUser(selectedMessage.user_id, selectedMessage.username)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        {t('admin.banUser') || 'Ban User'}
+                      </button>
                     </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <label className="text-sm font-medium theme-text-muted">
-                        {t('admin.createdAt') || 'Created'}
-                      </label>
-                      <p className="theme-text-primary">{formatDate(selectedMessage.created_at)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium theme-text-muted">
-                        {t('admin.deletedAt') || 'Deleted'}
-                      </label>
-                      <p className="theme-text-primary">{formatDate(selectedMessage.deleted_at)}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium theme-text-muted">
-                      {t('admin.permanentDeleteIn') || 'Permanent Delete In'}
-                    </label>
-                    <p className="theme-text-primary font-semibold text-lg">
-                      {formatTimeRemaining(selectedMessage.permanent_delete_at)}
-                    </p>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="pt-4 space-y-2 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => handlePermanentDelete(selectedMessage._id || selectedMessage.id)}
-                    className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                  >
-                    {t('admin.permanentDelete') || 'Permanent Delete'}
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleWarnUser(selectedMessage.user_id, selectedMessage.username)}
-                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
-                    >
-                      {t('admin.warnUser') || 'Warn User'}
-                    </button>
-                    <button
-                      onClick={() => handleBanUser(selectedMessage.user_id, selectedMessage.username)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                    >
-                      {t('admin.banUser') || 'Ban User'}
-                    </button>
-                  </div>
-                </div>
-              </div>
               </div>
             )}
           </div>

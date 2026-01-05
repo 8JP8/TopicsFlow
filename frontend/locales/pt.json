@@ -1301,6 +1301,7 @@
     "failedToLoadReports": "Falha ao carregar denúncias",
     "failedToDismissReport": "Falha ao descartar denúncia",
     "failedToResolveReport": "Falha ao resolver denúncia",
+    "searchTickets": "Pesquisar tickets...",
     "filterByStatus": "Filtrar por estado:",
     "allTickets": "Todos",
     "openTickets": "Tickets Abertos",

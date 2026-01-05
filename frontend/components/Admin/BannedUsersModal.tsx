@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { createPortal } from 'react-dom';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../UI/LoadingSpinner';
@@ -30,8 +31,10 @@ const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ isOpen, onClose }) 
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [unbanning, setUnbanning] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (isOpen) {
       loadBannedUsers();
     }
@@ -98,9 +101,9 @@ const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ isOpen, onClose }) 
     return expiry < new Date();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -236,7 +239,8 @@ const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ isOpen, onClose }) 
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

@@ -1358,6 +1358,7 @@
     "failedToLoadTickets": "Failed to load tickets",
     "failedToDismissReport": "Failed to dismiss report",
     "failedToResolveReport": "Failed to resolve report",
+    "searchTickets": "Search tickets...",
     "failedToUpdateTicket": "Failed to update ticket",
     "pendingDeletions": "Pending Deletions",
     "pendingDeletionsDesc": "Review and approve or reject pending deletions",
