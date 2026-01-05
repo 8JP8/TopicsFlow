@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import {
@@ -40,7 +41,12 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
   const [messageHistory, setMessageHistory] = useState<any[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [viewingImage, setViewingImage] = useState<{ url: string; filename: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const limit = 20;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     fetchReports();
@@ -208,7 +214,9 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
     { value: 'resolved', label: t('admin.resolvedReports') || 'Resolved' },
   ];
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -846,7 +854,8 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ onClose }) => {
           onClose={() => setViewingImage(null)}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 };
 

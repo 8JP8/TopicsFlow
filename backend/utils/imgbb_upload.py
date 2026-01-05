@@ -7,7 +7,7 @@ import os
 logger = logging.getLogger(__name__)
 
 IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload'
-DEFAULT_MAX_BASE64_SIZE = 2 * 1024 * 1024  # 2MB threshold for using imgbb
+DEFAULT_MAX_BASE64_SIZE = 25 * 1024 * 1024  # 25MB threshold for using imgbb or storage offloading
 
 
 def upload_to_imgbb(base64_image: str) -> dict:

@@ -214,6 +214,10 @@ const GroupChatCreateModal: React.FC<GroupChatCreateModalProps> = ({ onClose, on
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
+                                            if (file.size > 100 * 1024 * 1024) {
+                                                toast.error(t('toast.imageMustBeLessThan100MB') || 'Image must be less than 100MB');
+                                                return;
+                                            }
                                             const reader = new FileReader();
                                             reader.onload = () => {
                                                 setPicturePreview(reader.result as string);

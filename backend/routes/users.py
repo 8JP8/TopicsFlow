@@ -87,14 +87,26 @@ def update_user_profile():
 
         if profile_picture is not None:
             if profile_picture:
-                # Compress the image before storing
-                logger.info("Compressing profile picture...")
+                # 1. Compress the image (honors 25MB threshold)
+                from utils.image_compression import MAX_PROFILE_PICTURE_SIZE_KB, compress_image_base64
+                from utils.imgbb_upload import process_image_for_storage
+                
+                logger.info("Processing profile picture...")
+                # We still pass MAX_PROFILE_PICTURE_SIZE_KB as a hint, 
+                # but compress_image_base64 will only act if > 25MB unless we force it.
+                # Actually, let's follow the user's "no mandatory compression under 25MB" strictly.
                 compressed_image = compress_image_base64(profile_picture)
+                
                 if compressed_image:
-                    update_data['profile_picture'] = compressed_image
-                    logger.info("Profile picture compressed successfully")
+                    # 2. Process for storage (Azure/ImgBB if still large or configured)
+                    storage_result = process_image_for_storage(compressed_image)
+                    if storage_result['success']:
+                        update_data['profile_picture'] = storage_result['url']
+                        logger.info(f"Profile picture processed successfully via {storage_result.get('source')}")
+                    else:
+                        update_data['profile_picture'] = compressed_image
                 else:
-                    logger.warning("Image compression failed, storing original")
+                    logger.warning("Image processing failed, storing original")
                     update_data['profile_picture'] = profile_picture
             else:
                 # Remove profile picture if null/empty string
@@ -102,14 +114,23 @@ def update_user_profile():
 
         if banner is not None:
             if banner:
-                # Compress the banner image before storing
-                logger.info("Compressing banner image...")
+                # 1. Compress the banner (honors 25MB threshold)
+                from utils.image_compression import compress_image_base64
+                from utils.imgbb_upload import process_image_for_storage
+                
+                logger.info("Processing banner image...")
                 compressed_banner = compress_image_base64(banner)
+                
                 if compressed_banner:
-                    update_data['banner'] = compressed_banner
-                    logger.info("Banner image compressed successfully")
+                    # 2. Process for storage (Azure/ImgBB if still large or configured)
+                    storage_result = process_image_for_storage(compressed_banner)
+                    if storage_result['success']:
+                        update_data['banner'] = storage_result['url']
+                        logger.info(f"Banner processed successfully via {storage_result.get('source')}")
+                    else:
+                        update_data['banner'] = compressed_banner
                 else:
-                    logger.warning("Banner compression failed, storing original")
+                    logger.warning("Banner processing failed, storing original")
                     update_data['banner'] = banner
             else:
                 # Remove banner if null/empty string

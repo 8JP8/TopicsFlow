@@ -13,7 +13,11 @@ logger = logging.getLogger(__name__)
 # Maximum dimensions for profile pictures
 MAX_PROFILE_PICTURE_WIDTH = 800
 MAX_PROFILE_PICTURE_HEIGHT = 800
-MAX_PROFILE_PICTURE_SIZE_KB = 500  # Target max size in KB
+MAX_PROFILE_PICTURE_SIZE_KB = 500  # Target max size in KB for avatars
+
+# New limits for overall image uploads
+MAX_IMAGE_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+COMPRESSION_THRESHOLD = 25 * 1024 * 1024   # 25MB
 
 # Quality settings
 JPEG_QUALITY = 85  # Good balance between quality and size
@@ -24,8 +28,9 @@ def compress_image_base64(
     base64_string: str,
     max_width: int = MAX_PROFILE_PICTURE_WIDTH,
     max_height: int = MAX_PROFILE_PICTURE_HEIGHT,
-    max_size_kb: int = MAX_PROFILE_PICTURE_SIZE_KB,
-    quality: int = JPEG_QUALITY
+    max_size_kb: Optional[int] = None, # Changed to Optional
+    quality: int = JPEG_QUALITY,
+    force_compression: bool = False
 ) -> Optional[str]:
     """
     Compress a base64-encoded image.
@@ -34,22 +39,38 @@ def compress_image_base64(
         base64_string: Base64-encoded image string (with or without data URI prefix)
         max_width: Maximum width in pixels
         max_height: Maximum height in pixels
-        max_size_kb: Target maximum size in KB
+        max_size_kb: Target maximum size in KB. If None, uses COMPRESSION_THRESHOLD logic.
         quality: JPEG quality (1-100, higher = better quality but larger file)
+        force_compression: If True, always compress regardless of size
     
     Returns:
         Compressed base64-encoded image string, or None if compression fails
     """
     try:
         # Remove data URI prefix if present (e.g., "data:image/jpeg;base64,")
+        prefix = ""
         if ',' in base64_string:
-            base64_string = base64_string.split(',')[1]
+            prefix, base64_string = base64_string.split(',', 1)
+            prefix += ","
         
         # Decode base64 to bytes
         image_bytes = base64.b64decode(base64_string)
-        original_size_kb = len(image_bytes) / 1024
+        original_size = len(image_bytes)
+        original_size_kb = original_size / 1024
         
-        logger.info(f"Original image size: {original_size_kb:.2f} KB")
+        # Check against absolute limit
+        if original_size > MAX_IMAGE_UPLOAD_SIZE:
+            logger.error(f"Image too large: {original_size_kb:.2f} KB exceeds {MAX_IMAGE_UPLOAD_SIZE/1024/1024:.2f} MB")
+            return None
+
+        # Determine if compression is needed
+        needs_compression = force_compression or original_size > COMPRESSION_THRESHOLD or max_size_kb is not None
+        
+        if not needs_compression:
+            logger.info(f"Image size {original_size_kb:.2f} KB is under threshold. Skipping compression.")
+            return prefix + base64_string
+        
+        logger.info(f"Compressing image. Original size: {original_size_kb:.2f} KB")
         
         # Open image with PIL
         image = Image.open(io.BytesIO(image_bytes))
@@ -65,16 +86,22 @@ def compress_image_base64(
         elif image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Resize if necessary
-        if image.width > max_width or image.height > max_height:
+        # Resize if necessary (only if max_width/height are specifically small, like for avatars)
+        # For general large images, we might want to keep the resolution unless it's insane.
+        # If max_size_kb is set (e.g. 500KB for avatars), we resize.
+        # Otherwise, if it's just > 25MB, we might just compress the quality first.
+        if max_size_kb and (image.width > max_width or image.height > max_height):
             image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
             logger.info(f"Resized to: {image.width}x{image.height}")
+        
+        # Target size in KB
+        target_size_kb = max_size_kb if max_size_kb else 10240 # Default to 10MB if just over threshold
         
         # Compress with quality adjustment
         output = io.BytesIO()
         current_quality = quality
         
-        # Try to get under max_size_kb by reducing quality if needed
+        # Try to get under target_size_kb by reducing quality if needed
         for attempt in range(5):  # Max 5 attempts
             output.seek(0)
             output.truncate(0)
@@ -85,20 +112,21 @@ def compress_image_base64(
             logger.info(f"Attempt {attempt + 1}: Quality={current_quality}, Size={compressed_size_kb:.2f} KB")
             
             # If we're under the target size or quality is already low, we're done
-            if compressed_size_kb <= max_size_kb or current_quality <= 50:
+            if compressed_size_kb <= target_size_kb or current_quality <= 50:
                 break
             
             # Reduce quality for next attempt
             current_quality = max(50, int(current_quality * 0.85))
         
         # Encode back to base64
-        compressed_base64 = base64.b64encode(output.getvalue()).decode('utf-8')
-        final_size_kb = len(output.getvalue()) / 1024
+        compressed_bytes = output.getvalue()
+        compressed_base64 = base64.b64encode(compressed_bytes).decode('utf-8')
+        final_size_kb = len(compressed_bytes) / 1024
         
         compression_ratio = (1 - (final_size_kb / original_size_kb)) * 100 if original_size_kb > 0 else 0
         logger.info(f"Compressed image: {final_size_kb:.2f} KB ({compression_ratio:.1f}% reduction)")
         
-        return compressed_base64
+        return prefix + compressed_base64
         
     except Exception as e:
         logger.error(f"Image compression failed: {str(e)}", exc_info=True)

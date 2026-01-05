@@ -638,6 +638,10 @@ def create_db_indexes(app):
             db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("member_count", -1)])
             db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("created_at", -1)])
             db.topics.create_index([("is_public", 1), ("is_deleted", 1), ("tags", 1)])
+            
+            # Index for pending deletions sorting
+            db.topics.create_index([("is_deleted", 1), ("deletion_status", 1), ("deleted_at", -1)])
+
         except Exception as e:
              logging.getLogger(__name__).warning(f"Failed to create some standard indexes: {e}")
              
@@ -660,6 +664,10 @@ def create_db_indexes(app):
         db.posts.create_index("upvotes")
         db.posts.create_index("downvotes")  # New: downvotes
         db.posts.create_index("is_deleted")
+        
+        # Index for pending deletions sorting
+        db.posts.create_index([("is_deleted", 1), ("deletion_status", 1), ("deleted_at", -1)])
+
 
         # Comments collection indexes (new)
         db.comments.create_index([("post_id", 1), ("created_at", -1)])
@@ -683,6 +691,10 @@ def create_db_indexes(app):
         db.chat_rooms.create_index("tags")  # New: tags for search
         db.chat_rooms.create_index("is_public")
         db.chat_rooms.create_index("created_at")
+        
+        # Index for pending deletions sorting
+        db.chat_rooms.create_index([("is_deleted", 1), ("deletion_status", 1), ("deleted_at", -1)])
+
 
         # Messages collection indexes (updated)
         db.messages.create_index([("topic_id", 1), ("created_at", -1)])  # Legacy
@@ -693,6 +705,10 @@ def create_db_indexes(app):
         db.messages.create_index("created_at")
         db.messages.create_index("mentions")
         db.messages.create_index("is_deleted")
+        
+        # Index for deleted messages sorting
+        db.messages.create_index([("is_deleted", 1), ("deleted_at", -1)])
+
 
         # Reports collection indexes
         db.reports.create_index([("reported_content_id", 1), ("content_type", 1)])

@@ -103,8 +103,8 @@ const Profile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error(t('toast.imageMustBeLessThan2MB') || 'Image must be less than 2MB');
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error(t('toast.imageMustBeLessThan100MB') || 'Image must be less than 100MB');
       return;
     }
 
@@ -119,8 +119,8 @@ const Profile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error(t('toast.imageMustBeLessThan10MB') || 'Image must be less than 10MB');
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error(t('toast.imageMustBeLessThan100MB') || 'Image must be less than 100MB');
       return;
     }
 
@@ -321,7 +321,7 @@ const Profile: React.FC = () => {
                 )}
               </div>
               <p className="text-xs theme-text-muted mt-1">
-                {t('profile.bannerFormat') || 'Recommended: 1200x300px. Max 10MB.'}
+                {t('profile.bannerFormat') || 'Recommended: 1200x300px. Max 100MB.'}
               </p>
             </div>
 

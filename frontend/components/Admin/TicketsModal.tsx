@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '@/components/UI/LoadingSpinner';
 import {
@@ -30,7 +31,12 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const limit = 20;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -179,7 +185,9 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
     { value: 'other', label: t(getTicketCategoryConfig('other').label) },
   ];
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
@@ -527,7 +535,8 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
           </div>
         )}
       </div>
-    </div >
+    </div>,
+    document.body
   );
 };
 

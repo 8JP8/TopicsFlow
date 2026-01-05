@@ -156,6 +156,29 @@ def create_group_chat():
         if not chat_room_model.check_name_unique(name, topic_id=None):
              return jsonify({'success': False, 'errors': ['A group chat with this name already exists']}), 409
 
+        # Process pictures if provided
+        picture = data.get('picture')
+        background_picture = data.get('background_picture')
+        
+        from utils.image_compression import compress_image_base64
+        from utils.imgbb_upload import process_image_for_storage
+
+        if picture:
+            logger.info("Processing group chat picture...")
+            compressed = compress_image_base64(picture)
+            if compressed:
+                storage_result = process_image_for_storage(compressed)
+                if storage_result['success']:
+                    picture = storage_result['url']
+
+        if background_picture:
+            logger.info("Processing group chat background picture...")
+            compressed = compress_image_base64(background_picture)
+            if compressed:
+                storage_result = process_image_for_storage(compressed)
+                if storage_result['success']:
+                    background_picture = storage_result['url']
+
         # Create group chat
         room_id = chat_room_model.create_chat_room(
             topic_id=None,
@@ -164,8 +187,8 @@ def create_group_chat():
             owner_id=user_id,
             is_public=False, # Group chats are private by default usually, or invite only
             tags=[],
-            picture=data.get('picture'),
-            background_picture=data.get('background_picture')
+            picture=picture,
+            background_picture=background_picture
         )
 
         # Invite users
@@ -287,6 +310,25 @@ def create_conversation(topic_id):
         # Get picture and background picture if provided
         picture = data.get('picture')
         background_picture = data.get('background_picture')
+        
+        from utils.image_compression import compress_image_base64
+        from utils.imgbb_upload import process_image_for_storage
+
+        if picture:
+            logger.info("Processing chat room picture...")
+            compressed = compress_image_base64(picture)
+            if compressed:
+                storage_result = process_image_for_storage(compressed)
+                if storage_result['success']:
+                    picture = storage_result['url']
+
+        if background_picture:
+            logger.info("Processing chat room background picture...")
+            compressed = compress_image_base64(background_picture)
+            if compressed:
+                storage_result = process_image_for_storage(compressed)
+                if storage_result['success']:
+                    background_picture = storage_result['url']
         
         # Create conversation (chat room)
         chat_room_model = ChatRoom(current_app.db)

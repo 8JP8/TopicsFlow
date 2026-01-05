@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, API_ENDPOINTS } from '@/utils/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Avatar from '../UI/Avatar';
@@ -31,8 +32,10 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
   const [selectedDeletion, setSelectedDeletion] = useState<PendingDeletion | null>(null);
 
   const [lockDeletion, setLockDeletion] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     loadPendingDeletions();
   }, []);
 
@@ -176,7 +179,9 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
     return new Date(dateString).toLocaleString();
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -368,7 +373,8 @@ const PendingDeletionsModal: React.FC<PendingDeletionsModalProps> = ({ onClose }
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

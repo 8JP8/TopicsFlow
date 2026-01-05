@@ -52,8 +52,10 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
   const [showWarnDialog, setShowWarnDialog] = useState(false);
   const [warnUserId, setWarnUserId] = useState<string>('');
   const [warnUsername, setWarnUsername] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     loadDeletedMessages();
   }, []);
 
@@ -126,7 +128,9 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
     setShowWarnDialog(true);
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -390,7 +394,8 @@ const DeletedMessagesModal: React.FC<DeletedMessagesModalProps> = ({ onClose }) 
           }}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 };
 

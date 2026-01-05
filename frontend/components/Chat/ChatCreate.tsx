@@ -30,14 +30,14 @@ const ChatCreate: React.FC<ChatCreateProps> = ({ topicId, onChatCreated, onCance
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     // Auto-convert spaces to commas for tags input
     let processedValue = value;
     if (name === 'tags' && type === 'text') {
       // Replace spaces with commas to separate tags
       processedValue = value.replace(/\s+/g, ',');
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : processedValue,
@@ -210,6 +210,10 @@ const ChatCreate: React.FC<ChatCreateProps> = ({ topicId, onChatCreated, onCance
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
+                  if (file.size > 100 * 1024 * 1024) {
+                    toast.error(t('toast.imageMustBeLessThan100MB') || 'Image must be less than 100MB');
+                    return;
+                  }
                   const reader = new FileReader();
                   reader.onload = () => {
                     setPicturePreview(reader.result as string);
@@ -268,6 +272,10 @@ const ChatCreate: React.FC<ChatCreateProps> = ({ topicId, onChatCreated, onCance
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
+                  if (file.size > 100 * 1024 * 1024) {
+                    toast.error(t('toast.imageMustBeLessThan100MB') || 'Image must be less than 100MB');
+                    return;
+                  }
                   const reader = new FileReader();
                   reader.onload = () => {
                     setBackgroundPreview(reader.result as string);
