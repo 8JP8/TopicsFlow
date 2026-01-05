@@ -708,6 +708,8 @@ def create_db_indexes(app):
         
         # Index for deleted messages sorting
         db.messages.create_index([("is_deleted", 1), ("deleted_at", -1)])
+        db.messages.create_index([("deleted_at", -1)])
+
 
 
         # Reports collection indexes
@@ -726,8 +728,12 @@ def create_db_indexes(app):
         db.tickets.create_index("status")
         db.tickets.create_index("category")
         db.tickets.create_index("priority")
+        db.tickets.create_index([("priority", -1), ("created_at", -1)])
         db.tickets.create_index([("status", 1), ("priority", -1), ("created_at", -1)])
+        db.tickets.create_index([("category", 1), ("priority", -1), ("created_at", -1)])
+        db.tickets.create_index([("status", 1), ("category", 1), ("priority", -1), ("created_at", -1)])
         db.tickets.create_index("created_at")
+
         db.tickets.create_index("reviewed_by")
 
         # Conversation settings collection indexes (Upgrade to partial indexes)

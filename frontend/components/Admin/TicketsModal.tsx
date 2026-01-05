@@ -188,8 +188,15 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+
         {/* Header */}
         <div className="p-6 border-b theme-border flex items-center justify-between">
           <h2 className="text-2xl font-semibold theme-text-primary">
@@ -204,9 +211,9 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
 
         {/* Filters */}
         <div className="p-4 border-b theme-border">
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium theme-text-primary">
+              <label className="text-sm font-medium theme-text-primary whitespace-nowrap">
                 {t('admin.status') || 'Status:'}
               </label>
               <select
@@ -215,7 +222,7 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                   setFilterStatus(e.target.value as TicketStatus | 'all');
                   setPage(1);
                 }}
-                className="px-3 py-2 theme-bg-primary theme-border rounded-lg theme-text-primary text-sm"
+                className="px-3 py-2 theme-bg-primary theme-border rounded-lg theme-text-primary text-sm min-w-[120px]"
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -225,7 +232,7 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
               </select>
             </div>
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium theme-text-primary">
+              <label className="text-sm font-medium theme-text-primary whitespace-nowrap">
                 {t('admin.category') || 'Category:'}
               </label>
               <select
@@ -234,7 +241,7 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                   setFilterCategory(e.target.value as TicketCategory | 'all');
                   setPage(1);
                 }}
-                className="px-3 py-2 theme-bg-primary theme-border rounded-lg theme-text-primary text-sm"
+                className="px-3 py-2 theme-bg-primary theme-border rounded-lg theme-text-primary text-sm min-w-[140px]"
               >
                 {categoryOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -250,7 +257,7 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
         <div className="p-4 border-b theme-border bg-gray-50 dark:bg-gray-800/50">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             {/* Search Box */}
-            <div className="relative w-full md:w-1/3">
+            <div className="relative w-full md:flex-1 md:max-w-md">
               <input
                 type="text"
                 placeholder={t('admin.searchTickets') || 'Search tickets...'}
@@ -266,15 +273,6 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
             {/* Create Ticket Button (Right Aligned) */}
             <button
               onClick={() => {
-                // Logic to open create ticket modal? 
-                // The user asked to put the create ticket button here. 
-                // Assuming there is a way to trigger creation or they just want the button visual/placeholder for now if functional isn't described.
-                // Actually this is the ADMIN modal. Admins usually don't create tickets for themselves here, but maybe they want to create on behalf?
-                // Or maybe this is a misunderstanding and they want to be able to create one?
-                // I will add the button and make it trigger valid logic or a toast if not implemented.
-                // Wait, this is `TicketsModal` which seems to be the ADMIN view.
-                // User said: "put the create ticket button on bottom right on the body before the ticket list"
-                // I will add it here.
                 toast.success('Create Ticket clicked (Feature to be implemented)');
               }}
               className="w-full md:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -282,16 +280,15 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span className="md:inline hidden">{t('tickets.createTicket') || 'Create Ticket'}</span>
-              <span className="inline md:hidden">{t('common.create') || 'Create'}</span>
+              <span>{t('tickets.createTicket') || 'Create Ticket'}</span>
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {/* Tickets List */}
-          <div className={`${selectedTicket ? 'w-1/2' : 'w-full'} border-r theme-border overflow-y-auto`}>
+          <div className={`w-full md:border-r theme-border overflow-y-auto flex-1 ${selectedTicket ? 'hidden md:block md:w-1/2' : 'block'}`}>
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <LoadingSpinner />
@@ -325,21 +322,21 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
                             <span className="text-lg">{categoryConfig.icon}</span>
-                            <span className="font-semibold theme-text-primary">{ticket.subject}</span>
+                            <span className="font-semibold theme-text-primary line-clamp-1">{ticket.subject}</span>
                           </div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
                               {t(statusConfig.label)}
                             </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}>
                               {t(priorityConfig.label)}
                             </span>
                           </div>
-                          <p className="text-sm theme-text-muted">
+                          <p className="text-xs theme-text-muted">
                             {t('admin.user') || 'User'}: {ticket.username || 'Unknown'}
                           </p>
                         </div>
-                        <span className="text-xs theme-text-muted whitespace-nowrap">
+                        <span className="text-[10px] theme-text-muted whitespace-nowrap ml-2">
                           {formatTicketDate(ticket.created_at)}
                         </span>
                       </div>
@@ -352,20 +349,31 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
 
           {/* Ticket Details */}
           {selectedTicket && (
-            <div className="w-1/2 overflow-y-auto p-6">
+            <div className="w-full md:w-1/2 overflow-y-auto p-4 md:p-6 flex-1">
+              {/* Back Button for Mobile */}
+              <button
+                onClick={() => setSelectedTicket(null)}
+                className="md:hidden flex items-center gap-2 text-sm theme-text-muted mb-4 px-2 py-1 rounded hover:theme-bg-tertiary transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                {t('common.back') || 'Back'}
+              </button>
+
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold theme-text-primary mb-4">
+                  <h3 className="text-lg font-semibold theme-text-primary mb-2 md:mb-4">
                     {t('admin.ticketDetails') || 'Ticket Details'}
                   </h3>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium theme-text-muted">
+                    <label className="text-xs font-medium theme-text-muted">
                       {t('admin.subject') || 'Subject'}
                     </label>
-                    <p className="theme-text-primary font-semibold">{selectedTicket.subject}</p>
+                    <p className="theme-text-primary font-semibold text-sm md:text-base">{selectedTicket.subject}</p>
                   </div>
 
                   <div>
@@ -434,11 +442,12 @@ const TicketsModal: React.FC<TicketsModalProps> = ({ onClose }) => {
                           .map((msg) => (
                             <div
                               key={msg.id}
-                              className={`p-4 rounded-lg border ${msg.is_admin
-                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ml-8'
-                                : 'theme-bg-tertiary theme-border mr-8'
+                              className={`p-3 md:p-4 rounded-lg border text-sm ${msg.is_admin
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ml-4 md:ml-8'
+                                : 'theme-bg-tertiary theme-border mr-4 md:mr-8'
                                 }`}
                             >
+
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-semibold theme-text-primary">
