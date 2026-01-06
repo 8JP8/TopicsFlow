@@ -109,7 +109,7 @@ export default function About() {
                                     </Link>
                                     <Link
                                         href="/?startTour=true"
-                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 backdrop-blur-sm shadow-xl no-underline hover:no-underline hover:scale-105"
+                                        className="px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-full font-bold text-lg transition-all border border-slate-600 hover:border-slate-500 shadow-xl no-underline hover:no-underline hover:scale-105"
                                     >
                                         {t('about.takeATour') || 'Take the Tour'}
                                     </Link>
@@ -135,7 +135,7 @@ export default function About() {
                         <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
                             {t('about.discover.title') || 'Redefining Online Communities'}
                         </h2>
-                        <p className="text-lg text-slate-300 leading-8 backdrop-blur-sm bg-slate-900/20 rounded-2xl p-6">
+                        <p className="text-lg text-slate-300 leading-8 bg-slate-900/60 rounded-2xl p-6 border border-slate-800/50">
                             {t('about.discover.description') || "TopicsFlow isn't just another forum. It's a cohesive ecosystem where Reddit-style structured discussions meet the immediacy of real-time chat rooms. We've built a space where you can dive deep into long-form content or hang out in live channels, all with a seamless, modern interface."}
                         </p>
 

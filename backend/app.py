@@ -412,34 +412,32 @@ def create_app(config_name=None):
                 from flask import abort
                 abort(404)
 
-
-            # Serve static files
+            # 1. Try to serve exact file match
             if path != "" and os.path.exists(os.path.join(static_folder, path)):
                 return send_from_directory(static_folder, path)
 
-            # Check for built 404.html from Next.js (from pages/404.tsx)
-            # Next.js static export creates 404.html in the output directory
-            not_found_path = os.path.join(static_folder, '404.html')
-            if path == '404' or path == '404.html':
-                if os.path.exists(not_found_path):
-                    return send_file(not_found_path), 404
-                # Also try 404/index.html structure (in case Next.js uses directory structure)
-                not_found_dir_path = os.path.join(static_folder, '404', 'index.html')
-                if os.path.exists(not_found_dir_path):
-                    return send_file(not_found_dir_path), 404
-            
-            # Serve index.html for all other routes (SPA)
-            # This allows client-side routing to handle invalid routes
-            index_path = os.path.join(static_folder, 'index.html')
-            if os.path.exists(index_path):
-                return send_file(index_path)
+            # 2. Try to serve as HTML (e.g. /about -> /about.html)
+            # This is critical for Next.js static export which generates .html files
+            if path != "" and not path.endswith('.html'):
+                html_path = path + '.html'
+                if os.path.exists(os.path.join(static_folder, html_path)):
+                    return send_from_directory(static_folder, html_path)
 
-            # If we get here and it's a 404 request, return 404.html
+            # 3. Try to serve index.html in directory (e.g. /blog/ -> /blog/index.html)
+            index_in_dir = os.path.join(static_folder, path, 'index.html')
+            if os.path.exists(index_in_dir):
+                return send_file(index_in_dir)
+
+            # 4. Handle 404 - Serve 404.html
+            logger.info(f"Route not found: {path} - Serving 404.html")
+            
+            # Check for built 404.html from Next.js
+            not_found_path = os.path.join(static_folder, '404.html')
             if os.path.exists(not_found_path):
                 return send_file(not_found_path), 404
-            
-            from flask import abort
-            abort(404)
+                
+            # Fallback for 404 if 404.html is missing
+            return jsonify({'success': False, 'errors': ['Page not found']}), 404
     else:
         logger.info("No static frontend folder - API only mode")
 
