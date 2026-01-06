@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from bson import ObjectId
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class VoipCall:
@@ -57,6 +60,7 @@ class VoipCall:
         result = self.collection.insert_one(call_doc)
         call_doc['id'] = str(result.inserted_id)
         call_doc['_id'] = str(result.inserted_id)
+        logger.info(f"New VOIP call created: {call_doc['id']} in room {room_id} by {created_by}")
         return self._process_call(call_doc)
     
     def get_active_call(self, room_id: str) -> Optional[Dict[str, Any]]:
@@ -124,9 +128,10 @@ class VoipCall:
             )
             
             if result.modified_count > 0:
+                logger.info(f"User {user_id} joined VOIP call {call_id}")
                 return self.get_call_by_id(call_id)
         except Exception as e:
-            print(f"Error joining call: {e}")
+            logger.error(f"Error joining call {call_id} for user {user_id}: {e}")
         return None
     
     def leave_call(self, call_id: str, user_id: str) -> Optional[Dict[str, Any]]:
@@ -146,11 +151,12 @@ class VoipCall:
                 call = self.get_call_by_id(call_id)
                 if call and len(call.get('participants', [])) == 0:
                     # End the call
-                    self.end_call(call_id)
+                    logger.info(f"Ending call {call_id} because no participants remain after user {user_id} left")
+                    self.end_call(call_id, 'no_participants')
                     return {'ended': True, 'call_id': call_id}
                 return call
         except Exception as e:
-            print(f"Error leaving call: {e}")
+            logger.error(f"Error leaving call {call_id} for user {user_id}: {e}")
         return None
     
     def end_call(self, call_id: str, reason: str = None) -> bool:
@@ -166,9 +172,11 @@ class VoipCall:
                     }
                 }
             )
+            if result.modified_count > 0:
+                logger.info(f"Call {call_id} ended. Reason: {reason or 'Not specified'}")
             return result.modified_count > 0
         except Exception as e:
-            print(f"Error ending call: {e}")
+            logger.error(f"Error ending call {call_id}: {e}")
         return False
     
     def set_mute_status(self, call_id: str, user_id: str, is_muted: bool) -> bool:
@@ -282,7 +290,8 @@ class VoipCall:
                 # Check if call is now empty
                 updated_call = self.get_call_by_id(call_id)
                 if updated_call and len(updated_call.get('participants', [])) == 0:
-                    self.end_call(call_id, 'no_participants')
+                    logger.info(f"Ending call {call_id} during offline cleanup (no participants remain)")
+                    self.end_call(call_id, 'no_participants_offline')
                     affected.append({
                         'call_id': call_id,
                         'removed_users': removed_users,

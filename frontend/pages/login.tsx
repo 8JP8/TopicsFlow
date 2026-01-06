@@ -318,7 +318,6 @@ const LoginPage: React.FC = () => {
       <Head>
         <title>{`${t('login.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('login.subtitle')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4 pt-24">

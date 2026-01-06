@@ -15,7 +15,8 @@ class ChatRoom:
     def create_chat_room(self, topic_id: Optional[str], name: str, description: str, owner_id: str,
                         is_public: bool = True, tags: Optional[List[str]] = None,
                         picture: Optional[str] = None,
-                        background_picture: Optional[str] = None) -> str:
+                        background_picture: Optional[str] = None,
+                        voip_enabled: bool = True) -> str:
         """Create a new conversation (chat room) in a topic or a group chat."""
         chat_room_data = {
             'topic_id': ObjectId(topic_id) if topic_id else None,  # Conversation belongs to a Topic or None for Group Chat
@@ -27,7 +28,7 @@ class ChatRoom:
             'is_public': is_public,
             'picture': picture,  # Chat room picture (displayed in header/list)
             'background_picture': background_picture,  # Background picture (faded behind messages)
-            'voip_enabled': False,  # VoIP calls disabled by default
+            'voip_enabled': voip_enabled,
             'member_count': 1,  # Owner counts as first member
             'members': [ObjectId(owner_id)],
             'banned_users': [],  # Users banned from this chat

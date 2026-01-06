@@ -114,7 +114,8 @@ const MutedItemsModal: React.FC<MutedItemsModalProps> = ({ isOpen, onClose }) =>
 
             if (response && response.data.success) {
                 setSilencedItems(prev => prev.filter(i => i.id !== item.id));
-                toast.success(t('mute.unsilenced'));
+                const toastKey = `mute.${item.type}Unmuted`;
+                toast.success(t(toastKey) || t('mute.unsilenced'));
             }
         } catch (error) {
             // Check if response suggests already unmuted

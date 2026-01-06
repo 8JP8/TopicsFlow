@@ -1608,6 +1608,10 @@
     "chatUnmuted": "Chat unmuted",
     "muteFailed": "Failed to mute",
     "unmuteFailed": "Failed to unmute",
+    "userUnmuted": "User unmuted",
+    "chatgroupUnmuted": "Chat group unmuted",
+    "postUnmuted": "Post unmuted",
+    "chatroomUnmuted": "Chat room unmuted",
     "title": "Mute Notifications",
     "description": "Mute {name} to stop receiving notifications",
     "currentlyMuted": "{name} is currently muted",
@@ -1630,7 +1634,9 @@
     "types": {
       "topic": "Topic",
       "chatroom": "Chatroom",
-      "post": "Post"
+      "post": "Post",
+      "user": "User",
+      "chatgroup": "Chat Group"
     }
   },
   "messages": {

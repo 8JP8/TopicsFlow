@@ -110,19 +110,25 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl"
+                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md md:backdrop-blur-xl"
                     />
 
                     {/* Modal Container */}
                     <motion.div
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        initial={{ scale: 0.95, opacity: 0, y: 10 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                        transition={{
+                            type: "tween",
+                            ease: "easeOut",
+                            duration: 0.25
+                        }}
                         onTouchStart={onTouchStart}
                         onTouchMove={onTouchMove}
                         onTouchEnd={onTouchEndHandler}
-                        className={`relative w-full max-w-6xl h-full max-h-[85vh] md:max-h-[90vh] mt-8 md:mt-0 bg-gradient-to-br ${gradientMap[feature.color] || gradientMap.blue} border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col`}
+                        className={`relative w-full max-w-6xl h-full max-h-[85vh] md:max-h-[90vh] mt-8 md:mt-0 bg-gradient-to-br ${gradientMap[feature.color] || gradientMap.blue} border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col will-change-transform`}
                     >
                         {/* Header Controls */}
                         <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 md:px-10 md:py-8 border-b border-white/5 bg-slate-950/40 shrink-0 z-20">
@@ -195,12 +201,12 @@ export default function FeatureModal({ isOpen, onClose, featureKey, allFeatures,
 
                                 <motion.div
                                     key={`${feature.key}-mockup`}
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: 'spring', damping: 25, stiffness: 100 }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.4 }}
                                     className="w-full relative z-10 flex items-center justify-center py-4"
                                 >
-                                    <div className="w-full max-w-[600px] bg-slate-900/40 rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden ring-1 ring-white/5">
+                                    <div className="w-full max-w-[600px] bg-slate-900/40 rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden ring-1 ring-white/5">
                                         {/* Ensure Mockup scales nicely and expands */}
                                         <div className="w-full h-auto min-h-[400px] flex items-center justify-center">
                                             <Mockup />

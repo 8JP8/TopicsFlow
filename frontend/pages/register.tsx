@@ -14,7 +14,6 @@ const RegisterPage: React.FC = () => {
       <Head>
         <title>{`${t('registration.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('registration.metaDescription')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       {/* Fixed Header with Controls */}

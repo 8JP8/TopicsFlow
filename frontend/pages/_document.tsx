@@ -4,6 +4,7 @@ export default function Document() {
   return (
     <Html lang="en" suppressHydrationWarning>
       <Head>
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
         <link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48x48.png" />
         <link rel="icon" type="image/png" sizes="72x72" href="/icons/icon-72x72.png" />
         <link rel="icon" type="image/png" sizes="96x96" href="/icons/icon-96x96.png" />

@@ -812,6 +812,20 @@ def update_anonymous_identity(topic_id):
 
         # Get the final identity name
         final_name = anon_model.get_anonymous_identity(user_id, topic_id)
+        
+        # Emit socket event
+        try:
+            from app import socketio
+            if socketio:
+                socketio.emit('anonymous_identity_updated', {
+                    'user_id': user_id,
+                    'topic_id': topic_id,
+                    'anonymous_name': final_name or custom_name
+                }, room=f"user_{user_id}")
+                logger.info(f"Emitted anonymous_identity_updated for user {user_id} in topic {topic_id}")
+        except Exception as e:
+            logger.warning(f"Failed to emit socket event for identity update: {str(e)}")
+
         return jsonify({
             'success': True,
             'message': 'Anonymous identity set successfully',

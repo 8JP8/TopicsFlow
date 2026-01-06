@@ -159,6 +159,7 @@ def create_group_chat():
         # Process pictures if provided
         picture = data.get('picture')
         background_picture = data.get('background_picture')
+        voip_enabled = data.get('voip_enabled', True)
         
         from utils.image_compression import compress_image_base64
         from utils.imgbb_upload import process_image_for_storage
@@ -188,7 +189,8 @@ def create_group_chat():
             is_public=False, # Group chats are private by default usually, or invite only
             tags=[],
             picture=picture,
-            background_picture=background_picture
+            background_picture=background_picture,
+            voip_enabled=voip_enabled
         )
 
         # Invite users
@@ -291,6 +293,7 @@ def create_conversation(topic_id):
         description = data.get('description', '').strip()
         is_public = data.get('is_public', True)
         tags = data.get('tags', [])
+        voip_enabled = data.get('voip_enabled', True)
 
         if not name:
             return jsonify({'success': False, 'errors': ['Conversation name is required']}), 400
@@ -340,7 +343,8 @@ def create_conversation(topic_id):
             is_public=is_public,
             tags=tags,
             picture=picture,
-            background_picture=background_picture
+            background_picture=background_picture,
+            voip_enabled=voip_enabled
         )
 
         # Get created chat room

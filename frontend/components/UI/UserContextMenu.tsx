@@ -34,6 +34,11 @@ interface UserContextMenuProps {
   onDeleteConversation?: (userId: string) => void; // NEW: Delete conversation option
   isBlocked?: boolean;
   areFriends?: boolean;
+  isPendingSent?: boolean;
+  isPendingReceived?: boolean;
+  onAcceptFriendRequest?: (userId: string) => void;
+  onRejectFriendRequest?: (userId: string) => void;
+  onCancelFriendRequest?: (userId: string) => void;
   // Chat room management actions (for private chats only)
   onPromoteToModerator?: (userId: string, username: string) => void;
   onKickUser?: (userId: string, username: string) => void;
@@ -58,6 +63,11 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onDeleteConversation,
   isBlocked = false,
   areFriends = false,
+  isPendingSent = false,
+  isPendingReceived = false,
+  onAcceptFriendRequest,
+  onRejectFriendRequest,
+  onCancelFriendRequest,
   onPromoteToModerator,
   onKickUser,
   isModerator = false,
@@ -116,21 +126,21 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   }
 
   // Send Message option
-  items.push({
-    label: t('userContextMenu.sendMessage'),
-    action: () => {
-      if (onSendMessage) {
+  if (onSendMessage) {
+    items.push({
+      label: t('userContextMenu.sendMessage'),
+      action: () => {
         onSendMessage(userId, username);
-      }
-    },
-    icon: <MessageSquare className="w-4 h-4" />,
-    disabled: !onSendMessage,
-  });
+      },
+      icon: <MessageSquare className="w-4 h-4" />,
+      disabled: false,
+    });
+  }
 
   // Only show other options if not current user
   if (!isCurrentUser) {
-    // Show "Add Friend" option if not already friends, or "Remove Friend" if already friends
-    if (!areFriends && onAddFriend) {
+    // Show "Add Friend" option if not already friends and no pending requests
+    if (!areFriends && !isPendingSent && !isPendingReceived && onAddFriend) {
       items.push({
         label: t('userContextMenu.addFriend') || 'Add Friend',
         action: () => {
@@ -138,6 +148,32 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         },
         icon: <UserPlus className="w-4 h-4" />,
         disabled: false,
+      });
+    } else if (isPendingSent) {
+      items.push({
+        label: t('privateMessages.friendRequestSent') || 'Friend Request Sent',
+        action: () => {
+          if (onCancelFriendRequest) onCancelFriendRequest(userId);
+        },
+        icon: <UserMinus className="w-4 h-4 theme-text-muted" />,
+        disabled: !onCancelFriendRequest,
+      });
+    } else if (isPendingReceived) {
+      items.push({
+        label: t('privateMessages.acceptFriendRequest') || 'Accept Friend Request',
+        action: () => {
+          if (onAcceptFriendRequest) onAcceptFriendRequest(userId);
+        },
+        icon: <ShieldCheck className="w-4 h-4 text-green-500" />,
+        disabled: !onAcceptFriendRequest,
+      });
+      items.push({
+        label: t('privateMessages.rejectFriendRequest') || 'Reject Friend Request',
+        action: () => {
+          if (onRejectFriendRequest) onRejectFriendRequest(userId);
+        },
+        icon: <UserX className="w-4 h-4 text-red-500" />,
+        disabled: !onRejectFriendRequest,
       });
     } else if (areFriends && onRemoveFriend) {
       items.push({
@@ -150,8 +186,6 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       });
     }
 
-
-
     if (onDeleteConversation) {
       items.push({
         label: t('privateMessages.deleteConversation') || 'Delete Conversation',
@@ -163,29 +197,28 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
       });
     }
 
-    items.push({
-      label: t('userContextMenu.reportUser'),
-      action: () => {
-        if (onReportUser) {
+    if (onReportUser) {
+      items.push({
+        label: t('userContextMenu.reportUser'),
+        action: () => {
           onReportUser(userId, username);
-        }
-      },
-      icon: <Flag className="w-4 h-4" />,
-      disabled: !onReportUser,
-    });
+        },
+        icon: <Flag className="w-4 h-4" />,
+        disabled: false,
+      });
+    }
 
-    items.push({
-      label: isBlocked ? t('blocking.unblockUser') : t('blocking.blockUser'),
-      action: () => {
-        if (onBlockUser) {
+    if (onBlockUser) {
+      items.push({
+        label: isBlocked ? t('blocking.unblockUser') : t('blocking.blockUser'),
+        action: () => {
           onBlockUser(userId, username);
-        }
-      },
-      icon: <Ban className="w-4 h-4" />,
-      disabled: !onBlockUser,
-    });
+        },
+        icon: <Ban className="w-4 h-4" />,
+        disabled: false,
+      });
+    }
   }
-
 
   // Add chat room management items if available (for private chats only)
   if (canManage && !isOwner) {
@@ -212,20 +245,19 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         disabled: !onPromoteToModerator,
       });
     }
-    items.push({
-      label: t('chat.kickUser') || 'Kick User',
-      action: () => {
-        if (onKickUser) {
+    if (onKickUser) {
+      items.push({
+        label: t('chat.kickUser') || 'Kick User',
+        action: () => {
           onKickUser(userId, username);
-        }
-      },
-      icon: <UserX className="w-4 h-4" />,
-      disabled: !onKickUser,
-    });
+        },
+        icon: <UserX className="w-4 h-4" />,
+        disabled: false,
+      });
+    }
   }
 
   return <ContextMenu items={items} onClose={onClose} x={x} y={y} />;
 };
 
 export default UserContextMenu;
-

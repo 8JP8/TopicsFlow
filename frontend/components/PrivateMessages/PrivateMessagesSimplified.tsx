@@ -127,6 +127,8 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
   const [groupChatContextMenu, setGroupChatContextMenu] = useState<{ x: number, y: number, groupId: string, groupName: string, isMuted: boolean } | null>(null);
 
   const [friends, setFriends] = useState<Array<{ id: string, username: string, email: string, profile_picture?: string }>>([]);
+  const [pendingSentRequests, setPendingSentRequests] = useState<Map<string, string>>(new Map());
+  const [pendingReceivedRequests, setPendingReceivedRequests] = useState<Map<string, string>>(new Map());
   const [showFriendsDialog, setShowFriendsDialog] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -360,6 +362,7 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       loadFriends().then(() => {
         loadConversations();
         loadGroupChats();
+        loadPendingRequests();
       });
       loadHiddenItems();
     }
@@ -840,6 +843,24 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('openChatRoom', { detail: { chatRoomId: group.id } }));
       }
+    }
+  };
+
+  const loadPendingRequests = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.USERS.FRIEND_REQUESTS);
+      if (response.data.success) {
+        const sent = new Map<string, string>();
+        response.data.data.sent.forEach((r: any) => sent.set(String(r.to_user_id), String(r.id)));
+
+        const received = new Map<string, string>();
+        response.data.data.received.forEach((r: any) => received.set(String(r.from_user_id), String(r.id)));
+
+        setPendingSentRequests(sent);
+        setPendingReceivedRequests(received);
+      }
+    } catch (error) {
+      console.error('Failed to load pending friend requests:', error);
     }
   };
 
@@ -1420,6 +1441,53 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.[0] || error.response?.data?.error || '';
       toast.error(errorMessage || t('privateMessages.failedToRemoveFriend') || 'Failed to remove friend');
+    }
+  };
+
+
+  const handleAcceptFriendRequest = async (userId: string) => {
+    const requestId = pendingReceivedRequests.get(userId);
+    if (!requestId) return;
+
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.ACCEPT_FRIEND_REQUEST(requestId));
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRequestAccepted') || 'Friend request accepted');
+        loadFriends();
+        loadPendingRequests();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || 'Failed to accept friend request');
+    }
+  };
+
+  const handleRejectFriendRequest = async (userId: string) => {
+    const requestId = pendingReceivedRequests.get(userId);
+    if (!requestId) return;
+
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.REJECT_FRIEND_REQUEST(requestId));
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRequestRejected') || 'Friend request rejected');
+        loadPendingRequests();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || 'Failed to reject friend request');
+    }
+  };
+
+  const handleCancelFriendRequest = async (userId: string) => {
+    const requestId = pendingSentRequests.get(userId);
+    if (!requestId) return;
+
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.CANCEL_FRIEND_REQUEST(requestId));
+      if (response.data.success) {
+        toast.success(t('privateMessages.friendRequestCancelled') || 'Friend request cancelled');
+        loadPendingRequests();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.errors?.[0] || 'Failed to cancel friend request');
     }
   };
 
@@ -2528,7 +2596,12 @@ const PrivateMessagesSimplified: React.FC<PrivateMessagesSimplifiedProps> = ({
             username={userContextMenu.username}
             x={userContextMenu.x}
             y={userContextMenu.y}
-            areFriends={areFriends}
+            areFriends={conversationStatuses.get(userContextMenu.userId)?.areFriends || isUserFriend(userContextMenu.userId)}
+            isPendingSent={pendingSentRequests.has(userContextMenu.userId)}
+            isPendingReceived={pendingReceivedRequests.has(userContextMenu.userId)}
+            onAcceptFriendRequest={handleAcceptFriendRequest}
+            onRejectFriendRequest={handleRejectFriendRequest}
+            onCancelFriendRequest={handleCancelFriendRequest}
             onClose={() => setUserContextMenu(null)}
             onMarkAsRead={(userId) => {
               handleMarkConversationAsRead(userId);

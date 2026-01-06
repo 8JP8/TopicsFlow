@@ -255,6 +255,20 @@ def create_post(topic_id):
         if use_anonymous and topic.get('settings', {}).get('allow_anonymous', True):
             anon_model = AnonymousIdentity(current_app.db)
             anonymous_identity = anon_model.get_anonymous_identity(user_id, topic_id)
+            if not anonymous_identity:
+                # Create a new one if it doesn't exist
+                anonymous_identity = anon_model.create_anonymous_identity(user_id, topic_id)
+                # Emit socket event so Settings page can update
+                try:
+                    from app import socketio
+                    if socketio:
+                        socketio.emit('anonymous_identity_updated', {
+                            'user_id': user_id,
+                            'topic_id': topic_id,
+                            'anonymous_name': anonymous_identity
+                        }, room=f"user_{user_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to emit socket event for auto-created identity: {str(e)}")
 
         # Create post
         post_model = Post(current_app.db)

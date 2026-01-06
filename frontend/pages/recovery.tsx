@@ -195,7 +195,6 @@ const RecoveryPage: React.FC = () => {
       <Head>
         <title>{`${t('recovery.title')} - ${t('common.appName')}`}</title>
         <meta name="description" content={t('recovery.subtitle')} />
-        <link rel="icon" type="image/png" href="https://i.postimg.cc/FY5shL9w/chat.png" />
       </Head>
 
       <div className="min-h-screen theme-bg-primary flex items-center justify-center p-4 pt-24">

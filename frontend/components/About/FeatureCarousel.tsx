@@ -38,6 +38,7 @@ export default function FeatureCarousel() {
     const [centeredIndex, setCenteredIndex] = useState<number | null>(null);
     const [isSnapping, setIsSnapping] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
 
     // Feature keys in order
     const featureKeys = ['publications', 'chat', 'voip', 'anonymous', 'multimedia', 'support', 'notifications', 'security', 'discovery', 'moderation', 'profiles', 'customization'];
@@ -65,23 +66,98 @@ export default function FeatureCarousel() {
     const parentRef = useRef<HTMLDivElement>(null);
     const requestRef = useRef<number>();
     const lastTimestampRef = useRef<number>();
+    const timerRef = useRef<NodeJS.Timeout>();
+
+    // Mobile detection
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Constants for layout
-    const cardWidth = 300;
-    const gapSize = 40;
+    const cardWidth = isMobile ? 280 : 300;
+    const gapSize = isMobile ? 12 : 40;
     const itemWidth = cardWidth + gapSize;
     const speed = 64; // Pixels per second
     const totalSetWidth = features.length * itemWidth;
 
-    // Reset loop point logic
+    // Reset loop point logic - Keep x between -2*totalSetWidth and -totalSetWidth
     const wrapAround = useCallback((val: number) => {
-        if (val <= -totalSetWidth) return val + totalSetWidth;
-        if (val >= 0) return val - totalSetWidth;
+        const minX = -totalSetWidth * 2;
+        const maxX = -totalSetWidth;
+        if (val <= minX) return val + totalSetWidth;
+        if (val >= maxX) return val - totalSetWidth;
         return val;
     }, [totalSetWidth]);
 
-    // Animation Loop
+    // Snapping Logic - Precision Centering
+    const snapToNearest = useCallback(() => {
+        if (!containerRef.current) return;
+        setIsSnapping(true);
+        const currentX = xRaw.get();
+        const viewportWidth = containerRef.current.offsetWidth;
+        const center = viewportWidth / 2;
+
+        const bestIndex = Math.round((center - currentX - (cardWidth / 2)) / itemWidth);
+        const targetX = center - (bestIndex * itemWidth) - (cardWidth / 2);
+
+        setCenteredIndex(bestIndex);
+
+        animate(xRaw, targetX, {
+            type: "tween",
+            ease: [0.25, 1, 0.5, 1], // Custom smooth ease
+            duration: 0.6,
+            onComplete: () => {
+                const finalX = xRaw.get();
+                const wrappedX = wrapAround(finalX);
+                if (wrappedX !== finalX) {
+                    xRaw.set(wrappedX);
+                    const newIndex = Math.round((center - wrappedX - (cardWidth / 2)) / itemWidth);
+                    setCenteredIndex(newIndex);
+                }
+                setIsSnapping(false);
+            }
+        });
+    }, [xRaw, itemWidth, cardWidth, wrapAround]);
+
+    const handleManualMove = useCallback((direction: 'left' | 'right') => {
+        if (!containerRef.current) return;
+        setIsSnapping(true);
+        const currentX = xRaw.get();
+        const viewportWidth = containerRef.current.offsetWidth;
+        const center = viewportWidth / 2;
+
+        // Base the next move on the current visual position to ensure accuracy
+        const currentIdx = Math.round((center - currentX - (cardWidth / 2)) / itemWidth);
+        const nextIndex = direction === 'left' ? currentIdx - 1 : currentIdx + 1;
+        const targetX = center - (nextIndex * itemWidth) - (cardWidth / 2);
+
+        setCenteredIndex(nextIndex);
+        animate(xRaw, targetX, {
+            type: "tween",
+            ease: [0.25, 1, 0.5, 1],
+            duration: 0.6,
+            onComplete: () => {
+                const finalX = xRaw.get();
+                const wrappedX = wrapAround(finalX);
+                if (wrappedX !== finalX) {
+                    xRaw.set(wrappedX);
+                    const newIndex = Math.round((center - wrappedX - (cardWidth / 2)) / itemWidth);
+                    setCenteredIndex(newIndex);
+                }
+                setIsSnapping(false);
+            }
+        });
+    }, [xRaw, itemWidth, cardWidth, wrapAround]);
+
+    // Animation Loop (Desktop Only)
     useEffect(() => {
+        if (isMobile) return;
+
         const animateLoop = (timestamp: number) => {
             if (!lastTimestampRef.current) lastTimestampRef.current = timestamp;
             const deltaTime = timestamp - lastTimestampRef.current;
@@ -99,65 +175,62 @@ export default function FeatureCarousel() {
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPaused, selectedFeature, isSnapping, isDragging, wrapAround, xRaw]);
+    }, [isPaused, selectedFeature, isSnapping, isDragging, wrapAround, xRaw, isMobile]);
 
-    // Snapping Logic - Precision Centering
-    const snapToNearest = useCallback(() => {
-        setIsSnapping(true);
-        const currentX = xRaw.get();
-        // Use container width for better precision
-        const viewportWidth = containerRef.current?.getBoundingClientRect().width || window.innerWidth;
-        const center = viewportWidth / 2;
+    // Auto-timer for Mobile
+    useEffect(() => {
+        if (!isMobile || selectedFeature) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return;
+        }
 
-        // Target is mathematically the center of the viewport minus half the card width
-        const bestIndex = Math.round((center - currentX - (cardWidth / 2)) / itemWidth);
-        const targetX = center - (bestIndex * itemWidth) - (cardWidth / 2);
+        timerRef.current = setInterval(() => {
+            if (!isDragging && !isSnapping) {
+                handleManualMove('right');
+            }
+        }, 4000);
 
-        setCenteredIndex(bestIndex);
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [isMobile, selectedFeature, isDragging, isSnapping, handleManualMove]);
 
-        animate(xRaw, targetX, {
-            type: "spring",
-            damping: 35,
-            stiffness: 300,
-            onComplete: () => setIsSnapping(false)
-        });
-    }, [xRaw, itemWidth, cardWidth]);
+    // Initial center for mobile
+    useEffect(() => {
+        const setInitialCenter = () => {
+            if (isMobile && containerRef.current) {
+                const viewportWidth = containerRef.current.offsetWidth;
+                const center = viewportWidth / 2;
+                // Place the first real card (after the first buffer set) in the center
+                const currInitialX = center - (features.length * itemWidth) - (cardWidth / 2);
+                xRaw.set(currInitialX);
+                setCenteredIndex(features.length);
+            }
+        };
 
-    const handleManualMove = useCallback((direction: 'left' | 'right') => {
-        setIsSnapping(true);
-        const currentX = xRaw.get();
-        const viewportWidth = containerRef.current?.getBoundingClientRect().width || window.innerWidth;
-        const center = viewportWidth / 2;
-
-        const currentIndex = Math.round((center - currentX - (cardWidth / 2)) / itemWidth);
-        const nextIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-        const targetX = center - (nextIndex * itemWidth) - (cardWidth / 2);
-
-        setCenteredIndex(nextIndex);
-        animate(xRaw, targetX, {
-            type: "spring",
-            damping: 30,
-            stiffness: 250,
-            onComplete: () => setIsSnapping(false)
-        });
-    }, [xRaw, itemWidth, cardWidth]);
+        // Run after a short delay to ensure layout is ready
+        const timer = setTimeout(setInitialCenter, 100);
+        return () => clearTimeout(timer);
+    }, [isMobile, features.length, itemWidth, cardWidth, xRaw]);
 
     const handleMouseEnterParent = useCallback(() => {
+        if (isMobile) return;
         setIsPaused(true);
         snapToNearest();
-    }, [snapToNearest]);
+    }, [snapToNearest, isMobile]);
 
     const handleMouseLeaveParent = useCallback(() => {
+        if (isMobile) return;
         setIsPaused(false);
         setCenteredIndex(null);
         lastTimestampRef.current = undefined;
-    }, []);
+    }, [isMobile]);
 
     return (
-        <div className="relative w-full py-12 px-4 select-none flex flex-col items-center">
+        <div className="relative w-full py-12 px-2 md:px-4 select-none flex flex-col items-center">
             {/* Ambient Background Glows */}
-            <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px] pointer-events-none" />
-            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[150px] pointer-events-none" />
+            <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/5 rounded-full blur-[100px] md:blur-[150px] pointer-events-none" />
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-500/5 rounded-full blur-[100px] md:blur-[150px] pointer-events-none" />
 
             {/* Main Carousel Container - Width aligned with Readme (6xl), Rounded, Translucent */}
             <div
@@ -167,19 +240,19 @@ export default function FeatureCarousel() {
                 className="relative w-full max-w-6xl bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-[3rem] md:rounded-[4rem] overflow-hidden shadow-2xl"
             >
 
-                {/* Internal Slider Wrapper */}
+                {/* Internal Slider Wrapper - Removed horizontal padding to fix centering precision */}
                 <div
                     ref={containerRef}
-                    className="relative z-10 py-16 md:py-20 px-4 overflow-visible"
+                    className="relative z-10 py-10 md:py-20 overflow-visible"
                 >
                     <motion.div
                         style={{ x: xRaw }}
-                        className="flex gap-4 md:gap-10 items-center will-change-transform cursor-grab active:cursor-grabbing"
+                        className="flex gap-3 md:gap-10 items-center will-change-transform cursor-grab active:cursor-grabbing"
                         drag="x"
-                        dragConstraints={{ left: -totalSetWidth, right: 0 }}
+                        dragConstraints={{ left: -totalSetWidth * 2.5, right: -totalSetWidth * 0.5 }}
                         onDragStart={() => {
                             setIsDragging(true);
-                            setIsPaused(true);
+                            if (!isMobile) setIsPaused(true);
                         }}
                         onDragEnd={() => {
                             setIsDragging(false);
@@ -189,13 +262,13 @@ export default function FeatureCarousel() {
                         {loopedFeatures.map((feature, idx) => {
                             const Icon = iconMap[feature.key] || Zap;
                             const isHovered = hoveredCard === idx;
-                            const isCentered = centeredIndex === idx;
+                            const isCentered = centeredIndex === idx || (isMobile && centeredIndex === null && idx === features.length);
                             const featureColor = colorMap[feature.color] || colorMap.indigo;
 
                             // Dynamic spatial offset logic - Symmetric gaps
                             let spatialOffset = 0;
-                            const gapExpansion = 100; // Symmetrical gap for buttons
-                            if (centeredIndex !== null) {
+                            const gapExpansion = isMobile ? 0 : 100; // No gap expansion on mobile
+                            if (centeredIndex !== null && !isMobile) {
                                 if (idx < centeredIndex) spatialOffset = -gapExpansion;
                                 if (idx > centeredIndex) spatialOffset = gapExpansion;
                             }
@@ -204,65 +277,74 @@ export default function FeatureCarousel() {
                                 <motion.div
                                     key={`${feature.key}-${idx}`}
                                     animate={{
-                                        x: isPaused ? spatialOffset : 0,
-                                        scale: isCentered ? 1.05 : isPaused ? 0.9 : 1,
-                                        opacity: isCentered || !isPaused ? 1 : 0.35,
+                                        x: (isPaused || isMobile) ? spatialOffset : 0,
+                                        scale: isCentered ? (isMobile ? 1.0 : 1.05) : (isPaused || isMobile ? 0.92 : 1),
+                                        opacity: isCentered || (!isPaused && !isMobile) ? 1 : (isMobile ? 0.8 : 0.35),
                                     }}
-                                    transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                                    onMouseEnter={() => setHoveredCard(idx)}
-                                    onMouseLeave={() => setHoveredCard(null)}
+                                    transition={{
+                                        type: "tween",
+                                        ease: "easeOut",
+                                        duration: 0.4
+                                    }}
+                                    onMouseEnter={() => !isMobile && setHoveredCard(idx)}
+                                    onMouseLeave={() => !isMobile && setHoveredCard(null)}
                                     whileHover={{
-                                        scale: isCentered ? 1.05 : 0.98,
-                                        transition: { type: "spring", stiffness: 400, damping: 25 }
+                                        scale: isMobile ? 1.0 : (isCentered ? 1.05 : 0.98),
+                                        transition: { type: "tween", ease: "easeOut", duration: 0.2 }
                                     }}
                                     onClick={() => setSelectedFeature(feature.key)}
-                                    className={`relative w-[260px] md:w-[300px] h-[440px] shrink-0 rounded-[3rem] p-8 md:p-10 overflow-hidden cursor-pointer bg-slate-950/40 border transition-all duration-300 ${isHovered
-                                        ? 'border-blue-500/50 ring-4 ring-blue-500/10'
-                                        : 'border-white/5 shadow-xl'
+                                    className={`relative shrink-0 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 overflow-hidden cursor-pointer bg-slate-950/40 border transition-all duration-300 ${isHovered || (isMobile && isCentered)
+                                        ? 'ring-4'
+                                        : 'shadow-xl'
                                         }`}
                                     style={{
-                                        boxShadow: isHovered ? `0 20px 40px -10px ${featureColor}33` : 'none',
+                                        width: cardWidth,
+                                        height: isMobile ? 380 : 440,
+                                        backgroundColor: (isHovered || isMobile) ? `${featureColor}08` : 'rgba(255,255,255,0.03)',
+                                        borderColor: (isHovered || isMobile) ? `${featureColor}99` : 'rgba(255,255,255,0.05)',
+                                        boxShadow: (isHovered || isMobile) ? `0 25px 50px -12px ${featureColor}55` : 'none',
+                                        ['--tw-ring-color' as any]: (isHovered || (isMobile && isCentered)) ? `${featureColor}44` : 'transparent',
                                     }}
                                 >
                                     {/* Icon Layer */}
                                     <div
-                                        className={`w-16 h-16 rounded-2xl mb-8 flex items-center justify-center transition-all duration-300 relative z-10 border border-white/5 ${isHovered ? 'rotate-6 scale-110' : 'rotate-0'
+                                        className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl mb-6 md:mb-8 flex items-center justify-center transition-all duration-300 relative z-10 border border-white/5 ${(isHovered || isMobile) ? 'rotate-6 scale-110' : 'rotate-0'
                                             }`}
                                         style={{
-                                            backgroundColor: isHovered ? `${featureColor}22` : 'rgba(255,255,255,0.03)',
-                                            borderColor: isHovered ? `${featureColor}44` : 'rgba(255,255,255,0.05)'
+                                            backgroundColor: (isHovered || isMobile) ? `${featureColor}22` : 'rgba(255,255,255,0.03)',
+                                            borderColor: (isHovered || isMobile) ? `${featureColor}44` : 'rgba(255,255,255,0.05)'
                                         }}
                                     >
                                         <Icon
-                                            size={32}
+                                            size={isMobile ? 28 : 32}
                                             className="transition-colors duration-300"
-                                            style={{ color: isHovered ? featureColor : 'rgba(148, 163, 184, 0.6)' }}
+                                            style={{ color: (isHovered || isMobile) ? featureColor : 'rgba(148, 163, 184, 0.6)' }}
                                         />
                                     </div>
 
                                     {/* Content */}
                                     <div className="relative z-10">
-                                        <h3 className="text-2xl font-black text-white mb-4 leading-tight tracking-tight">
+                                        <h3 className="text-xl md:text-2xl font-black text-white mb-3 md:mb-4 leading-tight tracking-tight">
                                             {feature.title}
                                         </h3>
-                                        <p className="text-slate-400 text-sm leading-relaxed mb-10 line-clamp-4 font-medium italic opacity-80">
+                                        <p className="text-slate-400 text-xs md:text-sm leading-relaxed mb-8 md:mb-10 line-clamp-4 font-medium italic opacity-80">
                                             {feature.shortDesc}
                                         </p>
                                     </div>
 
                                     {/* Footer Action */}
-                                    <div className="absolute bottom-10 left-10 right-10 flex items-center justify-between border-t border-white/5 pt-6">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 italic">
+                                    <div className="absolute bottom-8 md:bottom-10 left-8 md:left-10 right-8 md:right-10 flex items-center justify-between border-t border-white/5 pt-4 md:pt-6">
+                                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 italic">
                                             System Module
                                         </span>
                                         <motion.div
-                                            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/5 text-slate-400"
+                                            className="w-7 h-7 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all bg-white/5 text-slate-400"
                                             style={{
-                                                backgroundColor: isHovered ? featureColor : 'rgba(255,255,255,0.05)',
-                                                color: isHovered ? '#fff' : 'rgba(148,163,184,0.6)'
+                                                backgroundColor: (isHovered || isMobile) ? featureColor : 'rgba(255,255,255,0.05)',
+                                                color: (isHovered || isMobile) ? '#fff' : 'rgba(148,163,184,0.6)'
                                             }}
                                         >
-                                            <ArrowRight size={16} />
+                                            <ArrowRight size={isMobile ? 14 : 16} />
                                         </motion.div>
                                     </div>
 
@@ -277,37 +359,39 @@ export default function FeatureCarousel() {
                     </motion.div>
                 </div>
 
-                {/* Navigation Arrows - Symmetrical & Stable inside parent container */}
+                {/* Navigation Arrows */}
                 <AnimatePresence>
-                    {isPaused && !selectedFeature && (
-                        <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center">
-                            <div className="relative w-[300px] h-[440px]">
+                    {(isPaused || isMobile) && !selectedFeature && (
+                        <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-between px-4 md:justify-center md:px-0">
+                            <div className={`relative ${isMobile ? 'flex w-full justify-between items-center h-full' : 'w-[300px] h-[440px]'}`}>
                                 <motion.button
-                                    initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                    animate={{ opacity: 1, scale: 1, x: -85 }}
-                                    exit={{ opacity: 0, scale: 0.8, x: -20 }}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1, x: isMobile ? 0 : -85 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleManualMove('left');
                                     }}
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full w-12 h-12 rounded-xl bg-slate-900 border border-white/20 flex items-center justify-center text-white/50 hover:text-white hover:bg-blue-600 hover:border-blue-400 transition-all shadow-xl pointer-events-auto active:scale-90"
+                                    className={`${isMobile ? 'relative' : 'absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full'
+                                        } w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-900/90 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:text-white hover:bg-blue-600 hover:border-blue-400 transition-all shadow-2xl pointer-events-auto active:scale-90`}
                                 >
-                                    <ChevronLeft size={28} />
+                                    <ChevronLeft size={isMobile ? 24 : 28} />
                                 </motion.button>
 
                                 <motion.button
-                                    initial={{ opacity: 0, scale: 0.8, x: 20 }}
-                                    animate={{ opacity: 1, scale: 1, x: 85 }}
-                                    exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1, x: isMobile ? 0 : 85 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleManualMove('right');
                                     }}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full w-12 h-12 rounded-xl bg-slate-900 border border-white/20 flex items-center justify-center text-white/50 hover:text-white hover:bg-blue-600 hover:border-blue-400 transition-all shadow-xl pointer-events-auto active:scale-90"
+                                    className={`${isMobile ? 'relative' : 'absolute right-0 top-1/2 -translate-y-1/2 translate-x-full'
+                                        } w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-900/90 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:text-white hover:bg-blue-600 hover:border-blue-400 transition-all shadow-2xl pointer-events-auto active:scale-90`}
                                 >
-                                    <ChevronRight size={28} />
+                                    <ChevronRight size={isMobile ? 24 : 28} />
                                 </motion.button>
                             </div>
                         </div>

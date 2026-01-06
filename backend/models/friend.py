@@ -138,28 +138,45 @@ class Friend:
             'updated_at': datetime.utcnow().isoformat()
         }
 
-    def reject_friend_request(self, request_id: str, user_id: str) -> bool:
+    def reject_friend_request(self, request_id: str, user_id: str) -> Optional[Dict[str, str]]:
         """Reject a friend request."""
-        result = self.collection.delete_one({
+        request = self.collection.find_one({
             '_id': ObjectId(request_id),
             'to_user_id': ObjectId(user_id),
             'status': 'pending'
         })
+        
+        if not request:
+            return None
 
-        return result.deleted_count > 0
+        from_user_id = str(request['from_user_id'])
+        result = self.collection.delete_one({'_id': ObjectId(request_id)})
 
-    def cancel_friend_request(self, request_id: str, user_id: str) -> bool:
+        if result.deleted_count > 0:
+            return {'from_user_id': from_user_id, 'to_user_id': user_id}
+        return None
+
+    def cancel_friend_request(self, request_id: str, user_id: str) -> Optional[Dict[str, str]]:
         """Cancel a sent friend request."""
-        result = self.collection.delete_one({
+        request = self.collection.find_one({
             '_id': ObjectId(request_id),
             'from_user_id': ObjectId(user_id),
             'status': 'pending'
         })
+        
+        if not request:
+            return None
 
-        return result.deleted_count > 0
+        to_user_id = str(request['to_user_id'])
+        result = self.collection.delete_one({'_id': ObjectId(request_id)})
+
+        if result.deleted_count > 0:
+            return {'from_user_id': user_id, 'to_user_id': to_user_id}
+        return None
 
     def remove_friend(self, user_id: str, friend_id: str) -> bool:
         """Remove a friend."""
+        # This one already has the IDs passed in
         result = self.collection.delete_one({
             '$or': [
                 {'from_user_id': ObjectId(user_id), 'to_user_id': ObjectId(friend_id), 'status': 'accepted'},

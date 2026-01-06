@@ -106,6 +106,34 @@ const Settings: React.FC = () => {
     };
   }, []);
 
+  // Socket listeners for real-time updates
+  useEffect(() => {
+    const handleIdentityUpdate = (e: any) => {
+      console.log('Real-time anonymous identity update:', e.detail);
+      // Only reload if we are on the identities tab or if it's currently hidden
+      // We always refresh the list to ensure consistency
+      loadAnonymousIdentities();
+    };
+
+    const handleIdentityDelete = (e: any) => {
+      console.log('Real-time anonymous identity deletion:', e.detail);
+      const { topic_id } = e.detail;
+      if (topic_id) {
+        setAnonymousIdentities(prev => prev.filter(id => id.topic_id !== topic_id));
+      } else {
+        loadAnonymousIdentities();
+      }
+    };
+
+    window.addEventListener('anonymous_identity_updated', handleIdentityUpdate);
+    window.addEventListener('anonymous_identity_deleted', handleIdentityDelete);
+
+    return () => {
+      window.removeEventListener('anonymous_identity_updated', handleIdentityUpdate);
+      window.removeEventListener('anonymous_identity_deleted', handleIdentityDelete);
+    };
+  }, []);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');

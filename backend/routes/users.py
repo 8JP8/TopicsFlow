@@ -353,6 +353,18 @@ def delete_anonymous_identity(topic_id):
         success = anon_model.delete_identity(user_id, topic_id)
 
         if success:
+            # Emit socket event
+            try:
+                from app import socketio
+                if socketio:
+                    socketio.emit('anonymous_identity_deleted', {
+                        'user_id': user_id,
+                        'topic_id': topic_id
+                    }, room=f"user_{user_id}")
+                    logger.info(f"Emitted anonymous_identity_deleted for user {user_id} in topic {topic_id}")
+            except Exception as e:
+                logger.warning(f"Failed to emit socket event for identity deletion: {str(e)}")
+
             return jsonify({
                 'success': True,
                 'message': 'Anonymous identity deleted successfully'
@@ -742,29 +754,52 @@ def send_friend_request():
         friend_model = Friend(current_app.db)
         result = friend_model.send_friend_request(str(from_user_id).strip(), str(to_user_id).strip())
 
-        # Emit socket event to notify the recipient
+        # Create general notification and emit socket event
         try:
             from models.user import User
             user_model = User(current_app.db)
             sender = user_model.get_user_by_id(from_user_id)
             
-            socketio = current_app.extensions.get('socketio')
-            if socketio and sender:
-                created_at = result.get('created_at')
-                if isinstance(created_at, datetime):
-                    created_at = created_at.isoformat()
-                elif not isinstance(created_at, str):
-                    created_at = datetime.utcnow().isoformat()
+            if sender:
+                # 1. Create database notification
+                from models.notification import Notification
+                notif_model = Notification(current_app.db)
+                notif_model.create_notification(
+                    user_id=to_user_id,
+                    notification_type='friend_request',
+                    title='New Friend Request',
+                    message=f"{sender.get('username', 'Someone')} sent you a friend request",
+                    sender_id=from_user_id,
+                    context_type='friend_request'
+                )
                 
-                socketio.emit('friend_request_received', {
-                    'request_id': result.get('id'),
-                    'from_user_id': from_user_id,
-                    'from_username': sender.get('username', 'Unknown'),
-                    'to_user_id': to_user_id,
-                    'created_at': created_at or datetime.utcnow().isoformat()
-                }, room=f"user_{to_user_id}")
+                # 2. Emit socket event for real-time update
+                socketio = current_app.extensions.get('socketio')
+                if socketio:
+                    created_at = result.get('created_at')
+                    if isinstance(created_at, datetime):
+                        created_at = created_at.isoformat()
+                    elif not isinstance(created_at, str):
+                        created_at = datetime.utcnow().isoformat()
+                    
+                    socketio.emit('friend_request_received', {
+                        'request_id': result.get('id'),
+                        'from_user_id': from_user_id,
+                        'from_username': sender.get('username', 'Unknown'),
+                        'to_user_id': to_user_id,
+                        'created_at': created_at or datetime.utcnow().isoformat()
+                    }, room=f"user_{to_user_id}")
         except Exception as e:
-            logger.warning(f"Failed to emit friend request notification: {str(e)}")
+            logger.warning(f"Failed to notify recipient of friend request: {str(e)}")
+
+        # Invalidate caches
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_user_friends(from_user_id)
+                cache_invalidator.invalidate_user_friends(to_user_id)
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
 
         return jsonify({
             'success': True,
@@ -793,6 +828,45 @@ def accept_friend_request(request_id):
 
         friend_model = Friend(current_app.db)
         result = friend_model.accept_friend_request(request_id, user_id)
+        from_user_id = result.get('from_user_id')
+        to_user_id = result.get('to_user_id')
+
+        # Invalidate caches
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_user_friends(from_user_id)
+                cache_invalidator.invalidate_user_friends(to_user_id)
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
+
+        # Notify the sender that the request was accepted
+        try:
+            from models.user import User
+            user_model = User(current_app.db)
+            acceptor = user_model.get_user_by_id(to_user_id)
+            
+            socketio = current_app.extensions.get('socketio')
+            if socketio and acceptor:
+                socketio.emit('friend_request_accepted', {
+                    'request_id': request_id,
+                    'friend_id': to_user_id,
+                    'friend_username': acceptor.get('username', 'Unknown')
+                }, room=f"user_{from_user_id}")
+                
+            # Create general notification for the person who sent the request
+            from models.notification import Notification
+            notif_model = Notification(current_app.db)
+            notif_model.create_notification(
+                user_id=from_user_id,
+                notification_type='friend_request_accepted',
+                title='Friend Request Accepted',
+                message=f"{acceptor.get('username', 'Someone')} accepted your friend request",
+                sender_id=to_user_id,
+                context_type='friend'
+            )
+        except Exception as e:
+            logger.warning(f"Failed to notify about accepted friend request: {str(e)}")
 
         return jsonify({
             'success': True,
@@ -820,10 +894,19 @@ def reject_friend_request(request_id):
         user_id = current_user_result['user']['id']
 
         friend_model = Friend(current_app.db)
-        success = friend_model.reject_friend_request(request_id, user_id)
+        result = friend_model.reject_friend_request(request_id, user_id)
 
-        if not success:
+        if not result:
             return jsonify({'success': False, 'errors': ['Friend request not found']}), 404
+
+        # Invalidate caches
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_user_friends(result.get('from_user_id'))
+                cache_invalidator.invalidate_user_friends(result.get('to_user_id'))
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
 
         return jsonify({
             'success': True,
@@ -848,10 +931,19 @@ def cancel_friend_request(request_id):
         user_id = current_user_result['user']['id']
 
         friend_model = Friend(current_app.db)
-        success = friend_model.cancel_friend_request(request_id, user_id)
+        result = friend_model.cancel_friend_request(request_id, user_id)
 
-        if not success:
+        if not result:
             return jsonify({'success': False, 'errors': ['Friend request not found']}), 404
+
+        # Invalidate caches
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_user_friends(result.get('from_user_id'))
+                cache_invalidator.invalidate_user_friends(result.get('to_user_id'))
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
 
         return jsonify({
             'success': True,
@@ -880,6 +972,15 @@ def remove_friend(friend_id):
 
         if not success:
             return jsonify({'success': False, 'errors': ['Friend not found']}), 404
+
+        # Invalidate caches
+        try:
+            cache_invalidator = current_app.config.get('CACHE_INVALIDATOR')
+            if cache_invalidator:
+                cache_invalidator.invalidate_user_friends(user_id)
+                cache_invalidator.invalidate_user_friends(friend_id)
+        except Exception as e:
+            logger.error(f"Cache invalidation failed: {e}")
 
         return jsonify({
             'success': True,

@@ -315,6 +315,18 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           window.dispatchEvent(new CustomEvent('refresh_invitations'));
         }
       },
+      'anonymous_identity_updated': (data: any) => {
+        console.log('[SocketContext] anonymous_identity_updated event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('anonymous_identity_updated', { detail: data }));
+        }
+      },
+      'anonymous_identity_deleted': (data: any) => {
+        console.log('[SocketContext] anonymous_identity_deleted event received:', data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('anonymous_identity_deleted', { detail: data }));
+        }
+      },
     };
 
     // Register all handlers

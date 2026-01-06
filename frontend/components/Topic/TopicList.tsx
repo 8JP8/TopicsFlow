@@ -182,7 +182,7 @@ const TopicList: React.FC<TopicListProps> = ({
           newSet.delete(topicId);
           return newSet;
         });
-        toast.success(t('contextMenu.topicUnsilenced') || 'Topic unsilenced');
+        toast.success(t('mute.topicUnmuted') || t('contextMenu.topicUnsilenced') || 'Topic unsilenced');
       } else {
         toast.error(response.data.errors?.[0] || t('errors.generic'));
       }
