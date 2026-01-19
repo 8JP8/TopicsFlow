@@ -555,7 +555,14 @@ class Comment:
 
             if post and post.get('topic_id'):
                 report_model = Report(self.db)
-                report_model.create_report(comment_id, reporter_id, reason, post['topic_id'], 'comment')
+                report_model.create_report(
+                    reporter_id=reporter_id,
+                    reason=reason,
+                    content_type='comment',
+                    content_id=comment_id,
+                    topic_id=str(post['topic_id']),
+                    reported_user_id=comment.get('user_id')
+                )
 
         return result.modified_count > 0
 
