@@ -206,14 +206,32 @@ def register_socketio_handlers(socketio):
                                 # Only emit user_left_topic for topic rooms
                                 if isinstance(tracked_room, str) and tracked_room.startswith('topic_'):
                                     topic_id = tracked_room.split('topic_', 1)[1]
-                                try:
-                                    emit('user_left_topic', {
-                                        'user_id': user_id,
-                                        'username': username,
+                                    try:
+                                        emit('user_left_topic', {
+                                            'user_id': user_id,
+                                            'username': username,
                                             'topic_id': topic_id
                                         }, room=tracked_room, skip_sid=sid)
-                                except (RuntimeError, AttributeError):
+                                    except (RuntimeError, AttributeError):
                                         logger.debug(f"Could not emit user_left_topic for room {tracked_room}")
+
+                                # Handle VOIP disconnects
+                                if isinstance(tracked_room, str) and tracked_room.startswith('voip_'):
+                                    call_id = tracked_room.split('voip_', 1)[1]
+                                    try:
+                                        from models.voip import VoipCall
+                                        voip_model = VoipCall(current_app.db)
+                                        voip_model.set_disconnected_status(call_id, user_id, True)
+
+                                        # Broadcast disconnect status to room (skipping the disconnected user)
+                                        emit('voip_user_disconnected', {
+                                            'call_id': call_id,
+                                            'user_id': user_id,
+                                            'username': username,
+                                            'is_disconnected': True
+                                        }, room=tracked_room, skip_sid=sid)
+                                    except Exception as e:
+                                        logger.error(f"Failed to handle VOIP disconnect for call {call_id}: {e}")
                             except (RuntimeError, AttributeError) as room_error:
                                 logger.debug(f"Could not leave room {tracked_room}: {room_error}")
                         del user_rooms[user_id]
