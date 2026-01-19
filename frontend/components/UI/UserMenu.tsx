@@ -64,7 +64,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ placement = 'bottom' }) => {
         <Link
           href="/settings"
           id="user-menu-item-settings"
-          className="w-full flex items-center space-x-3 px-4 py-2 text-sm theme-text-primary hover:theme-bg-tertiary transition-colors"
+          className="w-full flex items-center space-x-3 px-4 py-2 text-sm theme-text-primary hover:theme-bg-tertiary hover:no-underline hover:theme-text-primary transition-colors"
           onClick={() => setIsOpen(false)}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

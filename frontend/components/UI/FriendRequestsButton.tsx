@@ -46,7 +46,7 @@ const FriendRequestsButton: React.FC<FriendRequestsButtonProps> = () => {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
+        className="relative p-2 rounded-lg hover:theme-bg-tertiary transition-colors"
         aria-label={t('privateMessages.friendRequests') || 'Friend Requests'}
         title={t('privateMessages.friendRequests') || 'Friend Requests'}
       >
@@ -73,4 +73,3 @@ const FriendRequestsButton: React.FC<FriendRequestsButtonProps> = () => {
 };
 
 export default FriendRequestsButton;
-
