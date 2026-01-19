@@ -37,15 +37,32 @@ class User:
             except Exception as e:
                 logger.error(f"Invalid ENCRYPTION_KEY in environment: {str(e)}")
 
-        key_file = 'totp_encryption.key'
+        # Use absolute path to ensure key is found regardless of working directory
+        # Key file should be in the backend root directory (parent of models directory)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(current_dir)
+        key_file = os.path.join(backend_dir, 'totp_encryption.key')
+
         if os.path.exists(key_file):
             with open(key_file, 'rb') as f:
-                return f.read()
+                key = f.read()
+                # Validate key to ensure it's not corrupt
+                try:
+                    from cryptography.fernet import Fernet
+                    Fernet(key)
+                    return key
+                except Exception as e:
+                    logger.error(f"Invalid encryption key in {key_file}: {e}")
+                    return key
         else:
             from cryptography.fernet import Fernet
             key = Fernet.generate_key()
-            with open(key_file, 'wb') as f:
-                f.write(key)
+            try:
+                with open(key_file, 'wb') as f:
+                    f.write(key)
+                logger.info(f"Generated new encryption key at {key_file}")
+            except Exception as e:
+                logger.error(f"Failed to write encryption key to {key_file}: {e}")
             return key
 
     def _encrypt_totp_secret(self, secret: str) -> str:
@@ -58,7 +75,10 @@ class User:
         try:
             f = Fernet(self.encryption_key)
             return f.decrypt(encrypted_secret.encode()).decode()
-        except Exception:
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to decrypt TOTP secret: {str(e)}")
             return None
 
     def create_user(self, username: str, email: str, password: Optional[str] = None,
