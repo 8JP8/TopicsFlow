@@ -927,6 +927,14 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         }
     }, [socket, connected, user, activeCall]);
 
+    // Handle user logout - ensure call is cleaned up
+    useEffect(() => {
+        if (!user && activeCall) {
+            console.log('[VOIP] User logged out, cleaning up call');
+            leaveCall();
+        }
+    }, [user, activeCall, leaveCall]);
+
     // Handle socket disconnect - mark self as disconnected
     useEffect(() => {
         if (!socket) return;
