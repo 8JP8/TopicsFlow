@@ -394,7 +394,19 @@ class Message:
             # Create report entry in reports collection
             from .report import Report
             report_model = Report(self.db)
-            report_model.create_report(message_id, reporter_id, reason, message['topic_id'])
+
+            topic_id = message.get('topic_id')
+            if topic_id:
+                topic_id = str(topic_id)
+
+            report_model.create_report(
+                reporter_id=reporter_id,
+                reason=reason,
+                content_type='message',
+                content_id=message_id,
+                topic_id=topic_id,
+                reported_user_id=message.get('user_id')
+            )
 
         return result.modified_count > 0
 

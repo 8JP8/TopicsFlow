@@ -146,6 +146,8 @@ class Report:
             report['_id'] = str(report['_id'])
             if 'reported_message_id' in report and report['reported_message_id']:
                 report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_content_id' in report and report['reported_content_id']:
+                report['reported_content_id'] = str(report['reported_content_id'])
             report['reported_by'] = str(report['reported_by'])
             if report['reviewed_by']:
                 report['reviewed_by'] = str(report['reviewed_by'])
@@ -160,12 +162,22 @@ class Report:
         query = {'status': 'pending'}
 
         if topic_id:
-            # Filter by reports from specific topic
+            # Filter by topic_id field OR messages in that topic (legacy support)
+            topic_conditions = [{'topic_id': ObjectId(topic_id)}]
+
+            # Legacy: find messages in topic
             from .message import Message
             message_model = Message(self.db)
             topic_message_ids = [ObjectId(msg['_id']) for msg in
                                 self.db.messages.find({'topic_id': ObjectId(topic_id)}, {'_id': 1})]
-            query['reported_message_id'] = {'$in': topic_message_ids}
+
+            if topic_message_ids:
+                topic_conditions.append({'reported_message_id': {'$in': topic_message_ids}})
+
+            if len(topic_conditions) > 1:
+                query['$or'] = topic_conditions
+            else:
+                query.update(topic_conditions[0])
 
         reports = list(self.collection.find(query)
                       .sort([('created_at', -1)])
@@ -174,7 +186,10 @@ class Report:
 
         for report in reports:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_message_id' in report and report['reported_message_id']:
+                report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_content_id' in report and report['reported_content_id']:
+                report['reported_content_id'] = str(report['reported_content_id'])
             report['reported_by'] = str(report['reported_by'])
 
             # Enrich with details
@@ -204,12 +219,14 @@ class Report:
                 if reported_message:
                     report['reported_content'] = reported_message
             elif report.get('content_type') == 'post':
+                # Fetch reported post details
                 from .post import Post
                 post_model = Post(self.db)
                 reported_post = post_model.get_post_by_id(content_id)
                 if reported_post:
                     report['reported_content'] = reported_post
             elif report.get('content_type') == 'comment':
+                # Fetch reported comment details
                 from .comment import Comment
                 comment_model = Comment(self.db)
                 reported_comment = comment_model.get_comment_by_id(content_id)
@@ -382,19 +399,30 @@ class Report:
         if as_reporter:
             query = {'reported_by': ObjectId(user_id)}
         else:
-            # User who was reported (get messages they sent that were reported)
+            # User who was reported:
+            # 1. Directly reported via reported_user_id
+            # 2. Their messages were reported (legacy/fallback)
             from .message import Message
             message_model = Message(self.db)
             user_message_ids = [ObjectId(msg['_id']) for msg in
                                self.db.messages.find({'user_id': ObjectId(user_id)}, {'_id': 1})]
-            query = {'reported_message_id': {'$in': user_message_ids}}
+
+            query = {
+                '$or': [
+                    {'reported_user_id': ObjectId(user_id)},
+                    {'reported_message_id': {'$in': user_message_ids}}
+                ]
+            }
 
         reports = list(self.collection.find(query)
                       .sort([('created_at', -1)]))
 
         for report in reports:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_message_id' in report and report['reported_message_id']:
+                report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_content_id' in report and report['reported_content_id']:
+                report['reported_content_id'] = str(report['reported_content_id'])
             report['reported_by'] = str(report['reported_by'])
             if report['reviewed_by']:
                 report['reviewed_by'] = str(report['reviewed_by'])
@@ -452,11 +480,22 @@ class Report:
         """Get recent reports for dashboard."""
         query = {}
         if topic_id:
+            # Filter by topic_id field OR messages in that topic (legacy support)
+            topic_conditions = [{'topic_id': ObjectId(topic_id)}]
+
+            # Legacy: find messages in topic
             from .message import Message
             message_model = Message(self.db)
             topic_message_ids = [ObjectId(msg['_id']) for msg in
                                 self.db.messages.find({'topic_id': ObjectId(topic_id)}, {'_id': 1})]
-            query['reported_message_id'] = {'$in': topic_message_ids}
+
+            if topic_message_ids:
+                topic_conditions.append({'reported_message_id': {'$in': topic_message_ids}})
+
+            if len(topic_conditions) > 1:
+                query['$or'] = topic_conditions
+            else:
+                query.update(topic_conditions[0])
 
         reports = list(self.collection.find(query)
                       .sort([('created_at', -1)])
@@ -464,7 +503,10 @@ class Report:
 
         for report in reports:
             report['_id'] = str(report['_id'])
-            report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_message_id' in report and report['reported_message_id']:
+                report['reported_message_id'] = str(report['reported_message_id'])
+            if 'reported_content_id' in report and report['reported_content_id']:
+                report['reported_content_id'] = str(report['reported_content_id'])
             report['reported_by'] = str(report['reported_by'])
             if report['reviewed_by']:
                 report['reviewed_by'] = str(report['reviewed_by'])

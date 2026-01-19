@@ -750,7 +750,14 @@ class Post:
             report_model = Report(self.db)
             topic_id = post.get('topic_id')
             if topic_id:
-                report_model.create_report(post_id, reporter_id, reason, topic_id, 'post')
+                report_model.create_report(
+                    reporter_id=reporter_id,
+                    reason=reason,
+                    content_type='post',
+                    content_id=post_id,
+                    topic_id=str(topic_id),
+                    reported_user_id=post.get('user_id')
+                )
 
         return result.modified_count > 0
 
