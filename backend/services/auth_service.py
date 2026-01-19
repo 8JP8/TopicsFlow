@@ -194,7 +194,6 @@ class AuthService:
                 if ban_info:
                     error_msg = f"Account is banned. Reason: {ban_info.get('reason', 'No reason provided')}"
                     if ban_info.get('expiry'):
-                        from datetime import datetime
                         expiry_date = ban_info['expiry']
                         if isinstance(expiry_date, datetime):
                             expiry_str = expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')
