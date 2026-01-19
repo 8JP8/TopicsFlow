@@ -338,6 +338,44 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         setIsMuted(false);
     }, [stopVoiceActivityDetection]);
 
+    // Initialize peer connections with a list of participants
+    const initializePeerConnections = useCallback(async (callId: string, currentParticipants: VoipParticipant[]) => {
+        if (!user || !socket || !connected) return;
+
+        console.log('[VOIP] Initializing peer connections for participants:', currentParticipants.length);
+
+        for (const participant of currentParticipants) {
+            // Skip self
+            if (participant.user_id === user.id) continue;
+
+            try {
+                // If we already have a connection, check its state
+                if (peerConnectionsRef.current.has(participant.user_id)) {
+                    const pc = peerConnectionsRef.current.get(participant.user_id)?.connection;
+                    if (pc && (pc.connectionState === 'connected' || pc.connectionState === 'connecting')) {
+                        console.log(`[VOIP] Connection already healthy for ${participant.user_id}`);
+                        continue;
+                    }
+                    // Close unhealthy connection
+                    if (pc) pc.close();
+                }
+
+                console.log(`[VOIP] Creating offer for ${participant.user_id}`);
+                const pc = createPeerConnection(participant.user_id);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                socket.emit('voip_offer', {
+                    call_id: callId,
+                    target_user_id: participant.user_id,
+                    offer: offer
+                });
+            } catch (error) {
+                console.error(`[VOIP] Failed to create offer for ${participant.user_id}:`, error);
+            }
+        }
+    }, [user, socket, connected, createPeerConnection]);
+
     // Create call
     const createCall = useCallback(async (roomId: string, roomType: 'group' | 'dm', roomName?: string) => {
         if (!socket || !connected) {
@@ -585,24 +623,8 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
                 }
                 setConnectionStatus('connected');
 
-                // Create offers to all existing participants
-                for (const participant of data.call.participants || []) {
-                    if (participant.user_id !== user?.id) {
-                        try {
-                            const pc = createPeerConnection(participant.user_id);
-                            const offer = await pc.createOffer();
-                            await pc.setLocalDescription(offer);
-
-                            socket.emit('voip_offer', {
-                                call_id: data.call.id,
-                                target_user_id: participant.user_id,
-                                offer: offer
-                            });
-                        } catch (error) {
-                            console.error('[VOIP] Failed to create offer:', error);
-                        }
-                    }
-                }
+                // Initialize connections with all existing participants
+                await initializePeerConnections(data.call.id, data.call.participants || []);
             },
 
             'voip_user_joined': async (data) => {
@@ -835,6 +857,9 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
                         localStreamRef.current = await getUserMedia(savedDeviceId || undefined);
                         startVoiceActivityDetection(localStreamRef.current);
                         console.log('[VOIP] Reconnected to call:', data.call.id);
+
+                        // Initialize connections with participants
+                        await initializePeerConnections(data.call.id, data.call.participants || []);
                     } catch (error) {
                         console.error('[VOIP] Failed to restore microphone on reconnection:', error);
                     }
@@ -916,7 +941,8 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         const handleReconnect = () => {
             if (activeCall) {
                 console.log('[VOIP] Socket reconnected, restoring call...');
-                socket.emit('voip_heartbeat', { call_id: activeCall.id });
+                // Emit join_call to ensure socket is re-added to the signaling room
+                socket.emit('voip_join_call', { call_id: activeCall.id });
                 setConnectionStatus('connected');
             }
         };
