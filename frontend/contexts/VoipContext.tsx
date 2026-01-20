@@ -61,9 +61,13 @@ interface VoipContextType {
     availableDevices: MediaDeviceInfo[];
     selectedDeviceId: string;
     isDocked: boolean;
+    echoCancellation: boolean;
+    noiseSuppression: boolean;
 
     // Actions
     setIsDocked: (value: boolean) => void;
+    setEchoCancellation: (value: boolean) => void;
+    setNoiseSuppression: (value: boolean) => void;
     createCall: (roomId: string, roomType: 'group' | 'dm', roomName?: string) => Promise<void>;
     joinCall: (callId: string) => Promise<void>;
     leaveCall: () => void;
@@ -98,7 +102,11 @@ export const useVoip = () => {
                 availableDevices: [],
                 selectedDeviceId: '',
                 isDocked: false,
+                echoCancellation: true,
+                noiseSuppression: true,
                 setIsDocked: () => { },
+                setEchoCancellation: () => { },
+                setNoiseSuppression: () => { },
                 createCall: async () => { },
                 joinCall: async () => { },
                 leaveCall: () => { },
@@ -140,6 +148,8 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
     const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
     const [isDocked, setIsDocked] = useState(false);
+    const [echoCancellation, setEchoCancellation] = useState(true);
+    const [noiseSuppression, setNoiseSuppression] = useState(true);
 
     // State for remote streams (explicit rendering to prevent GC)
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
@@ -154,6 +164,8 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
 
     // Refs to track current values for VAD closure
     const activeCallRef = useRef<VoipCall | null>(null);
+    // Track if effect update is needed to avoid initial mount double-trigger
+    const isFirstMountRef = useRef(true);
     const socketRef = useRef(socket);
     const connectedRef = useRef(connected);
     const userRef = useRef(user);
@@ -176,11 +188,27 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         if (savedThreshold) setMicrophoneThreshold(parseInt(savedThreshold, 10));
         const savedDevice = localStorage.getItem('voip_selected_device');
         if (savedDevice) setSelectedDeviceId(savedDevice);
+
+        const savedEcho = localStorage.getItem('voip_echo_cancellation');
+        if (savedEcho !== null) setEchoCancellation(savedEcho === 'true');
+
+        const savedNoise = localStorage.getItem('voip_noise_suppression');
+        if (savedNoise !== null) setNoiseSuppression(savedNoise === 'true');
     }, []);
 
     const handleSetMicrophoneThreshold = useCallback((value: number) => {
         setMicrophoneThreshold(value);
         localStorage.setItem('voip_microphone_threshold', value.toString());
+    }, []);
+
+    const handleSetEchoCancellation = useCallback((value: boolean) => {
+        setEchoCancellation(value);
+        localStorage.setItem('voip_echo_cancellation', String(value));
+    }, []);
+
+    const handleSetNoiseSuppression = useCallback((value: boolean) => {
+        setNoiseSuppression(value);
+        localStorage.setItem('voip_noise_suppression', String(value));
     }, []);
 
     const refreshDevices = useCallback(async () => {
@@ -268,7 +296,14 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
     }, []);
 
     const getUserMedia = useCallback(async (deviceId?: string): Promise<MediaStream> => {
-        const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true, video: false };
+        const constraints = {
+            audio: {
+                deviceId: deviceId ? { exact: deviceId } : undefined,
+                echoCancellation: echoCancellation,
+                noiseSuppression: noiseSuppression,
+            },
+            video: false
+        };
         try {
             return await navigator.mediaDevices.getUserMedia(constraints);
         } catch (error: any) {
@@ -276,7 +311,7 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
             toast.error(t('voip.microphoneError') || 'Microphone error');
             throw error;
         }
-    }, [t]);
+    }, [t, echoCancellation, noiseSuppression]);
 
     const createPeerConnection = useCallback((targetUserId: string): RTCPeerConnection => {
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -562,6 +597,48 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
             }
         }
     }, [activeCall, getUserMedia, stopVoiceActivityDetection, startVoiceActivityDetection]);
+
+    // Handle changes to echo/noise settings while active
+    useEffect(() => {
+        if (isFirstMountRef.current) {
+            isFirstMountRef.current = false;
+            return;
+        }
+
+        // Only trigger if we have an active stream and device is selected
+        if (localStreamRef.current && selectedDeviceId) {
+            const updateStream = async () => {
+                console.log('[VOIP] Updating audio constraints...', { echoCancellation, noiseSuppression });
+                try {
+                    const newStream = await getUserMedia(selectedDeviceId);
+
+                    // Replace tracks in all peer connections
+                    const audioTrack = newStream.getAudioTracks()[0];
+                    peerConnectionsRef.current.forEach(({ connection }) => {
+                        const sender = connection.getSenders().find(s => s.track?.kind === 'audio');
+                        if (sender) {
+                            sender.replaceTrack(audioTrack);
+                        }
+                    });
+
+                    // Stop old tracks
+                    if (localStreamRef.current) {
+                        localStreamRef.current.getTracks().forEach(track => track.stop());
+                    }
+
+                    localStreamRef.current = newStream;
+
+                    // Restart VAD with new stream
+                    stopVoiceActivityDetection();
+                    startVoiceActivityDetection(newStream);
+                } catch (error) {
+                    console.error('[VOIP] Failed to update audio constraints:', error);
+                }
+            };
+
+            updateStream();
+        }
+    }, [echoCancellation, noiseSuppression, selectedDeviceId, getUserMedia, startVoiceActivityDetection, stopVoiceActivityDetection]);
 
 
 
@@ -1000,6 +1077,10 @@ export const VoipProvider: React.FC<VoipProviderProps> = ({ children }) => {
         refreshDevices,
         isDocked,
         setIsDocked,
+        echoCancellation,
+        noiseSuppression,
+        setEchoCancellation: handleSetEchoCancellation,
+        setNoiseSuppression: handleSetNoiseSuppression,
     };
 
     return (
