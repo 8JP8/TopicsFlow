@@ -1,108 +1,78 @@
-import base64
-import json
-import os
 import time
+import logging
 from typing import Any, Dict, Optional
+from datetime import datetime
+from flask import current_app
 
-
-def _runtime_dir() -> str:
-    # Prefer explicit env var, otherwise create a runtime folder beside backend/
-    base = os.getenv("RUNTIME_DIR")
-    if base:
-        return base
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "runtime")
-
-
-def _path() -> str:
-    return os.getenv("SESSION_BACKUP_PATH", os.path.join(_runtime_dir(), "session.tmp"))
-
-
-def _enabled() -> bool:
-    return os.getenv("SESSION_FILE_BACKUP", "false").lower() == "true"
-
-
-def _read_all() -> Dict[str, Any]:
-    p = _path()
-    if not os.path.exists(p):
-        return {}
-    try:
-        with open(p, "rb") as f:
-            raw = f.read()
-        if not raw:
-            return {}
-        # Stored as base64(JSON) to avoid plain text; not meant as security.
-        decoded = base64.b64decode(raw)
-        return json.loads(decoded.decode("utf-8"))
-    except Exception:
-        return {}
-
-
-def _write_all(obj: Dict[str, Any]) -> None:
-    p = _path()
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    tmp = p + ".tmp"
-    data = base64.b64encode(json.dumps(obj, separators=(",", ":")).encode("utf-8"))
-    with open(tmp, "wb") as f:
-        f.write(data)
-    # atomic replace on both Windows + Linux
-    os.replace(tmp, p)
-
+logger = logging.getLogger(__name__)
 
 def save_session_backup(session_id: str, data: Dict[str, Any], ttl_seconds: int = 10 * 60) -> None:
     """
-    Best-effort session backup to a local runtime file.
-
-    NOTE: This does NOT replace Redis in Azure multi-instance.
-    It only helps single-instance deployments or local dev.
+    Best-effort session backup to MongoDB/CosmosDB.
+    Persists passkey challenges across deployments by using the database instead of local files.
     """
-    if not _enabled():
-        return
     if not session_id:
         return
-    now = int(time.time())
-    all_data = _read_all()
-    all_data[str(session_id)] = {
-        "ts": now,
-        "ttl": int(ttl_seconds),
-        "data": data,
-    }
-    _write_all(all_data)
+
+    try:
+        # Check if we have a database connection
+        if not current_app or not hasattr(current_app, 'db'):
+            logger.warning("Session backup skipped: No database connection available")
+            return
+
+        now = int(time.time())
+        expires_at = now + ttl_seconds
+
+        # Use DB upsert
+        # We store 'expireAt' as a datetime object for potential future TTL index support
+        # We store 'expires_at' as timestamp for consistent manual checking in load_session_backup
+        current_app.db.session_backups.update_one(
+            {'_id': str(session_id)},
+            {'$set': {
+                'data': data,
+                'updated_at': now,
+                'expires_at': expires_at,
+                'expireAt': datetime.fromtimestamp(expires_at)
+            }},
+            upsert=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to save session backup: {str(e)}")
 
 
 def load_session_backup(session_id: str) -> Optional[Dict[str, Any]]:
     """Load a session backup if present and not expired."""
-    if not _enabled():
-        return None
     if not session_id:
         return None
-    now = int(time.time())
-    all_data = _read_all()
-    rec = all_data.get(str(session_id))
-    if not rec:
+
+    try:
+        if not current_app or not hasattr(current_app, 'db'):
+            return None
+
+        now = int(time.time())
+
+        # Find document and verify it hasn't expired
+        backup = current_app.db.session_backups.find_one({
+            '_id': str(session_id),
+            'expires_at': {'$gt': now}
+        })
+
+        if backup:
+            return backup.get('data')
+
         return None
-    ts = int(rec.get("ts", 0))
-    ttl = int(rec.get("ttl", 0))
-    if ttl > 0 and (now - ts) > ttl:
-        # expired -> delete
-        try:
-            del all_data[str(session_id)]
-            _write_all(all_data)
-        except Exception:
-            pass
+    except Exception as e:
+        logger.error(f"Failed to load session backup: {str(e)}")
         return None
-    return rec.get("data") or None
 
 
 def delete_session_backup(session_id: str) -> None:
-    if not _enabled():
-        return
+    """Delete a session backup."""
     if not session_id:
         return
-    all_data = _read_all()
-    if str(session_id) in all_data:
-        try:
-            del all_data[str(session_id)]
-            _write_all(all_data)
-        except Exception:
-            pass
 
+    try:
+        if current_app and hasattr(current_app, 'db'):
+            current_app.db.session_backups.delete_one({'_id': str(session_id)})
+    except Exception as e:
+        logger.error(f"Failed to delete session backup: {str(e)}")

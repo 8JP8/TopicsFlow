@@ -10,6 +10,10 @@ const VoipAudioSettings: React.FC = () => {
         selectedDeviceId,
         selectMicrophoneDevice,
         refreshDevices,
+        echoCancellation,
+        noiseSuppression,
+        setEchoCancellation,
+        setNoiseSuppression,
     } = useVoip();
     const { t } = useLanguage();
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -316,6 +320,51 @@ const VoipAudioSettings: React.FC = () => {
                             </span>
                         </div>
                     )}
+                </div>
+
+                {/* Advanced Audio Options */}
+                <div className="pt-4 border-t theme-border space-y-4">
+                    <h3 className="text-sm font-medium theme-text-primary">
+                        {t('voip.advancedAudio') || 'Advanced Audio Options'}
+                    </h3>
+
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h4 className="font-medium theme-text-primary text-sm">{t('voip.echoCancellation') || 'Echo Cancellation'}</h4>
+                            <p className="text-xs theme-text-secondary">
+                                {t('voip.echoCancellationDesc') || 'Reduces echo from speakers to prevent feedback loops.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setEchoCancellation(!echoCancellation)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${echoCancellation ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${echoCancellation ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h4 className="font-medium theme-text-primary text-sm">{t('voip.noiseSuppression') || 'Noise Suppression'}</h4>
+                            <p className="text-xs theme-text-secondary">
+                                {t('voip.noiseSuppressionDesc') || 'Filters out background noise like fans or typing.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setNoiseSuppression(!noiseSuppression)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 min-w-[44px] ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${noiseSuppression ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
