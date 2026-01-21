@@ -56,9 +56,12 @@ class User:
         # 3. Generate New Key (First Run)
         from cryptography.fernet import Fernet
         key = Fernet.generate_key()
+        key_str = key.decode()
+
+        # Set system-wide for this process (as requested)
+        os.environ['TOTP_ENCRYPTION_KEY'] = key_str
 
         # Log critical warning for Azure/Production setup
-        key_str = key.decode()
         logger.critical("="*60)
         logger.critical("MISSING ENCRYPTION KEY - GENERATED NEW TEMPORARY KEY")
         logger.critical("To ensure persistence, set this environment variable in Azure:")
