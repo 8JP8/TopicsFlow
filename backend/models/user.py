@@ -25,8 +25,9 @@ class User:
         import logging
         logger = logging.getLogger(__name__)
 
-        # Prioritize environment variable for Azure and production stability
-        env_key = os.environ.get('ENCRYPTION_KEY')
+        # 1. Prioritize Environment Variable (Best Practice)
+        # Check both new standard name and legacy name
+        env_key = os.environ.get('TOTP_ENCRYPTION_KEY') or os.environ.get('ENCRYPTION_KEY')
         if env_key:
             try:
                 # Ensure it's a valid Fernet key
@@ -35,35 +36,44 @@ class User:
                 logger.info("Using encryption key from environment variable")
                 return env_key.encode()
             except Exception as e:
-                logger.error(f"Invalid ENCRYPTION_KEY in environment: {str(e)}")
+                logger.error(f"Invalid encryption key in environment: {str(e)}")
 
-        # Use absolute path to ensure key is found regardless of working directory
-        # Key file should be in the backend root directory (parent of models directory)
+        # 2. Check Local File (Legacy/Local Dev)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         backend_dir = os.path.dirname(current_dir)
         key_file = os.path.join(backend_dir, 'totp_encryption.key')
 
         if os.path.exists(key_file):
             with open(key_file, 'rb') as f:
-                key = f.read()
-                # Validate key to ensure it's not corrupt
+                key = f.read().strip()
                 try:
                     from cryptography.fernet import Fernet
                     Fernet(key)
                     return key
                 except Exception as e:
                     logger.error(f"Invalid encryption key in {key_file}: {e}")
-                    return key
-        else:
-            from cryptography.fernet import Fernet
-            key = Fernet.generate_key()
-            try:
-                with open(key_file, 'wb') as f:
-                    f.write(key)
-                logger.info(f"Generated new encryption key at {key_file}")
-            except Exception as e:
-                logger.error(f"Failed to write encryption key to {key_file}: {e}")
-            return key
+
+        # 3. Generate New Key (First Run)
+        from cryptography.fernet import Fernet
+        key = Fernet.generate_key()
+
+        # Log critical warning for Azure/Production setup
+        key_str = key.decode()
+        logger.critical("="*60)
+        logger.critical("MISSING ENCRYPTION KEY - GENERATED NEW TEMPORARY KEY")
+        logger.critical("To ensure persistence, set this environment variable in Azure:")
+        logger.critical(f"TOTP_ENCRYPTION_KEY={key_str}")
+        logger.critical("="*60)
+
+        # Save to local file for immediate use in this session
+        try:
+            with open(key_file, 'wb') as f:
+                f.write(key)
+            logger.info(f"Saved generated key to {key_file}")
+        except Exception as e:
+            logger.error(f"Failed to write encryption key to {key_file}: {e}")
+
+        return key
 
     def _encrypt_totp_secret(self, secret: str) -> str:
         """Encrypt TOTP secret before storing."""
